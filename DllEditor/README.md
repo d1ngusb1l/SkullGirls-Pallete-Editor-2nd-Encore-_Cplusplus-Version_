@@ -12,7 +12,7 @@ Close the game before replacing the DLL. Place **d3d9.dll**, **groups.json**, an
 - **File → Save Palette** saves colors and applied advanced assignments together. **Save palette and auto-load** also assigns the file to the current slot. **Export legacy colors only** produces an exact legacy file.
 - **Auto-load** supports enabled assignments, a character/palette number, a file picker, and status messages. It loads once per palette, again after a file update, and again in a new match. Later manual edits are retained. Disabling an assignment stops future loading; it does not undo the current palette.
 
-Settings are stored in **PaletteEditorDLLConfig.json** in the game working directory, independently of standalone editor settings. Keep the DLL and standalone editor from editing the same match simultaneously. Advanced assignments are local to this editor; network transfer of the new shader settings has not been implemented or validated.
+Settings are stored in **PaletteEditorDLLConfig.json** in the game working directory, independently of standalone editor settings. Keep the DLL and standalone editor from editing the same match simultaneously. In 1.0.1, online palette sending/receiving and editor Steam lobby/chat tools are excluded from the build, including their callbacks and Steam API linkage. They cannot be re-enabled in the UI. Game networking is unchanged; assignments and auto-load operate locally on matching loaded characters.
 
 ## Build and validation
 

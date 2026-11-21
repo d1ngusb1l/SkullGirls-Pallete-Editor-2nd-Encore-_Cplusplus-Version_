@@ -13,7 +13,9 @@ Apply settings before saving. **Save Palette** saves colors and applied shader a
 
 `PaletteEditorDLLConfig.json` stores DLL settings in the game working directory. This package does not replace personal palettes or include preset assignments. Disabling auto-load stops future loading; it does not undo an already loaded palette. Settings from the standalone editor are separate.
 
-There is one overlay definition, one rainbow timing configuration, and one conditional transformation trigger per palette. Group controls preserve assignments on other groups; use Advanced for shared settings. Display groups that split a native shader band must use Advanced's native groups. New shader assignments are not supported by the existing network color-sharing protocol.
+There is one overlay definition, one rainbow timing configuration, and one conditional transformation trigger per palette. Group controls preserve assignments on other groups; use Advanced for shared settings. Display groups that split a native shader band must use Advanced's native groups.
+
+Online palette sending, receiving, and the editor's Steam lobby/chat tools are disabled at build time in 1.0.1. The DLL does not register those callbacks or link to Steam's API library. There is no setting to turn sharing back on. The game's own online play is unchanged. Palette assignments and auto-load remain local, and the Steam-dependent "only my side" option is unavailable.
 
 Legacy `.pal` files remain supported. Older editors can read the color prefix of V1 files, but re-saving in an older editor removes the new effects block. Use **Export legacy colors only** for stricter legacy tools. See `PAL-FORMAT.md`.
 

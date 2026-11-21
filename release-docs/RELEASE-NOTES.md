@@ -1,4 +1,12 @@
-# Skullgirls Palette Editor V1 — 1.0.0
+# Skullgirls Palette Editor V1 — 1.0.1
+
+## Security update from 1.0.0
+
+Online palette sending and receiving are disabled at build time. The legacy palette networking and Steam lobby/chat logger translation units are excluded from the DLL, their UI controls and call sites are removed, and the DLL no longer links to `steam_api.lib`. This prevents the previously identified network palette parsers and lobby-chat callbacks from being reached through the editor. There is no runtime switch to re-enable them in this build.
+
+The game's own online play is unchanged. Local palette editing, shader settings, saving, and auto-load remain available. Auto-load assignments apply locally to matching loaded characters; the old Steam-dependent "only my side" option is unavailable. The historical networking sources remain in the source archive for future work but are not compiled into the DLL.
+
+Use these 1.0.1 binaries instead of the 1.0.0 DLL. This change disables the vulnerable subsystem; it is not a claim that every other part of the editor has received a complete security audit.
 
 Release files are prepared for review. Final in-game verification of the separate DLL tab, group controls, and packaged binaries is still pending. Keep this release in draft or mark it as a pre-release until the outstanding checks in `docs/DLL-NEXT-STEPS.md` are signed off. No tag or GitHub release is created by the packaging script.
 
@@ -6,9 +14,9 @@ Release files are prepared for review. Final in-game verification of the separat
 
 | File | Purpose |
 | --- | --- |
-| `PaletteEditor-DLL-1.0.0-win32.zip` | In-game DLL plus required JSON files and instructions; recommended for the newer interface |
-| `PaletteEditor-EXE-1.0.0-win32.zip` | Fresh standalone EXE build plus required JSON files and instructions |
-| `PaletteEditor-1.0.0-source.zip` / `.tar.gz` | Complete tracked source at the manifest's commit, including build scripts and vendored dependencies |
+| `PaletteEditor-DLL-1.0.1-win32.zip` | In-game DLL plus required JSON files and instructions; recommended for the newer interface |
+| `PaletteEditor-EXE-1.0.1-win32.zip` | Fresh standalone EXE build plus required JSON files and instructions |
+| `PaletteEditor-1.0.1-source.zip` / `.tar.gz` | Complete tracked source at the manifest's commit, including build scripts and vendored dependencies |
 | `d3d9.dll` | Raw DLL, following the earlier release convention; also download both required JSON files |
 | `SkullGirls.Pallete.Editor.2nd.Encore.exe` | Raw standalone EXE; keep outside the game directory with both required JSON files |
 | `groups.json`, `overlay-textures.json` | Required data files for both variants |
@@ -31,11 +39,12 @@ Use the ZIP packages and read their README. Close the game before replacing a DL
 
 Personal `.pal` files and settings are excluded from every asset. Each variant stores its own settings. Older editors can read V1's legacy color prefix but strip the extended effect block when re-saving. Advanced assignments are editor overrides; arbitrary built-in condition graphs, character animation assets, and native super flash/sparkles are not exported.
 
-V1 supports one overlay definition, shared rainbow timing, and one conditional transformation assignment per palette. Multiple independent textures or triggers and network transfer of shader settings remain future work.
+V1 supports one overlay definition, shared rainbow timing, and one conditional transformation assignment per palette. Multiple independent textures or triggers and a redesigned, validated network palette protocol remain future work. Both ordinary color sharing and shader sharing are disabled in this build.
 
 ## Validation
 
 - Both variants are rebuilt from the exact source commit recorded in the manifest; the source tree must be clean when packaging.
+- The DLL build checks that legacy networking/chat translation units are excluded, the resulting binary has no Steam API imports, and the old palette protocol markers are absent. This verifies build isolation, not a complete security certification.
 - The offline suite contains 28 palette-format, legacy-compatibility, validation and atomic-file checks.
 - Earlier standalone runtime probes passed persistence, overlay, rainbow, appearance, transformation and native-trigger checks and reported restoration. The exact Annie 7 → assigned 8 → 1 sequence and real new-match standalone auto-load were verified.
 - The DLL render-thread probe passed combined effect save/load, legacy compatibility, invalid-file rejection and baseline restoration. Its Advanced controls were observed in-game.

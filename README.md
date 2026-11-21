@@ -1,6 +1,8 @@
 # Skullgirls Palette Editor — V1 release candidate
 
-V1 release assets are prepared with `scripts/prepare-release.ps1` from a clean committed tree. It rebuilds the DLL and standalone EXE, runs offline checks, and creates `dist/v1.0.0/` containing both complete packages, raw assets matching earlier release conventions, source ZIP/tar.gz archives, release notes, and SHA-256 checksums. It does not create a tag or publish a release. See [release notes and validation status](release-docs/RELEASE-NOTES.md) and [DLL installation](release-docs/INSTALL-DLL.md).
+**1.0.1 security update:** online palette sending/receiving and the editor's Steam lobby/chat tools are excluded from the DLL build. There is no UI switch to restore them. Local editing and auto-load remain available; the game's own online play is unchanged. Replace the 1.0.0 DLL with the newly packaged version.
+
+V1 release assets are prepared with `scripts/prepare-release.ps1` from a clean committed tree. It rebuilds the DLL and standalone EXE, runs offline checks, and creates `dist/v1.0.1/` containing both complete packages, raw assets matching earlier release conventions, source ZIP/tar.gz archives, release notes, and SHA-256 checksums. It does not create a tag or publish a release. See [release notes and validation status](release-docs/RELEASE-NOTES.md) and [DLL installation](release-docs/INSTALL-DLL.md).
 
 This fork brings the current advanced palette features into one editor, with compatible `.pal` saving and full-palette auto-loading. The standalone build currently targets Skullgirls game build **26588330**.
 
@@ -28,7 +30,7 @@ Install Visual Studio 2022 with **Desktop development with C++**, the v143 tools
 
 ```powershell
 ./scripts/build.ps1          # Win32 Release build and offline compatibility tests
-./scripts/build.ps1 -Package # Also produce dist/PaletteEditor-1.0.0.zip
+./scripts/build.ps1 -Package # Also produce dist/PaletteEditor-1.0.1.zip
 ./scripts/build-dll.ps1      # Current in-game DLL editor
 ./scripts/prepare-release.ps1 # Complete V1 release assets, from a clean commit
 ```

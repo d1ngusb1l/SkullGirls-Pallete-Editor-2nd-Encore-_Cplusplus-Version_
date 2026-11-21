@@ -1,4 +1,4 @@
-param([switch]$Validation,[switch]$Package,[string]$Version='1.0.0')
+param([switch]$Validation,[switch]$Package,[string]$Version='1.0.1')
 $ErrorActionPreference='Stop'
 $repoRoot=Split-Path -Parent $PSScriptRoot
 $vswhere=Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
@@ -9,6 +9,7 @@ Push-Location $repoRoot
 try {
     & $msbuild 'DllEditor/PalleteEditor/PaletteEditorDLL.vcxproj' /p:Configuration=Release /p:Platform=Win32 "/p:OutDir=$output" "/p:IntDir=$repoRoot/build/dll-obj/" "/p:PaletteValidation=$Validation" /m /v:minimal
     if($LASTEXITCODE -ne 0){throw 'DLL build failed.'}
+    & "$PSScriptRoot/verify-dll-network-disabled.ps1" -DllPath "$output/d3d9.dll"
     Copy-Item -LiteralPath 'PalleteEditor/data01/3.7.14.json' -Destination "$output/groups.json"
     Copy-Item -LiteralPath 'PalleteEditor/data01/overlay-textures.json' -Destination $output
     if($Package){

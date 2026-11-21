@@ -4,7 +4,6 @@
 #include "ProcessManager.h"
 #include "AutoLoadPalette.h"
 #include "Files/Config.h"
-#include "NetworkingPalette.h"
 #include <set>
 #include <map>
 #include <array>
@@ -102,9 +101,6 @@ void Tick() {
             if(!entries.insert({entry.CharName,entry.PalNum}).second){entry.Status="Duplicate assignment";continue;}
             bool found=false;
             for(int slot=0;slot<6;slot++) {
-                auto& network=NetworkingPalette::GetInstance();
-                if(AutoPalette::b_LoadOnlyMySide && network.GetRNG0()!=0 &&
-                   (slot<3)!=network.IsPlayer1())continue;
                 if(!current[1+2*slot])continue;
                 auto c=Model(slot);if(c.Char_Name!=entry.CharName || c.Current_Pallete_Num!=entry.PalNum)continue;
                 found=true;

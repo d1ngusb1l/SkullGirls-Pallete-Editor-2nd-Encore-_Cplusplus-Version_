@@ -13,7 +13,6 @@ struct Auto_Pal
 
 class AutoPalette {
 public:
-	static inline bool b_LoadOnlyMySide = true;
 
 	static void init();
 	static void save();

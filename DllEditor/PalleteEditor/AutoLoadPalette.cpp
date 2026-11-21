@@ -5,7 +5,6 @@
 #include <json.hpp>
 #include "PlayableCharactersManager.h"
 #include "Files/PaletteFiles.h"
-#include "NetworkingPalette.h"
 
 
 using json = nlohmann::json;

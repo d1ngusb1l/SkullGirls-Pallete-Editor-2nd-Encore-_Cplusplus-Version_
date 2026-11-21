@@ -71,7 +71,7 @@
       <ModuleDefinitionFile>$(ProjectDir)DirectXWrapper\d3d9.def</ModuleDefinitionFile>
       <DelayLoadDLLs>
       </DelayLoadDLLs>
-      <AdditionalDependencies>steam_api.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(ProjectDir)lib\steam;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <UACExecutionLevel>HighestAvailable</UACExecutionLevel>
       <UACUIAccess>true</UACUIAccess>
@@ -100,7 +100,7 @@
       <ModuleDefinitionFile>$(ProjectDir)DirectXWrapper\d3d9.def</ModuleDefinitionFile>
       <DelayLoadDLLs>
       </DelayLoadDLLs>
-      <AdditionalDependencies>steam_api.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(ProjectDir)lib\steam;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <UACExecutionLevel>HighestAvailable</UACExecutionLevel>
       <UACUIAccess>true</UACUIAccess>
@@ -217,10 +217,9 @@
     <ClCompile Include="Include\ImGui\imgui_widgets.cpp" />
     <ClCompile Include="Include\xxhash.c" />
     <ClCompile Include="MainThread.cpp" />
-    <ClCompile Include="NetworkingPalette.cpp" />
+    <!-- Legacy networking is excluded: no palette/chat callbacks or Steam sends. -->
     <ClCompile Include="ProcessManager.cpp" />
     <ClCompile Include="PlayableCharactersManager.cpp" />
-    <ClCompile Include="SteamLogger.cpp" />
     <ClCompile Include="UI\ColorWheel.cpp" />
     <ClCompile Include="UI\Drawing.cpp" />
     <ClCompile Include="UI\DreamOrphans.cpp" />

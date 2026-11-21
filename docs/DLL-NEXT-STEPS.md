@@ -24,6 +24,6 @@
 - More complete named movement triggers, including distinctions between jumping and air-dash states, with cross-character visual validation.
 - Multiple overlay textures on different groups of the same palette. V1 currently has one overlay definition and shared texture/lighting settings.
 - Additional native shader presets and palette-specific visuals, including which super flash/sparkle assets can be reused independently of character-authored animations.
-- Deliberate network compatibility for shader assignments. Existing DLL color sharing does not establish support for the new effect block.
+- Redesign and validate network compatibility before restoring any online palette sharing. Version 1.0.1 excludes legacy palette networking and editor Steam lobby/chat code from the build entirely.
 
 Passing the backend probe does not imply the remaining UI and gameplay scenarios have been visually verified.
