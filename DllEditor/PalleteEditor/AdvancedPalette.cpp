@@ -54,6 +54,7 @@ void Sync() {
 }
 #ifdef SGPE_DLL_VALIDATION
 #include "../../tests/DllPaletteSmoke.inl"
+#include "../../tests/DllOverlayProbe.inl"
 #endif
 void ForgetMatch() {
     OverlayEditor::ForgetMatch();identity.clear();attempted.clear();nextCheck=0;
@@ -91,6 +92,7 @@ void Tick() {
         if(selected>=0 && Model(selected).Current_Pallete_Num!=PlayableCharactersManager::GetCurrentCharacter().Current_Palette_Num)Sync();
         auto now=GetTickCount64();if(now<nextCheck)return;nextCheck=now+250;
 #ifdef SGPE_DLL_VALIDATION
+        if(TickOverlayProbe())return;
         if(std::filesystem::exists("dll-smoke.request")) {
             std::filesystem::remove("dll-smoke.request");RunDllSmoke();
         }

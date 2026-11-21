@@ -9,6 +9,7 @@
 - Built the DLL and observed its Advanced controls in the isolated running game.
 - The DLL render-thread probe passed combined effect save/load, legacy compatibility, invalid-file rejection, and baseline restoration on November 21, 2026. All 28 shared offline format checks also passed after the backend refactor.
 - Built and packaged the production DLL with validation probes disabled; checked archive contents and a clean-source manifest. Changes are committed on the feature branch.
+- In the production 1.0.1 runner, verified separate Palette/Advanced tabs retain the selected character and palette, the disabled-sharing message replaces online controls, and the group-row overlay Apply/Remove changes Peacock's hat and restores its original appearance. Copy/Paste and the remaining transition scenarios are still pending.
 
 ## Release gates, in order
 
@@ -23,6 +24,7 @@
 - Multiple independent transformations/triggers per palette, with explicit priority and overlap behavior. V1 currently has one transformation assignment and a shared trigger.
 - More complete named movement triggers, including distinctions between jumping and air-dash states, with cross-character visual validation.
 - Multiple overlay textures on different groups of the same palette. V1 currently has one overlay definition and shared texture/lighting settings.
+  This is the selected next update; the bounded native feasibility probe and plan are described in `MULTIPLE-OVERLAYS.md`.
 - Additional native shader presets and palette-specific visuals, including which super flash/sparkle assets can be reused independently of character-authored animations.
 - Redesign and validate network compatibility before restoring any online palette sharing. Version 1.0.1 excludes legacy palette networking and editor Steam lobby/chat code from the build entirely.
 
