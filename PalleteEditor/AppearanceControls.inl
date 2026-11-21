@@ -116,7 +116,7 @@ inline void AppearanceGroupCombo(const char* label,int& value,const AppearanceCo
     }
 }
 inline void DrawAppearance(Character& c) {
-    if(!ImGui::CollapsingHeader("Appearance presets - Phase 3")) return;
+    if(!ImGui::CollapsingHeader("Opacity and color links")) return;
     try {
         auto data=AppearanceData(c);
         ImGui::TextWrapped("Opacity changes group fill; black ink lines and shadows can remain visible. Color links borrow another group's ramp without changing its RGB colors.");

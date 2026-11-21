@@ -4,7 +4,7 @@
 #include "Auto-Load-Pallete.h"
 #include "OverlayEditor.h"
 
-void PalEdit::DrawOverlay() {
+void PalEdit::DrawAdvanced() {
     int index=FindVectorIndexByID(current_character_idx);
     if(index>=0) OverlayEditor::Draw(s_SG_Process,s_BaseAddress,Character_Vector[index]);
 }

@@ -31,7 +31,7 @@ public:
 	static void Init();
 	static void Read_Character();
 	static void UpdateAllCharacters();
-	static void DrawOverlay();
+	static void DrawAdvanced();
 	static void CloseOverlay();
 	//Funny stuff
 	static void NODisplayChar();

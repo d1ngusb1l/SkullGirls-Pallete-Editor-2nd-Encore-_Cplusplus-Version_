@@ -42,13 +42,13 @@ void Drawing::Draw()
 					}
 					if (PalEdit::bGameOpenned and PalEdit::bMatchStarted and (PalEdit::current_character_idx != -1)) {
 						ImGui::Separator();
-						if (ImGui::MenuItem("Save Pallete"))
+						if (ImGui::MenuItem("Save palette"))
 						{
 							PalleteFile::SaveToFile(
 								PalEdit::Character_Vector[PalEdit::FindVectorIndexByID(PalEdit::current_character_idx)]
 							);
 						}
-						if (ImGui::MenuItem("Load Pallete"))
+						if (ImGui::MenuItem("Load palette"))
 						{
 							if (PalleteFile::LoadFromFile(
 								PalEdit::Character_Vector[PalEdit::FindVectorIndexByID(PalEdit::current_character_idx)]
@@ -78,8 +78,8 @@ void Drawing::Draw()
 				if (bShow_about_window)
 				{
 					ImGui::Begin("About", &bShow_about_window);
-					ImGui::Text("Skullgirls Pallete Editor 2nd Enocore");
-					ImGui::TextDisabled("Version: v0.6");
+					ImGui::Text("Skullgirls Palette Editor");
+					ImGui::TextDisabled("Version: 1.0.0-rc.1");
 					ImGui::Text("Also, check our Discord: ");
 					ImGui::TextLinkOpenURL("Discord", "https://discord.gg/4ufGJQjkpc");
 					ImGui::Separator();
@@ -90,7 +90,7 @@ void Drawing::Draw()
 					ImGui::End();
 				}
 				if (ImGui::BeginTabBar("##TabBar")) {
-				if (ImGui::BeginTabItem("Pallete")) {
+				if (ImGui::BeginTabItem("Palette")) {
 			
 				if (PalEdit::bGameOpenned != true) {
 					ImGui::Text("Open the game to use the editor.");
@@ -137,9 +137,8 @@ void Drawing::Draw()
 						}						
 						if (PalEdit::current_character_idx != -1) {
 							Character& currentChar = PalEdit::Character_Vector[PalEdit::FindVectorIndexByID(PalEdit::current_character_idx)];
-							PalEdit::DrawOverlay();
 							int displayValue = currentChar.Current_Pallete_Num + 1;
-							if (ImGui::SliderInt("PalleteNum##", &displayValue, 1, currentChar.Max_Pallete_Num)) { //Слайдер выбора палетки
+							if (ImGui::SliderInt("Palette number##", &displayValue, 1, currentChar.Max_Pallete_Num)) { //Слайдер выбора палетки
 								{
 
 									currentChar.Current_Pallete_Num = displayValue - 1;
@@ -147,6 +146,12 @@ void Drawing::Draw()
 									PalEdit::Read_Character();
 								};
 							};
+							ImGui::Separator();
+
+							if (ImGui::CollapsingHeader("Advanced")) {
+								ImGui::TextWrapped("Apply effect changes before saving the palette.");
+								PalEdit::DrawAdvanced();
+							}
 							ImGui::Separator();
 
 							// Предварительные вычисления цветов (остаются без изменений)
@@ -369,7 +374,7 @@ void Drawing::Draw()
 			}
 			ImGui::EndTabItem();
 					}
-					if (ImGui::BeginTabItem("Auto Load Pallete")) {
+					if (ImGui::BeginTabItem("Auto-load")) {
 						if (ImGui::Button("Add new Auto Load Pallete")) {
 							AutoPallete::Auto_Pals.push_back(Auto_Pal{ "Filia", 0, "" });
 							AutoPallete::save();
@@ -476,7 +481,7 @@ void Drawing::Draw()
 							if (ImGui::Button("Open", ImVec2(-FLT_MIN, 0))) {
 								const char* filterPatterns[1] = { "*.pal" };
 								const char* filePath = tinyfd_openFileDialog(
-									"Load Pallete",
+									"Load palette",
 									"",
 									1,
 									filterPatterns,

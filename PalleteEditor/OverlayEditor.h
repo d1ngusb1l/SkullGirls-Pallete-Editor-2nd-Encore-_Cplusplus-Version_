@@ -177,7 +177,7 @@ inline void Draw(HANDLE h,DWORD b,Character& c) {
         DrawTransformation(c);
         DrawAppearance(c);
         DrawRainbow(c);
-        if(!ImGui::CollapsingHeader("Overlay textures - Phase 1")) return;
+        if(!ImGui::CollapsingHeader("Overlay textures")) return;
         if(templates.empty()) Catalog();
         if(ImGui::Button("Refresh available textures")) Catalog();
         ImGui::TextWrapped("Bundled textures plus presets loaded in this match. One overlay per palette. Apply replaces its native overlay until Reset or editor exit.");

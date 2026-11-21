@@ -26,7 +26,7 @@ inline void ApplyRainbow(const Character& c) {
     rainbowStatus="Rainbow applied to this palette number.";
 }
 inline void DrawRainbow(const Character& c) {
-    if(!ImGui::CollapsingHeader("Rainbow - Phase 2")) return;
+    if(!ImGui::CollapsingHeader("Rainbow")) return;
     try {
         ImGui::TextWrapped("Animated hue cycling for selected groups. Larger hue steps cycle faster; larger frame intervals cycle slower.");
         ImGui::SliderInt("Hue step",&rainbowSpeed,1,255);

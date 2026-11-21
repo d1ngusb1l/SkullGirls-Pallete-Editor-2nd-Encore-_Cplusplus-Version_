@@ -26,7 +26,7 @@ inline TransformSettings ReadTransformationPreset(const Character& c,const nlohm
     ValidateTransformation(c,AppearanceData(c),settings); return settings;
 }
 inline void DrawTransformation(const Character& c) {
-    if(!ImGui::CollapsingHeader("Conditional transformation - Phase 4")) return;
+    if(!ImGui::CollapsingHeader("Conditional transformation")) return;
     try {
         auto data=AppearanceData(c); auto trigger=TransformTrigger(c);
         ImGui::TextWrapped("Transformed groups borrow alternate color ramps. Existing always-on links form the normal appearance. Apply commits the selected activation/preview mode; it does not change gameplay flags.");
