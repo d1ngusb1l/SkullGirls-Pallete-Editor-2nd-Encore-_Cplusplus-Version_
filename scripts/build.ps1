@@ -1,4 +1,4 @@
-param([switch]$Package)
+param([switch]$Package,[string]$Version='1.0.0')
 $ErrorActionPreference='Stop'
 $repoRoot=Split-Path -Parent $PSScriptRoot
 $vswhere=Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
@@ -19,7 +19,7 @@ try {
         if($LASTEXITCODE -ne 0) { throw 'Palette format tests failed.' }
     } finally { Pop-Location }
     if($Package) {
-        $version='1.0.0-rc.1'
+        if($Version -notmatch '^\d+\.\d+\.\d+(-[A-Za-z0-9.-]+)?$'){throw 'Invalid package version.'}
         $stage=Join-Path $repoRoot "dist/PaletteEditor-$version"
         New-Item -ItemType Directory -Force -Path $stage | Out-Null
         $files=@('PaletteEditor-V1.exe','groups.json','overlay-textures.json')

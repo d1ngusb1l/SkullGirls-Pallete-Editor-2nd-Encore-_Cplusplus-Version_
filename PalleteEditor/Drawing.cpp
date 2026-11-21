@@ -1,4 +1,5 @@
 #include "Drawing.h"
+#include "../ReleaseVersion.h"
 #include "PalleteEditor.h"
 #include "FileLoad.h"
 #include "Auto-Load-Pallete.h"
@@ -79,7 +80,7 @@ void Drawing::Draw()
 				{
 					ImGui::Begin("About", &bShow_about_window);
 					ImGui::Text("Skullgirls Palette Editor");
-					ImGui::TextDisabled("Version: 1.0.0-rc.1");
+						ImGui::TextDisabled("Version: " SGPE_VERSION);
 					ImGui::Text("Also, check our Discord: ");
 					ImGui::TextLinkOpenURL("Discord", "https://discord.gg/4ufGJQjkpc");
 					ImGui::Separator();
