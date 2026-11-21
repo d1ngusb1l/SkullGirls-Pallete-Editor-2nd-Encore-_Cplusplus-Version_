@@ -9,6 +9,7 @@
 #include <stdexcept>
 #include <cstring>
 #include <functional>
+#include "Data/PaletteDocument.h"
 
 // Phase 1 overlay prototype. Native layouts are guarded to the researched build.
 namespace OverlayEditor {
@@ -19,6 +20,7 @@ inline ULONGLONG refreshUntil = 0;
 inline std::string status;
 struct Original { DWORD actor, palette, address; int slot; Bytes header; };
 inline std::map<DWORD, Original> originals;
+inline std::map<DWORD,nlohmann::json> overlayAssignments,rainbowAssignments;
 inline std::map<std::string, Bytes> templates;
 inline std::set<int> selected;
 inline std::string texture;
@@ -68,6 +70,7 @@ inline void Remove(DWORD address) {
     if(i==originals.end()) return;
     if(Valid(i->second)) { PausedWrite(address,i->second.header); Refresh(); }
     originals.erase(i);
+    overlayAssignments.erase(address); rainbowAssignments.erase(address);
 }
 inline void Shutdown() {
     if(!process) return;
@@ -76,9 +79,10 @@ inline void Shutdown() {
         if(!originals.empty()) { Refresh(); Sleep(350); }
         if(refreshUntil) { Branch(0x84); refreshUntil=0; }
     } catch (...) { try { if(refreshUntil) Branch(0x84); } catch (...) {} }
-    ClearColorAssignments(); originals.clear(); templates.clear(); process=nullptr;
+    refreshUntil=0;
+    ClearColorAssignments(); originals.clear(); overlayAssignments.clear(); rainbowAssignments.clear(); templates.clear(); process=nullptr;
 }
-inline void ForgetMatch() { ClearColorAssignments(); originals.clear(); templates.clear(); selectionKey.clear(); }
+inline void ForgetMatch() { ClearColorAssignments(); originals.clear(); overlayAssignments.clear(); rainbowAssignments.clear(); templates.clear(); selectionKey.clear(); }
 inline void PausedWrite(DWORD address, const Bytes& bytes) {
     auto suspend=(LONG (NTAPI*)(HANDLE))GetProcAddress(GetModuleHandleW(L"ntdll.dll"),"NtSuspendProcess");
     auto resume=(LONG (NTAPI*)(HANDLE))GetProcAddress(GetModuleHandleW(L"ntdll.dll"),"NtResumeProcess");
@@ -164,16 +168,27 @@ inline void Apply(const Character& c) {
     if(!suspend || !resume || suspend(process)!=0) throw std::runtime_error("Could not pause game for effect update.");
     try { if(!Valid(original)) throw std::runtime_error("Match changed; retry in the new match."); originals[address]=original; Write(address,header); }
     catch(...) { resume(process); throw; }
-    resume(process); Refresh(); status="Overlay applied. Reset restores the original overlay.";
+    resume(process);
+    overlayAssignments[address]={{"texture",texture},{"bands",selected},{"lighting",lighting},{"tintBand",tint}};
+    Refresh(); status="Overlay applied. Reset restores the original overlay.";
 }
 #include "RainbowControls.inl"
 #include "AppearanceControls.inl"
 #include "TransformationControls.inl"
+#include "PalettePersistence.inl"
 inline void Draw(HANDLE h,DWORD b,Character& c) {
     try {
         Bind(h,b); Tick();
         std::string key=std::to_string(c.ID)+":"+std::to_string(c.Current_Pallete_Num);
-        if(selectionKey!=key) { selected.clear(); rainbowBands.clear(); opacityBands.clear(); colorLinks.clear(); SelectTransformationPalette(c); selectionKey=key; }
+        if(selectionKey!=key) {
+            selected.clear(); rainbowBands.clear(); opacityBands.clear(); colorLinks.clear(); SelectTransformationPalette(c);
+            auto data=AppearanceData(c);
+            auto overlay=overlayAssignments.find(Word(data.palette+0x14)+12*c.Current_Pallete_Num);
+            if(overlay!=overlayAssignments.end()) { selected=overlay->second.at("bands").get<std::set<int>>(); texture=overlay->second.at("texture"); lighting=overlay->second.at("lighting"); tint=overlay->second.at("tintBand"); }
+            auto rainbow=rainbowAssignments.find(RainbowAddress(c));
+            if(rainbow!=rainbowAssignments.end()) { rainbowBands=rainbow->second.at("bands").get<std::set<int>>(); rainbowSpeed=rainbow->second.at("speed"); rainbowInterval=rainbow->second.at("interval"); }
+            selectionKey=key;
+        }
         DrawTransformation(c);
         DrawAppearance(c);
         DrawRainbow(c);

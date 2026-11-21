@@ -16,6 +16,8 @@ inline AppearanceContext AppearanceData(const Character& c) {
     if(!root || Word(root+0x168)!=4 || c.ID<0 || c.ID>=6) throw std::runtime_error("An active match is required.");
     AppearanceContext data{}; data.actor=Word(root+0x5e8+4*c.ID);
     if(!data.actor) throw std::runtime_error("Character is no longer loaded.");
+    auto name=Read(data.actor+0x310,32); auto terminator=std::find(name.begin(),name.end(),0);
+    if(terminator==name.end() || std::string(name.begin(),terminator)!=c.Char_Name) throw std::runtime_error("Character changed; select it again in the current match.");
     data.palette=Word(data.actor+0x328);
     int palettes=(int)Word(data.palette);
     if(c.Current_Pallete_Num<0 || c.Current_Pallete_Num>=palettes || Read(data.actor+0x330,1)[0]!=c.Current_Pallete_Num)

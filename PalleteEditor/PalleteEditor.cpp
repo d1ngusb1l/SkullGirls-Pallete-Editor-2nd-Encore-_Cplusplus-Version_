@@ -39,17 +39,21 @@ void PalEdit::Init() {
     Sleep(10);
     s_ProcessId = Memory::FindProcessId(L"Skullgirls.exe");
     if (s_ProcessId == NULL){
-        bGameOpenned = false;
+        CloseOverlay();
+        if(s_SG_Process) CloseHandle(s_SG_Process);
+        s_SG_Process=nullptr; s_matchIdentity.clear(); Character_Vector.clear(); current_character_idx=-1;
+        AutoPallete::ResetSession(); bMatchStarted=false; bGameOpenned=false;
         return;
     }
     if (s_ProcessId != NULL && (!s_SG_Process || GetProcessId(s_SG_Process)!=s_ProcessId)) {
         CloseOverlay();
         if(s_SG_Process) CloseHandle(s_SG_Process);
+        s_matchIdentity.clear(); Character_Vector.clear(); current_character_idx=-1; AutoPallete::ResetSession();
         s_BaseAddress = Memory::GetModuleBaseAddress(s_ProcessId, L"Skullgirls.exe");
         s_SG_Process = OpenProcess(PROCESS_ALL_ACCESS, TRUE, s_ProcessId);
         if(!s_SG_Process) { bGameOpenned=false; return; }
         try { OverlayEditor::Bind(s_SG_Process,s_BaseAddress); }
-        catch(...) { CloseHandle(s_SG_Process); s_SG_Process=nullptr; bGameOpenned=false; return; }
+        catch(const std::exception& error) { PalleteFile::Status=error.what(); CloseHandle(s_SG_Process); s_SG_Process=nullptr; bGameOpenned=false; return; }
         //Patch game;
         WriteProcessMemory(s_SG_Process, (LPVOID)(s_BaseAddress + 0x338A50), PatchStuff::CodeCave.data(), PatchStuff::CodeCave.size(), nullptr);
         WriteProcessMemory(s_SG_Process, (LPVOID)(s_BaseAddress + 0x191313), PatchStuff::JmpToCodeCave.data(), PatchStuff::JmpToCodeCave.size(), nullptr);
@@ -65,7 +69,7 @@ void PalEdit::Init() {
         &s_GameStatus);
 
     if (s_GameStatus != GAME_STATUS_MATCH_STARTED) {
-        OverlayEditor::ForgetMatch();
+        OverlayEditor::ForgetMatch(); s_matchIdentity.clear(); AutoPallete::ResetSession();
         current_character_idx = -1;
         Character_Vector.clear();
         bMatchStarted = false;
@@ -73,8 +77,30 @@ void PalEdit::Init() {
     }
     bMatchStarted = true;
 
-    if (bGameOpenned and bMatchStarted and Character_Vector.size() != 0) {
-        return;
+    try {
+        DWORD root=OverlayEditor::Word(s_BaseAddress+0x85ea4c);
+        std::vector<DWORD> identity{root};
+        for(int slot=0;slot<6;slot++) {
+            DWORD actor=OverlayEditor::Word(root+0x5e8+4*slot);
+            identity.push_back(actor); identity.push_back(actor?OverlayEditor::Word(actor+0x328):0);
+        }
+        if(identity!=s_matchIdentity) {
+            OverlayEditor::ForgetMatch(); Character_Vector.clear(); current_character_idx=-1;
+            AutoPallete::ResetSession(); s_matchIdentity=identity;
+        }
+        if(!Character_Vector.empty()) {
+            for(auto& character:Character_Vector) {
+                int palette=OverlayEditor::Read(OverlayEditor::Word(root+0x5e8+4*character.ID)+0x330,1)[0];
+                if(palette!=character.Current_Pallete_Num) {
+                    character.Current_Pallete_Num=palette;
+                    if(character.ID==current_character_idx) Read_Character();
+                }
+            }
+            AutoPallete::Tick(); return;
+        }
+    } catch(const std::exception& error) {
+        PalleteFile::Status=error.what(); bMatchStarted=false; Character_Vector.clear(); current_character_idx=-1;
+        AutoPallete::ResetSession(); return;
     }
 
     bNODisplayChar = false;
@@ -170,63 +196,10 @@ void PalEdit::Init() {
 }
 
 void PalEdit::Read_Character() {
-    int VectorID = FindVectorIndexByID(current_character_idx);
-    //LineColor
-    Memory::ReadProcessMemoryWithOffsets(
-        s_SG_Process,
-        s_BaseAddress, {
-        static_cast<uintptr_t>(AddressTable::Base_Adress()),
-        static_cast<uintptr_t>(AddressTable::Offset_Character() + current_character_idx * 4),  // Приведение к нужному типу
-        static_cast<uintptr_t>(AddressTable::Offset_PaletteData()),
-        static_cast<uintptr_t>(AddressTable::NEW_Offset_LineColor()),
-        static_cast<uintptr_t>(4 * Character_Vector[VectorID].Current_Pallete_Num),
-        },
-        &Character_Vector[VectorID].LineColor
-        );
-    //SuperShadows1
-    Memory::ReadProcessMemoryWithOffsets(
-        s_SG_Process,
-        s_BaseAddress, {
-        static_cast<uintptr_t>(AddressTable::Base_Adress()),
-        static_cast<uintptr_t>(AddressTable::Offset_Character() + current_character_idx * 4),  // Приведение к нужному типу
-        static_cast<uintptr_t>(AddressTable::Offset_PaletteData()),
-        static_cast<uintptr_t>(AddressTable::NEW_Offset_SuperShadow()),
-        static_cast<uintptr_t>(4 * Character_Vector[VectorID].Current_Pallete_Num),
-        0
-        },
-        &Character_Vector[VectorID].SuperShadowColor1
-    );
-    Memory::ReadProcessMemoryWithOffsets(
-        s_SG_Process,
-        s_BaseAddress, {
-        static_cast<uintptr_t>(AddressTable::Base_Adress()),
-        static_cast<uintptr_t>(AddressTable::Offset_Character() + current_character_idx * 4),  // Приведение к нужному типу
-        static_cast<uintptr_t>(AddressTable::Offset_PaletteData()),
-        static_cast<uintptr_t>(AddressTable::NEW_Offset_SuperShadow()),
-        static_cast<uintptr_t>(4 * Character_Vector[VectorID].Current_Pallete_Num),
-        4
-        },
-        &Character_Vector[VectorID].SuperShadowColor2
-    );
-    //Colors
-        Character_Vector[VectorID].Character_Colors.clear();
-        for (int bar{ 0 }; bar < Character_Vector[VectorID].Num_Of_Color; bar++) {
-            __int32 color;
-            Memory::ReadProcessMemoryWithOffsets(
-                s_SG_Process,
-                s_BaseAddress, {
-                static_cast<uintptr_t>(AddressTable::Base_Adress()),
-                static_cast<uintptr_t>(AddressTable::Offset_Character() + Character_Vector[VectorID].ID * 4),  // Приведение к нужному типу
-                static_cast<uintptr_t>(AddressTable::Offset_PaletteData()),
-                static_cast<uintptr_t>(AddressTable::Offset_ColorCodeOffset()),
-                static_cast<uintptr_t>(4 * Character_Vector[VectorID].Current_Pallete_Num),
-                static_cast<uintptr_t>(4 * bar),
-                },
-                &color
-                );
-            Character_Vector[VectorID].Character_Colors.push_back(color);
-        }
-
+    int index=FindVectorIndexByID(current_character_idx);
+    if(index<0) return;
+    try { OverlayEditor::SyncPaletteModel(Character_Vector[index]); }
+    catch(const std::exception& error) { PalleteFile::Status=error.what(); }
 }
 
 void PalEdit::ChangePallete() {

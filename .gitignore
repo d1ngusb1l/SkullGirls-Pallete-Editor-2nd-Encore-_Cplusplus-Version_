@@ -367,3 +367,13 @@ FodyWeavers.xsd
 
 # Solution of the dll_version branch; Visual Studio rewrites it after a branch switch
 /PalleteEditor/PaletteEditorDLL.sln
+
+# Local V1 builds, releases, settings and effect-only presets
+/build/
+/dist/
+/PalleteEditor/PaletteEditorConfig.json
+/PalleteEditor/overlay-preset.json
+/PalleteEditor/rainbow-preset.json
+/PalleteEditor/appearance-preset.json
+/PalleteEditor/transformation-preset.json
+/document-test-files/

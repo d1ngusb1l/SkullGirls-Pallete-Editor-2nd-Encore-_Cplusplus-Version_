@@ -3,17 +3,23 @@
 #include "Config.h"
 #include "Memory.h"
 #include "OverlayEditor.h"
+#include "Data/AtomicFile.h"
+#include "Data/PalleteFiles.h"
+#include "PalleteEditor.h"
+#include "Auto-Load-Pallete.h"
 namespace OverlayEditor {
 #include "AppearanceSmoke.inl"
 #include "TransformationSmoke.inl"
 #include "NativeTriggerSmoke.inl"
+#include "../tests/PaletteRuntimeSmoke.inl"
 }
 
 int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nShowCmd)
 {
     wchar_t module[MAX_PATH]{}; GetModuleFileNameW(nullptr,module,MAX_PATH);
     SetCurrentDirectoryW(std::filesystem::path(module).parent_path().c_str());
-    if(wcsstr(lpCmdLine,L"/overlay-smoke") || wcsstr(lpCmdLine,L"/rainbow-smoke") || wcsstr(lpCmdLine,L"/appearance-smoke") || wcsstr(lpCmdLine,L"/transformation-smoke") || wcsstr(lpCmdLine,L"/transformation-live") || wcsstr(lpCmdLine,L"/native-trigger-smoke") || wcsstr(lpCmdLine,L"/tag-live")) {
+    if(wcsstr(lpCmdLine,L"/overlay-smoke") || wcsstr(lpCmdLine,L"/rainbow-smoke") || wcsstr(lpCmdLine,L"/appearance-smoke") || wcsstr(lpCmdLine,L"/transformation-smoke") || wcsstr(lpCmdLine,L"/transformation-live") || wcsstr(lpCmdLine,L"/native-trigger-smoke") || wcsstr(lpCmdLine,L"/tag-live") || wcsstr(lpCmdLine,L"/persistence-smoke")) {
+        bool persistence=wcsstr(lpCmdLine,L"/persistence-smoke")!=nullptr;
         bool nativeTriggers=wcsstr(lpCmdLine,L"/native-trigger-smoke")!=nullptr;
         bool tagLive=wcsstr(lpCmdLine,L"/tag-live")!=nullptr;
         std::string liveTag=wcsstr(lpCmdLine,L"/tag-live-jumping")?"JUMPING":wcsstr(lpCmdLine,L"/tag-live-crouching")?"CROUCHING":"SUPER";
@@ -34,7 +40,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
             }
             if(!found || !OverlayEditor::templates.count("Fire")) throw std::runtime_error("Smoke test needs an active match and the Fire catalog.");
             DWORD actor=OverlayEditor::Word(root+0x5e8+4*c.ID),pal=OverlayEditor::Word(actor+0x328),address=OverlayEditor::Word(pal+0x14)+12*c.Current_Pallete_Num;
-            if(nativeTriggers || tagLive) { result=tagLive?OverlayEditor::RunNativeTagLive(c,liveTag):OverlayEditor::RunNativeTriggerSmoke(c); } else if(transformation || live) { result=live?OverlayEditor::RunTransformationLive(c):OverlayEditor::RunTransformationSmoke(c); } else if(appearance) { result=OverlayEditor::RunAppearanceSmoke(c); } else {
+            if(persistence) { result=OverlayEditor::RunPalettePersistenceSmoke(c); } else if(nativeTriggers || tagLive) { result=tagLive?OverlayEditor::RunNativeTagLive(c,liveTag):OverlayEditor::RunNativeTriggerSmoke(c); } else if(transformation || live) { result=live?OverlayEditor::RunTransformationLive(c):OverlayEditor::RunTransformationSmoke(c); } else if(appearance) { result=OverlayEditor::RunAppearanceSmoke(c); } else {
             if(rainbow) address=OverlayEditor::RainbowAddress(c);
             auto before=OverlayEditor::Read(address,rainbow?16:12);
             if(rainbow) {
@@ -59,7 +65,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
             }
         } catch(const std::exception& e) { result={{"passed",false},{"error",e.what()}}; }
         OverlayEditor::Shutdown(); if(h) CloseHandle(h);
-        std::ofstream(tagLive?("tag-live-"+liveTag+".json"):nativeTriggers?"native-trigger-smoke.json":live?"transformation-live.json":transformation?"transformation-smoke.json":appearance?"appearance-smoke.json":rainbow?"rainbow-smoke.json":"overlay-smoke.json")<<result.dump(2); return result.value("passed",false)?0:1;
+        std::ofstream(persistence?"persistence-smoke.json":tagLive?("tag-live-"+liveTag+".json"):nativeTriggers?"native-trigger-smoke.json":live?"transformation-live.json":transformation?"transformation-smoke.json":appearance?"appearance-smoke.json":rainbow?"rainbow-smoke.json":"overlay-smoke.json")<<result.dump(2); return result.value("passed",false)?0:1;
     }
     config::init();
     if(GroupColorGroup::characterGroups.empty()) {

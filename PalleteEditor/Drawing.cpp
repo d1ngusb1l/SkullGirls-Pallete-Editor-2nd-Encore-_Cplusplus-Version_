@@ -4,6 +4,8 @@
 #include "Auto-Load-Pallete.h"
 #include "tinyfiledialogs.h"
 #include "ColorWheel.h"
+#include "Config.h"
+#include "Data/AtomicFile.h"
 
 void Drawing::Active()
 {
@@ -48,18 +50,16 @@ void Drawing::Draw()
 								PalEdit::Character_Vector[PalEdit::FindVectorIndexByID(PalEdit::current_character_idx)]
 							);
 						}
-						if (ImGui::MenuItem("Load palette"))
-						{
-							if (PalleteFile::LoadFromFile(
-								PalEdit::Character_Vector[PalEdit::FindVectorIndexByID(PalEdit::current_character_idx)]
-							)) {
-								PalEdit::ChangeAllColors();
-								PalEdit::ChangeLineColor();
-								PalEdit::ChangeSuperShadow1();
-								PalEdit::ChangeSuperShadow2();
-								PalEdit::Read_Character();
-							}
-						}
+						if (ImGui::MenuItem("Save palette and auto-load")) {
+                            auto& character=PalEdit::Character_Vector[PalEdit::FindVectorIndexByID(PalEdit::current_character_idx)];
+                            if(PalleteFile::SaveToFile(character)) AutoPallete::Assign(character.Char_Name,character.Current_Pallete_Num,PaletteData::PathText(PalleteFile::LastSavedPath));
+                        }
+                        if (ImGui::MenuItem("Export legacy colors only")) {
+                            PalleteFile::SaveToFile(PalEdit::Character_Vector[PalEdit::FindVectorIndexByID(PalEdit::current_character_idx)],true);
+                        }
+                        if (ImGui::MenuItem("Load palette")) {
+                            PalleteFile::LoadFromFile(PalEdit::Character_Vector[PalEdit::FindVectorIndexByID(PalEdit::current_character_idx)]);
+                        }
 					}
 					ImGui::EndMenu();
 	
@@ -91,6 +91,8 @@ void Drawing::Draw()
 				}
 				if (ImGui::BeginTabBar("##TabBar")) {
 				if (ImGui::BeginTabItem("Palette")) {
+                    if(!PalleteFile::Status.empty()) ImGui::TextWrapped("%s",PalleteFile::Status.c_str());
+                    if(!config::Status.empty()) ImGui::TextWrapped("%s",config::Status.c_str());
 			
 				if (PalEdit::bGameOpenned != true) {
 					ImGui::Text("Open the game to use the editor.");
@@ -375,146 +377,9 @@ void Drawing::Draw()
 			ImGui::EndTabItem();
 					}
 					if (ImGui::BeginTabItem("Auto-load")) {
-						if (ImGui::Button("Add new Auto Load Pallete")) {
-							AutoPallete::Auto_Pals.push_back(Auto_Pal{ "Filia", 0, "" });
-							AutoPallete::save();
-						}
-						if (ImGui::Button("Reset Auto Palettes")) {
-							AutoPallete::init();
-						}
-						ImGui::Separator();
-
-						for (int i = 0; i < AutoPallete::Auto_Pals.size(); i++) {
-							Auto_Pal& pal = AutoPallete::Auto_Pals[i];
-
-							// Используем PushID для создания уникального пространства имен
-							ImGui::PushID(i);
-							ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.3f, 0.3f, 0.6f, 0.9f));
-
-							// Уникальный ID для каждого child
-							std::string childId = "pal_group_" + std::to_string(i);
-							ImGui::BeginChild(childId.c_str(), ImVec2(0, ImGui::GetFrameHeightWithSpacing() * 4), true, ImGuiWindowFlags_NoDecoration);
-
-							// Уникальный ID для каждой таблицы
-							std::string tableId = "ColorSettings_" + std::to_string(i);
-							if (!ImGui::BeginTable(tableId.c_str(), 3, ImGuiTableFlags_SizingFixedFit)) {
-								// Если таблица не создана, пропускаем элемент
-								ImGui::EndChild();
-								ImGui::PopStyleColor();
-								ImGui::PopID();
-								continue;
-							}
-							ImVec2 display_size = ImGui::GetIO().DisplaySize;
-
-							// Проценты от ширины экрана (но с ограничениями)
-							float labels_width = display_size.x * 1.1f;  // 11% от ширины экрана
-							float actions_width = display_size.x * 1.4f; // 14% от ширины экрана
-
-							ImGui::TableSetupColumn("Labels", ImGuiTableColumnFlags_WidthFixed, labels_width);
-							ImGui::TableSetupColumn("Inputs", ImGuiTableColumnFlags_WidthStretch);
-							ImGui::TableSetupColumn("Actions", ImGuiTableColumnFlags_WidthFixed, actions_width);
-
-							// Первая строка: Character Name
-							ImGui::TableNextRow();
-							ImGui::TableSetColumnIndex(0);
-							ImGui::AlignTextToFramePadding();
-							ImGui::Text("Character Name");
-
-							ImGui::TableSetColumnIndex(1);
-							const char* preview_value = pal.CharName.c_str();
-							ImGui::SetNextItemWidth(-FLT_MIN);
-
-							// Уникальный ID для combo
-							std::string comboId = "##CharacterName_" + std::to_string(i);
-							if (ImGui::BeginCombo(comboId.c_str(), preview_value)) {
-								for (int j = 0; j < IM_ARRAYSIZE(characterNames); j++) {
-									bool isSelected = (pal.CharName == characterNames[j]);
-									if (ImGui::Selectable(characterNames[j], isSelected)) {
-										pal.CharName = characterNames[j];
-										AutoPallete::save();
-									}
-									if (isSelected) {
-										ImGui::SetItemDefaultFocus();
-									}
-								}
-								ImGui::EndCombo();
-							}
-
-							ImGui::TableSetColumnIndex(2);
-							ImGui::AlignTextToFramePadding();
-							ImGui::Text("Palette Number");
-							ImGui::SameLine();
-							ImGui::SetNextItemWidth(-FLT_MIN);
-
-							// Уникальный ID для InputInt
-							std::string palNumId = "##PalNum_" + std::to_string(i);
-							int displayValue = pal.PalNum + 1;
-							if (ImGui::InputInt(palNumId.c_str(), &displayValue)) {
-								if (displayValue < 1) displayValue = 1;
-								pal.PalNum = displayValue - 1;
-								AutoPallete::save();
-							}
-
-							// Вторая строка: Path
-							ImGui::TableNextRow();
-							ImGui::TableSetColumnIndex(0);
-							ImGui::AlignTextToFramePadding();
-							ImGui::Text("Path to the Palette");
-
-							ImGui::TableSetColumnIndex(1);
-							// НЕ статический буфер - создаем локальный для каждого элемента
-							char pathBuffer[512];
-							strncpy_s(pathBuffer, pal.PalPath.c_str(), sizeof(pathBuffer));
-							pathBuffer[sizeof(pathBuffer) - 1] = '\0';
-							ImGui::SetNextItemWidth(-FLT_MIN);
-
-							// Уникальный ID для InputText
-							std::string pathId = "##Path_" + std::to_string(i);
-							if (ImGui::InputText(pathId.c_str(), pathBuffer, sizeof(pathBuffer))) {
-								pal.PalPath = pathBuffer;
-								AutoPallete::save();
-							}
-
-							ImGui::TableSetColumnIndex(2);
-							// Уникальный ID для кнопки Open
-
-							if (ImGui::Button("Open", ImVec2(-FLT_MIN, 0))) {
-								const char* filterPatterns[1] = { "*.pal" };
-								const char* filePath = tinyfd_openFileDialog(
-									"Load palette",
-									"",
-									1,
-									filterPatterns,
-									NULL,
-									0
-								);
-								if (filePath != NULL) {
-									pal.PalPath = filePath;
-									AutoPallete::save();
-								}
-							}
-
-							ImGui::EndTable();
-							ImGui::Separator();
-
-							// Уникальный ID для кнопки Delete
-							if (ImGui::Button("Delete")) {
-								AutoPallete::Auto_Pals.erase(AutoPallete::Auto_Pals.begin() + i);
-								AutoPallete::save();
-								// После удаления нужно выйти из цикла
-								ImGui::EndChild();
-								ImGui::PopStyleColor();
-								ImGui::PopID();
-								break;
-							}
-
-							ImGui::EndChild();
-							ImGui::PopStyleColor();
-							ImGui::PopID();
-						}
-
-						ImGui::EndTabItem();
-					}
+                        AutoPallete::Draw();
+                        ImGui::EndTabItem();
+                    }
 				}
 				ImGui::EndTabBar();
 				ImGui::End();

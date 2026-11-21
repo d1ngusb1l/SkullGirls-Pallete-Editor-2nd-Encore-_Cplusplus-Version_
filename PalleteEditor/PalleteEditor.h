@@ -9,6 +9,7 @@ private:
 	inline static DWORD s_BaseAddress;
 	inline static HANDLE s_SG_Process;
 	inline static int s_GameStatus;
+	inline static std::vector<DWORD> s_matchIdentity;
 
 public:
 	static int FindVectorIndexByID(int id);

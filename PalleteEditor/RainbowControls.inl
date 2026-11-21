@@ -23,6 +23,7 @@ inline void ApplyRainbow(const Character& c) {
     Put(record,4,memory); Put(record,8,memory+(DWORD)bands.size()); Put(record,12,memory+(DWORD)bands.size());
     if(!Valid(original)) throw std::runtime_error("Match changed; retry in the new match.");
     originals[address]=original; PausedWrite(address,record); Refresh();
+    rainbowAssignments[address]={{"bands",rainbowBands},{"speed",rainbowSpeed},{"interval",rainbowInterval}};
     rainbowStatus="Rainbow applied to this palette number.";
 }
 inline void DrawRainbow(const Character& c) {
