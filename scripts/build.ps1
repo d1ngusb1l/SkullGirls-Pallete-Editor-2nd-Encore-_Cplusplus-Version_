@@ -1,4 +1,4 @@
-param([switch]$Package,[string]$Version='1.0.0')
+param([switch]$Package,[string]$Version='1.0.1')
 $ErrorActionPreference='Stop'
 $repoRoot=Split-Path -Parent $PSScriptRoot
 $vswhere=Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'

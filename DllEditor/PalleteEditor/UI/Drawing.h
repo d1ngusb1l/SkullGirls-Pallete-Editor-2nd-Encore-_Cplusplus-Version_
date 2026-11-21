@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "pch.h"
 #include "Files/GroupJSONFiles.h"
 #include "UI/LoggerWidget.hpp"
@@ -51,18 +51,14 @@ public:
 
 	class Developer {
 	private:
-		inline static bool ShowSteamInfo = false;
 		inline static bool ShowLogs = false;
 		inline static bool ShowDemoWindow = false;
-		inline static bool ShowTestWindow = false;
 	private:
 
 		static void DrawDevWindow();		
-		static void DrawSteamInfo();
 	public:
 		inline static void DrawDev() {
 			DrawDevWindow();
-			DrawSteamInfo();
 			g_logWidget->draw(&ShowLogs);
 			if (ShowDemoWindow) {
 				ImGui::ShowDemoWindow(&ShowDemoWindow);

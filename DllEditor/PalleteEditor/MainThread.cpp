@@ -8,7 +8,6 @@
 #include "Files/Config.h"
 
 #include "AutoLoadPalette.h"
-#include "NetworkingPalette.h"
 
 #pragma region Global Variable
 
@@ -208,7 +207,6 @@ int MainLoop() {
 
 	}
 	OptionsProcessing();
-	NetworkingPalette::GetInstance().ReadIncomingPackages();
 	Sleep(10);
 	return 0;
 

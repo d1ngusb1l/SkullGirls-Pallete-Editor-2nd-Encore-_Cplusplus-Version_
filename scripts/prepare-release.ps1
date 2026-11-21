@@ -25,6 +25,7 @@ try {
         if($info.ProductVersion -ne $version){throw "Binary product version mismatch: $binary"}
     }
     if([Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($dllPath)).Contains('dll-smoke.request')){throw 'DLL still contains the opt-in validation probe.'}
+    $networkVerification=& "$PSScriptRoot/verify-dll-network-disabled.ps1" -DllPath $dllPath
 
     Copy-Item -LiteralPath $dllPath -Destination "$output/d3d9.dll"
     Copy-Item -LiteralPath $exePath -Destination (Join-Path $output $exeName)
@@ -46,7 +47,7 @@ try {
         Copy-Item -LiteralPath "release-docs/INSTALL-$variant.md" -Destination "$stage/README.md"
         Copy-Item -LiteralPath 'docs/PAL-FORMAT.md' -Destination "$stage/PAL-FORMAT.md"
         Copy-Item -LiteralPath 'docs/UPSTREAM-README.md' -Destination "$stage/UPSTREAM-README.md"
-        $manifest=[ordered]@{version=$version;variant=$variant;architecture='x86';configuration='Release';sourceCommit=$revision;workingTreeDirty=$false;gameBuild=26588330;binary=$binaryName;binarySha256=(Get-FileHash (Join-Path $stage $binaryName)).Hash;validationProbesEnabled=($variant -eq 'EXE');runtimeSignoffComplete=$false}
+        $manifest=[ordered]@{version=$version;variant=$variant;architecture='x86';configuration='Release';sourceCommit=$revision;workingTreeDirty=$false;gameBuild=26588330;binary=$binaryName;binarySha256=(Get-FileHash (Join-Path $stage $binaryName)).Hash;onlinePaletteSharingEnabled=$false;validationProbesEnabled=($variant -eq 'EXE');runtimeSignoffComplete=$false}
         $manifest | ConvertTo-Json | Set-Content -LiteralPath "$stage/build-manifest.json" -Encoding utf8
         $members=@($binaryName,'groups.json','overlay-textures.json','RELEASE-NOTES.md','README.md','PAL-FORMAT.md','UPSTREAM-README.md','build-manifest.json')
         $zipName="PaletteEditor-$variant-$version-win32.zip"
@@ -84,7 +85,7 @@ try {
         }
     }finally{$sourceZip.Dispose()}
 
-    $release=[ordered]@{version=$version;suggestedTag="v$version";sourceCommit=$revision;workingTreeDirty=$false;architecture='x86';configuration='Release';gameBuild=26588330;offlineChecksPassed=28;runtimeSignoffComplete=$false;publicationStatus='Prepared locally; not tagged or published';packages=$packages;assets=$assets}
+    $release=[ordered]@{version=$version;suggestedTag="v$version";sourceCommit=$revision;workingTreeDirty=$false;architecture='x86';configuration='Release';gameBuild=26588330;offlineChecksPassed=28;networkVerification=$networkVerification;runtimeSignoffComplete=$false;publicationStatus='Prepared locally; not tagged or published';packages=$packages;assets=$assets}
     $release|ConvertTo-Json -Depth 8|Set-Content -LiteralPath "$output/release-manifest.json" -Encoding utf8
     $assets+='release-manifest.json'
     $checksums=@($assets|Sort-Object|ForEach-Object {"$((Get-FileHash -LiteralPath (Join-Path $output $_) -Algorithm SHA256).Hash.ToLowerInvariant())  $_"})
