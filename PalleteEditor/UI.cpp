@@ -1,4 +1,5 @@
 #include "UI.h"
+#include "PalleteEditor.h"
 #include "Drawing.h"
 #include "StyleImGui.h"
 
@@ -224,6 +225,7 @@ void UI::Render()
         #endif
     }
 
+    PalEdit::CloseOverlay();
     ImGui_ImplDX11_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();

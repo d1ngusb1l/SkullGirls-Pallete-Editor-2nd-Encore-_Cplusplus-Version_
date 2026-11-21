@@ -130,6 +130,19 @@
     <ClInclude Include="Include\tinyfiledialogs.h" />
     <ClInclude Include="Memory.h" />
     <ClInclude Include="PalleteEditor.h" />
+    <ClInclude Include="OverlayEditor.h" />
+    <ClInclude Include="AppearanceControls.inl" />
+    <ClInclude Include="AppearanceSmoke.inl" />
+    <ClInclude Include="NativeColorLinks.inl" />
+    <ClInclude Include="NativeTriggerSmoke.inl" />
+    <ClInclude Include="NativeTriggers.inl" />
+    <ClInclude Include="RainbowControls.inl" />
+    <ClInclude Include="TransformationControls.inl" />
+    <ClInclude Include="TransformationSmoke.inl" />
+    <ClInclude Include="PalettePersistence.inl" />
+    <ClInclude Include="Data\PaletteDocument.h" />
+    <ClInclude Include="Data\AtomicFile.h" />
+
     <ClInclude Include="pch.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="StyleImGui.h" />
@@ -152,6 +165,10 @@
   <ItemGroup>
     <Image Include="icon.ico" />
   </ItemGroup>
+  <Target Name="CopyPaletteRuntimeAssets" AfterTargets="Build">
+    <Copy SourceFiles="$(ProjectDir)data01\3.7.14.json" DestinationFiles="$(OutDir)groups.json" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(ProjectDir)data01\overlay-textures.json" DestinationFiles="$(OutDir)overlay-textures.json" SkipUnchangedFiles="true" />
+  </Target>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

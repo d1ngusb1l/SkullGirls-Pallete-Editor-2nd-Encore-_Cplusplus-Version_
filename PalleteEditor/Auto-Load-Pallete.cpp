@@ -1,95 +1,103 @@
+#include "pch.h"
 #include "Auto-Load-Pallete.h"
 #include "PalleteEditor.h"
-#include <iostream>
-#include <Character.h>
-#include <json.hpp>
+#include "OverlayEditor.h"
+#include "Data/PalleteFiles.h"
+#include "Data/AtomicFile.h"
 #include "Config.h"
+#include "tinyfiledialogs.h"
 
-using json = nlohmann::json;
-
-void AutoPallete::init() {
-
-	std::cout << "Test";
-	for (auto& Auto_Pal : Auto_Pals) {
-		if (Auto_Pal.PalPath == "") continue;
-		for (auto& current_char : PalEdit::Character_Vector) {
-			if (current_char.Char_Name == Auto_Pal.CharName and current_char.Current_Pallete_Num == Auto_Pal.PalNum) {
-
-                std::ifstream file(Auto_Pal.PalPath, std::ios::binary);
-				if (!file.is_open()) {
-					continue;
-				}
-
-
-                file.seekg(16, std::ios::cur);
-
-
-                uint32_t numOfColors = 0;
-                file.read(reinterpret_cast<char*>(&numOfColors), sizeof(numOfColors));
-
-                uint8_t HueShift_inc = 0;
-                uint8_t HueShift_int = 0;
-                file.read(reinterpret_cast<char*>(&HueShift_inc), 1);
-                file.read(reinterpret_cast<char*>(&HueShift_int), 1);
-                std::vector<__int32>  temp(1);
-                for (int i = 0; i < current_char.Num_Of_Color - 1; i++) {
-                    __int32 color;
-                    file.read(reinterpret_cast<char*>(&color), sizeof(color));
-                    temp.push_back(color);
-                }
-
-                current_char.Character_Colors = std::move(temp);
-                file.read(reinterpret_cast<char*>(&current_char.LineColor), sizeof(current_char.LineColor));
-                file.read(reinterpret_cast<char*>(&current_char.SuperShadowColor1), sizeof(current_char.SuperShadowColor1));
-                file.read(reinterpret_cast<char*>(&current_char.SuperShadowColor2), sizeof(current_char.SuperShadowColor2));
-			}
-		}
-	}
-	PalEdit::UpdateAllCharacters();
+namespace {
+std::map<std::string,std::string> attempted;
+ULONGLONG nextCheck=0;
+bool KnownCharacter(const std::string& name) {
+    for(auto value:characterNames) if(name==value) return true; return false;
 }
-
-void AutoPallete::load() {
-    Auto_Pals.clear();
-
-    // Получаем JSON массив из конфига
-    nlohmann::json autoPalsJson = config::get_json("AutoLoadPals");
-
-    // Проверяем, что это массив
-    if (autoPalsJson.is_array()) {
-        for (const auto& item : autoPalsJson) {
-            Auto_Pal pal;
-
-            // Проверяем наличие полей
-            if (item.contains("CharName") && item["CharName"].is_string()) {
-                pal.CharName = item["CharName"];
-            }
-
-            if (item.contains("PalNumber") && item["PalNumber"].is_number()) {
-                pal.PalNum = item["PalNumber"];
-            }
-
-            if (item.contains("PathToPal") && item["PathToPal"].is_string()) {
-                pal.PalPath = item["PathToPal"];
-            }
-
-            Auto_Pals.push_back(pal);
+}
+void AutoPallete::ResetSession() { attempted.clear(); nextCheck=0; }
+void AutoPallete::init() { ResetSession(); Tick(true); }
+void AutoPallete::Assign(const std::string& character,int palette,const std::string& path) {
+    for(auto& entry:Auto_Pals) if(entry.CharName==character && entry.PalNum==palette) {
+        entry.PalPath=path; entry.Enabled=true; save(); return;
+    }
+    Auto_Pals.push_back({character,palette,path,true,{}}); save();
+}
+void AutoPallete::Tick(bool force) {
+    auto now=GetTickCount64(); if(!force && now<nextCheck) return; nextCheck=now+250;
+    if(!PalEdit::bGameOpenned || !PalEdit::bMatchStarted) return;
+    std::set<std::pair<std::string,int>> entries;
+    for(auto& entry:Auto_Pals) {
+        if(!entry.Enabled) { entry.Status="Disabled"; continue; }
+        if(!entries.insert({entry.CharName,entry.PalNum}).second) { entry.Status="Duplicate assignment; only the first enabled entry is used."; continue; }
+        if(entry.PalPath.empty()) { entry.Status="Choose a .pal file."; continue; }
+        bool found=false;
+        for(auto& character:PalEdit::Character_Vector) {
+            if(character.Char_Name!=entry.CharName || character.Current_Pallete_Num!=entry.PalNum) continue;
+            found=true;
+            try {
+                auto context=OverlayEditor::AppearanceData(character);
+                auto path=std::filesystem::absolute(PaletteData::PathFromText(entry.PalPath));
+                std::error_code error; auto modified=std::filesystem::last_write_time(path,error);
+                std::string fingerprint=PaletteData::PathText(path)+":"+(error?"missing":std::to_string(modified.time_since_epoch().count()));
+                std::string key=std::to_string(context.palette)+":"+std::to_string(entry.PalNum);
+                auto previous=attempted.find(key);
+                if(!force && previous!=attempted.end() && previous->second==fingerprint) continue;
+                attempted[key]=fingerprint;
+                if(PalleteFile::LoadPath(character,path)) entry.Status="Loaded colors and saved effects. Manual edits are retained until the next match, file update, or retry.";
+                else entry.Status=PalleteFile::Status;
+            } catch(const std::exception& error) { entry.Status=std::string("Auto-load failed: ")+error.what(); }
         }
+        if(!found) entry.Status="Waiting for this character and palette number.";
     }
 }
-
-void AutoPallete::save() {
-    nlohmann::json autoPalsJson = nlohmann::json::array();
-
-    // Преобразуем вектор в JSON массив
-    for (const auto& pal : Auto_Pals) {
-        nlohmann::json item;
-        item["CharName"] = pal.CharName;
-        item["PalNumber"] = pal.PalNum;
-        item["PathToPal"] = pal.PalPath;
-
-        autoPalsJson.push_back(item);
+void AutoPallete::load() {
+    Auto_Pals.clear(); ResetSession(); auto list=config::get_json("AutoLoadPals");
+    if(!list.is_array()) return;
+    for(auto& item:list) {
+        if(Auto_Pals.size()>=128) break;
+        try {
+            Auto_Pal entry; entry.CharName=item.at("CharName").get<std::string>(); entry.PalPath=item.at("PathToPal").get<std::string>();
+            entry.PalNum=PaletteData::Integer(item.at("PalNumber"),0,255,"auto-load palette number");
+            entry.Enabled=item.value("Enabled",true);
+            if(!KnownCharacter(entry.CharName) || entry.PalPath.size()>32768) continue;
+            Auto_Pals.push_back(std::move(entry));
+        } catch(...) {}
     }
-
-    // Сохраняем в конфиг
-    config::set_json("AutoLoadPals", autoPalsJson);
+}
+void AutoPallete::save() {
+    nlohmann::json list=nlohmann::json::array();
+    for(auto& entry:Auto_Pals) list.push_back({{"CharName",entry.CharName},{"PalNumber",entry.PalNum},{"PathToPal",entry.PalPath},{"Enabled",entry.Enabled}});
+    config::set_json("AutoLoadPals",list); ResetSession();
+}
+void AutoPallete::Draw() {
+    ImGui::TextWrapped("Assign a .pal file to a character and palette number. Colors and saved advanced settings load once when that palette is available, and again in each new match.");
+    if(ImGui::Button("Add assignment")) { Auto_Pals.push_back({"Filia",0,"",true,{}}); save(); }
+    ImGui::SameLine(); if(ImGui::Button("Retry assigned palettes")) init();
+    if(!config::Status.empty()) ImGui::TextWrapped("%s",config::Status.c_str());
+    int remove=-1;
+    for(int index=0;index<(int)Auto_Pals.size();index++) {
+        auto& entry=Auto_Pals[index]; ImGui::PushID(index); ImGui::Separator();
+        if(ImGui::Checkbox("Enabled",&entry.Enabled)) save();
+        ImGui::SetNextItemWidth(220);
+        if(ImGui::BeginCombo("Character",entry.CharName.c_str())) {
+            for(auto name:characterNames) if(ImGui::Selectable(name,entry.CharName==name)) { entry.CharName=name; save(); }
+            ImGui::EndCombo();
+        }
+        int display=entry.PalNum+1; ImGui::SetNextItemWidth(150);
+        if(ImGui::InputInt("Palette number",&display)) { entry.PalNum=(std::max)(0,(std::min)(255,display-1)); save(); }
+        char path[32769]{}; strncpy_s(path,entry.PalPath.c_str(),_TRUNCATE);
+        ImGui::SetNextItemWidth((std::max)(150.0f,ImGui::GetContentRegionAvail().x-80));
+        if(ImGui::InputText("##path",path,sizeof(path))) entry.PalPath=path;
+        if(ImGui::IsItemDeactivatedAfterEdit()) save();
+        ImGui::SameLine();
+        if(ImGui::Button("Browse")) {
+            tinyfd_winUtf8=1; const char* filters[]={"*.pal"};
+            const char* selected=tinyfd_openFileDialog("Choose auto-load palette",entry.PalPath.c_str(),1,filters,"Palette files (*.pal)",0);
+            if(selected) { entry.PalPath=PaletteData::PathText(std::filesystem::absolute(PaletteData::PathFromText(selected))); save(); }
+        }
+        ImGui::TextWrapped("%s",entry.Status.c_str());
+        if(ImGui::Button("Remove assignment")) remove=index;
+        ImGui::PopID();
+    }
+    if(remove>=0) { Auto_Pals.erase(Auto_Pals.begin()+remove); save(); }
 }
