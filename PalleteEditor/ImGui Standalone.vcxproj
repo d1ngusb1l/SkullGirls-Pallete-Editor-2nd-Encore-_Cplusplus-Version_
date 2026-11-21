@@ -130,6 +130,7 @@
     <ClInclude Include="Include\tinyfiledialogs.h" />
     <ClInclude Include="Memory.h" />
     <ClInclude Include="PalleteEditor.h" />
+    <ClInclude Include="OverlayEditor.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="StyleImGui.h" />

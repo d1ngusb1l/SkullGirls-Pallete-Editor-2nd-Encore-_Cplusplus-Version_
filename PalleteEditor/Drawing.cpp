@@ -137,6 +137,7 @@ void Drawing::Draw()
 						}						
 						if (PalEdit::current_character_idx != -1) {
 							Character& currentChar = PalEdit::Character_Vector[PalEdit::FindVectorIndexByID(PalEdit::current_character_idx)];
+							PalEdit::DrawOverlay();
 							int displayValue = currentChar.Current_Pallete_Num + 1;
 							if (ImGui::SliderInt("PalleteNum##", &displayValue, 1, currentChar.Max_Pallete_Num)) { //Слайдер выбора палетки
 								{

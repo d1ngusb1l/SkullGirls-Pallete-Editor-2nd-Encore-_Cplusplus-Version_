@@ -2,6 +2,13 @@
 #include "Memory.h"
 #include "FileLoad.h"
 #include "Auto-Load-Pallete.h"
+#include "OverlayEditor.h"
+
+void PalEdit::DrawOverlay() {
+    int index=FindVectorIndexByID(current_character_idx);
+    if(index>=0) OverlayEditor::Draw(s_SG_Process,s_BaseAddress,Character_Vector[index]);
+}
+void PalEdit::CloseOverlay() { OverlayEditor::Shutdown(); }
 
 #define GAME_STATUS_MATCH_STARTED 0x4
 
@@ -35,14 +42,20 @@ void PalEdit::Init() {
         bGameOpenned = false;
         return;
     }
-    if (s_ProcessId != NULL) {
+    if (s_ProcessId != NULL && (!s_SG_Process || GetProcessId(s_SG_Process)!=s_ProcessId)) {
+        CloseOverlay();
+        if(s_SG_Process) CloseHandle(s_SG_Process);
         s_BaseAddress = Memory::GetModuleBaseAddress(s_ProcessId, L"Skullgirls.exe");
         s_SG_Process = OpenProcess(PROCESS_ALL_ACCESS, TRUE, s_ProcessId);
+        if(!s_SG_Process) { bGameOpenned=false; return; }
+        try { OverlayEditor::Bind(s_SG_Process,s_BaseAddress); }
+        catch(...) { CloseHandle(s_SG_Process); s_SG_Process=nullptr; bGameOpenned=false; return; }
         //Patch game;
         WriteProcessMemory(s_SG_Process, (LPVOID)(s_BaseAddress + 0x338A50), PatchStuff::CodeCave.data(), PatchStuff::CodeCave.size(), nullptr);
         WriteProcessMemory(s_SG_Process, (LPVOID)(s_BaseAddress + 0x191313), PatchStuff::JmpToCodeCave.data(), PatchStuff::JmpToCodeCave.size(), nullptr);
         bGameOpenned = true;
     }
+    try { OverlayEditor::Tick(); } catch(...) {}
     Memory::ReadProcessMemoryWithOffsets(
         s_SG_Process,
         s_BaseAddress, {
@@ -52,6 +65,7 @@ void PalEdit::Init() {
         &s_GameStatus);
 
     if (s_GameStatus != GAME_STATUS_MATCH_STARTED) {
+        OverlayEditor::ForgetMatch();
         current_character_idx = -1;
         Character_Vector.clear();
         bMatchStarted = false;
@@ -227,6 +241,8 @@ void PalEdit::ChangePallete() {
         },
         New_Pal
         );
+    // Palette colors and shader-feature masks have separate GPU caches.
+    try { OverlayEditor::Refresh(); } catch(...) {}
 }
 
 void PalEdit::ChangeColor(int Color_ID, __int32 colorValue) {
