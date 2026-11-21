@@ -5,6 +5,7 @@
 #include "GroupJSONFiles.h"
 #include "pch.h"
 #include "AutoLoadPalette.h"
+#include "../../../PalleteEditor/Data/AtomicFile.h"
 
 namespace fs = std::filesystem;
 using json = nlohmann::json;
@@ -13,20 +14,10 @@ using ordered_json = nlohmann::ordered_json;
 void config::init() {
     if (loaded) return;
 
-#ifdef _WIN32
-    char* USERPROFILE = NULL;  // Just a single pointer, not an array
-    size_t len;
-    errno_t err = _dupenv_s(&USERPROFILE, &len, "USERPROFILE");
-    //C:\Users\ImpDi\Documents\Skullgirls
-    config_path = fs::path(USERPROFILE) / "Documents" / "Skullgirls" / "PalEditConfig.json";
-#else
-    char* home = std::getenv("HOME");
-    config_path = home ? fs::path(home) / ".config" / "myapp" / "config.json" : "config.json";
-#endif
-
+    config_path=fs::current_path()/"PaletteEditorDLLConfig.json";
     if (fs::exists(config_path)) {
         std::ifstream file(config_path);
-        file >> data;
+        try {file >> data;if(!data.is_object())data=json::object();}catch(...){data=json::object();}
         std::string CharPartPath = get_string("CharPart");
         std::string Table = get_string("Table");
 
@@ -44,6 +35,7 @@ void config::init() {
         };
         save();
     }
+    if(!GroupColorManager::GetInstance().HasData())GroupColorManager::GetInstance().LoadFromFile("groups.json");
     loaded = true;
 }
 
@@ -90,9 +82,6 @@ void config::set_json(const std::string& key, const json& value) {
 }
 
 void config::save() {
-    fs::create_directories(config_path.parent_path());
-    std::ofstream file(config_path);
-    file << data.dump(4);
-    file.close();
-    LOG_DEBUG("Save config");
+    try {PaletteData::AtomicWriteText(config_path,data.dump(2));}
+    catch(const std::exception& e) {LOG_ERROR("Settings save failed: ",e.what());}
 }

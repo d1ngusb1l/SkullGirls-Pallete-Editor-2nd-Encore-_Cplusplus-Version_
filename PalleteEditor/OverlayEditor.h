@@ -1,7 +1,9 @@
 #pragma once
+#ifndef SGPE_DLL_HOST
 #include "pch.h"
 #include "Character.h"
 #include "Data/GroupJSONFiles.h"
+#endif
 #include <array>
 #include <map>
 #include <set>
@@ -13,6 +15,31 @@
 
 // Phase 1 overlay prototype. Native layouts are guarded to the researched build.
 namespace OverlayEditor {
+// DLL callers run at the render boundary on the game's own thread. The
+// external editor must suspend the target; suspending ourselves would deadlock.
+class EffectUpdateGuard {
+#ifndef SGPE_DLL_HOST
+    HANDLE target;
+    LONG (NTAPI* resume)(HANDLE);
+#endif
+public:
+    explicit EffectUpdateGuard(HANDLE process) {
+#ifndef SGPE_DLL_HOST
+        target=process;
+        auto suspend=(LONG (NTAPI*)(HANDLE))GetProcAddress(GetModuleHandleW(L"ntdll.dll"),"NtSuspendProcess");
+        resume=(LONG (NTAPI*)(HANDLE))GetProcAddress(GetModuleHandleW(L"ntdll.dll"),"NtResumeProcess");
+        if(GetProcessId(process)==GetCurrentProcessId() || !suspend || !resume || suspend(process)!=0)
+            throw std::runtime_error("Could not pause game for effect update.");
+#endif
+    }
+    ~EffectUpdateGuard() {
+#ifndef SGPE_DLL_HOST
+        resume(target);
+#endif
+    }
+    EffectUpdateGuard(const EffectUpdateGuard&)=delete;
+    EffectUpdateGuard& operator=(const EffectUpdateGuard&)=delete;
+};
 using Bytes = std::vector<unsigned char>;
 inline HANDLE process = nullptr;
 inline DWORD base = 0;
@@ -84,14 +111,12 @@ inline void Shutdown() {
 }
 inline void ForgetMatch() { ClearColorAssignments(); originals.clear(); overlayAssignments.clear(); rainbowAssignments.clear(); templates.clear(); selectionKey.clear(); }
 inline void PausedWrite(DWORD address, const Bytes& bytes) {
-    auto suspend=(LONG (NTAPI*)(HANDLE))GetProcAddress(GetModuleHandleW(L"ntdll.dll"),"NtSuspendProcess");
-    auto resume=(LONG (NTAPI*)(HANDLE))GetProcAddress(GetModuleHandleW(L"ntdll.dll"),"NtResumeProcess");
-    if(!suspend || !resume || suspend(process)!=0) throw std::runtime_error("Could not pause game for effect update.");
+    EffectUpdateGuard updateGuard(process);
     try {
         Write(address,bytes);
         if(Read(address,bytes.size())!=bytes) throw std::runtime_error("Effect write verification failed.");
-    } catch(...) { resume(process); throw; }
-    resume(process);
+    } catch(...) { throw; }
+
 }
 inline void Bind(HANDLE h, DWORD b) {
     if(process==h && base==b) return;
@@ -103,6 +128,12 @@ inline void Bind(HANDLE h, DWORD b) {
 // Allocate native container data with the game's operator new. Buffers detached
 // on Reset are retained until process exit, avoiding reads after free by drawing.
 inline DWORD Allocate(size_t count) {
+#ifdef SGPE_DLL_HOST
+    auto allocate=(void* (__cdecl*)(size_t))(base+0x2cd15c);
+    auto result=allocate(count);
+    if(!result) throw std::runtime_error("Native allocation failed.");
+    return (DWORD)result;
+#else
     Bytes code{0x68,0,0,0,0,0xb8,0,0,0,0,0xff,0xd0,0x83,0xc4,4,0xc2,4,0};
     Put(code,1,(DWORD)count); Put(code,6,base+0x2cd15c);
     void* remote=VirtualAllocEx(process,nullptr,4096,MEM_COMMIT|MEM_RESERVE,PAGE_EXECUTE_READWRITE);
@@ -116,6 +147,7 @@ inline DWORD Allocate(size_t count) {
     if(wait==WAIT_OBJECT_0) VirtualFreeEx(process,remote,0,MEM_RELEASE);
     if(wait!=WAIT_OBJECT_0 || !result) throw std::runtime_error("Native allocation did not complete.");
     return result;
+#endif
 }
 inline void Catalog() {
     templates.clear(); DWORD root=Word(base+0x85ea4c);
@@ -163,12 +195,10 @@ inline void Apply(const Character& c) {
     Bytes header(12); Put(header,0,memory); Put(header,4,memory+120); Put(header,8,memory+120);
     // One overlay texture per draw: replace this palette's overlay definitions,
     // retaining the original vector for an explicit reset or normal editor exit.
-    auto suspend=(LONG (NTAPI*)(HANDLE))GetProcAddress(GetModuleHandleW(L"ntdll.dll"),"NtSuspendProcess");
-    auto resume=(LONG (NTAPI*)(HANDLE))GetProcAddress(GetModuleHandleW(L"ntdll.dll"),"NtResumeProcess");
-    if(!suspend || !resume || suspend(process)!=0) throw std::runtime_error("Could not pause game for effect update.");
+    EffectUpdateGuard updateGuard(process);
     try { if(!Valid(original)) throw std::runtime_error("Match changed; retry in the new match."); originals[address]=original; Write(address,header); }
-    catch(...) { resume(process); throw; }
-    resume(process);
+    catch(...) { throw; }
+
     overlayAssignments[address]={{"texture",texture},{"bands",selected},{"lighting",lighting},{"tintBand",tint}};
     Refresh(); status="Overlay applied. Reset restores the original overlay.";
 }

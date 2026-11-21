@@ -60,6 +60,7 @@
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeaderOutputFile />
     </ClCompile>
@@ -88,6 +89,7 @@
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeaderOutputFile />
     </ClCompile>
@@ -192,6 +194,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AutoLoadPalette.cpp" />
+    <ClCompile Include="AdvancedPalette.cpp">
+      <PreprocessorDefinitions Condition="'$(PaletteValidation)'=='True'">SGPE_DLL_VALIDATION;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
     <ClCompile Include="DirectXWrapper\DirectXWrapper.cpp" />
     <ClCompile Include="DirectXWrapper\IDirect3D9Proxy.cpp" />
     <ClCompile Include="DirectXWrapper\IDirect3DDevice9Proxy.cpp" />

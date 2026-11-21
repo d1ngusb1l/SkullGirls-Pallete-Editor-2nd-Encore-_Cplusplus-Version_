@@ -44,14 +44,12 @@ inline void CheckAppearanceBand(const AppearanceContext& data,int band) {
         throw std::runtime_error("Select a valid nontransparent group.");
 }
 inline void AppearanceTransaction(const Original& owner,const std::function<void()>& update) {
-    auto suspend=(LONG (NTAPI*)(HANDLE))GetProcAddress(GetModuleHandleW(L"ntdll.dll"),"NtSuspendProcess");
-    auto resume=(LONG (NTAPI*)(HANDLE))GetProcAddress(GetModuleHandleW(L"ntdll.dll"),"NtResumeProcess");
-    if(!suspend || !resume || suspend(process)!=0) throw std::runtime_error("Could not pause game for effect update.");
+    EffectUpdateGuard updateGuard(process);
     try {
         if(!Valid(owner)) throw std::runtime_error("Match changed; retry in the new match.");
         update();
-    } catch(...) { resume(process); throw; }
-    resume(process);
+    } catch(...) { throw; }
+
 }
 inline void ApplyOpacity(const Character& c) {
     auto data=AppearanceData(c);

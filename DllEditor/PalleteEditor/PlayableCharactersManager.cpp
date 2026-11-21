@@ -285,7 +285,7 @@ bool PlayableCharactersManager::ChangePaletteNumber(int newPaletteIndex) {
         static_cast<uintptr_t>(AddressTable::Offset_Character() + currentCharIndex * 4),  // Приведение к нужному типу
         static_cast<uintptr_t>(AddressTable::Offset_CurrentPalette()),
         },
-        newPaletteIndex
+        static_cast<unsigned char>(newPaletteIndex)
         );
 
     if (!writeSuccess) {

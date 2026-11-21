@@ -1,4 +1,5 @@
 #include "AutoLoadPalette.h"
+#include "AdvancedPalette.h"
 #include "pch.h"
 #include "Files/Config.h"
 #include <json.hpp>
@@ -11,70 +12,7 @@ using json = nlohmann::json;
 
 auto AutoLoadLogger = LOGGER::createLocal("Auto Load Palettes", LogLevel::GENERAL_LOG);
 
-void AutoPalette::init() {
-    LOG_LOCAL_INFO(AutoLoadLogger, "Init AutoPalette");
-    // Получаем доступ к именам персонажей через геттер
-    const std::optional<std::string>* characterNames = PlayableCharactersManager::instance().GetCharacterNames();
-
-    // Для каждого слота персонажей
-
-    int slot;
-    int max_slot;
-    if (b_LoadOnlyMySide && (NetworkingPalette::GetInstance().GetRNG0() != 0)) {
-        slot = (NetworkingPalette::GetInstance().IsPlayer1()) ? 0 : 3;
-        max_slot = (NetworkingPalette::GetInstance().IsPlayer1()) ? 3 : 6;
-        LOG_LOCAL_DEBUG(AutoLoadLogger, "Load Auto Load Palette Online");
-    }
-    else {
-        slot = 0;
-        max_slot = 6;
-        LOG_LOCAL_DEBUG(AutoLoadLogger, "Load Auto Load Palette Offline ");
-    }
-    for (; slot < max_slot; ++slot) {
-        try {
-            // Проверяем, есть ли персонаж в этом слоте
-            if (!characterNames[slot].has_value()) {
-                continue; // Слот пуст
-            }
-
-            if (!PlayableCharactersManager::LoadCharacter(slot)) {
-                continue; // Пропускаем слот при ошибке загрузки персонажа
-            }
-
-            auto& currentChar = PlayableCharactersManager::GetCurrentCharacter();
-
-            // Ищем подходящую авто-палитру для этого персонажа
-            for (auto& autoPal : Auto_Pals) {
-                try {
-                    if (autoPal.PalPath.empty()) {
-                        continue;
-                    }
-                    if (autoPal.CharName != currentChar.Char_Name) continue;
-
-                    // Проверяем совпадение номера палитры
-                    if (currentChar.Current_Palette_Num == autoPal.PalNum) {
-                        PalleteFile::LoadFromFile(autoPal.PalPath);
-                        NetworkingPalette::GetInstance().AddNewPaletteToCache(autoPal, slot);
-                        LOG_LOCAL_INFO(AutoLoadLogger, "Load Auto Load Palette for ", currentChar.Char_Name, ": ", autoPal.PalNum);
-                        break; // Прерываем поиск для этого персонажа
-                    }
-                }
-                catch (const std::exception& e) {
-                    // Логируем ошибку загрузки палитры и продолжаем
-                    LOG_LOCAL_ERROR(AutoLoadLogger, "Error loading palette for character ",
-                        currentChar.Char_Name, ": ", e.what());
-                    continue;
-                }
-            }
-        }
-        catch (const std::exception& e) {
-            // Логируем ошибку обработки слота и продолжаем
-            LOG_LOCAL_ERROR(AutoLoadLogger, "Error processing character slot ", slot, ": ", e.what());
-            continue;
-        }
-    }
-    PlayableCharactersManager::instance().SetCurrentCharacterIndex(-1);
-}
+void AutoPalette::init() { AdvancedPalette::ResetAutoLoad(); }
 
 void AutoPalette::load() {
     Auto_Pals.clear();
@@ -98,6 +36,7 @@ void AutoPalette::load() {
                 pal.PalPath = item["PathToPal"];
             }
 
+            pal.Enabled=item.value("Enabled",true);
             Auto_Pals.push_back(pal);
         }
     }
@@ -112,9 +51,11 @@ void AutoPalette::save() {
         item["CharName"] = pal.CharName;
         item["PalNumber"] = pal.PalNum;
         item["PathToPal"] = pal.PalPath;
+        item["Enabled"] = pal.Enabled;
 
         autoPalsJson.push_back(item);
     }
 
     config::set_json("AutoLoadPals", autoPalsJson);
+    AdvancedPalette::ResetAutoLoad();
 }

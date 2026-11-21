@@ -78,9 +78,10 @@ int MainThreadProc(HMODULE hModule) {
 
 	if (!PatchAGame()) return -1;
 
+	MainThread::Ready=true;
 	LOG_LOCAL_DEBUG(MainThreadLogger, "Entering the Main Loop");
 	while (!bMainStopThread) {
-		MainLoop();
+		Sleep(10);
 	}
 	LOG_LOCAL_DEBUG(MainThreadLogger, "Leaving main loop. We are closed?");
 	LOG_LOCAL_FUNCTION_EXIT(MainThreadLogger);

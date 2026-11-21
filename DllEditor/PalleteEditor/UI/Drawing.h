@@ -6,7 +6,7 @@
 class Drawing
 {
 private:
-	inline static LPCSTR lpWindowName = "Skullgirls Pallete Editor 2nd Encore";
+	inline static LPCSTR lpWindowName = "Skullgirls Palette Editor - DLL";
 	inline static ImVec2 vWindowSize = { 512, 512 };
 	inline static ImVec2 vFileDialogSize = { 768, 256 };
 	inline static ImGuiWindowFlags WindowFlags = ImGuiWindowFlags_MenuBar;

@@ -1,5 +1,6 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "Drawing.h"
+#include "AdvancedPalette.h"
 #include "MainThread.h"
 
 #include "PlayableCharactersManager.h"
@@ -23,11 +24,15 @@
 
 auto DrawingLogger = LOGGER::createLocal("Drawing", LogLevel::GENERAL_LOG);
 static std::unordered_map<std::string, bool> wheelOpenMap;
+static bool saveAndAssign=false,saveLegacy=false;
 
 
 
 void Drawing::Draw()
 {
+    if(!MainThread::Ready)return;
+    MainLoop();
+    AdvancedPalette::Tick();
 	if ((GetAsyncKeyState(VK_INSERT) & 1) || (GetAsyncKeyState(VK_F1) & 1)) {
 		bDrawAll = !bDrawAll;
 	}
@@ -54,7 +59,20 @@ void Drawing::Draw()
 					DrawPaletteTabItem();
 					ImGui::EndTabItem();
 				}
-				if (ImGui::BeginTabItem("Auto Load Palette")) {
+                if (ImGui::BeginTabItem("Advanced")) {
+                    if (!MainThread::Match_Readed) {
+                        ImGui::TextUnformatted("Start a match to use advanced settings.");
+                    } else {
+                        DrawPlayableCharactersComboBox();
+                        if (PlayableCharactersManager::GetCurrentCharacterIndex() != -1) {
+                            DrawCharacterPaletteNumSlider();
+                            ImGui::Separator();
+                            AdvancedPalette::Draw();
+                        }
+                    }
+                    ImGui::EndTabItem();
+                }
+				if (ImGui::BeginTabItem("Auto-load")) {
 					DrawAutoLoadPaletteTabItem();				
 					ImGui::EndTabItem();
 				}
@@ -106,12 +124,23 @@ void Drawing::DrawMenuBar() {
 			else {
 				if (ImGui::MenuItem("Save Palette"))
 				{
+                    saveAndAssign=false;saveLegacy=false;
 					IGFD::FileDialogConfig config;
 					config.path = ".";
 					config.flags = ImGuiFileDialogFlags_ConfirmOverwrite;
 					ImGuiFileDialog::Instance()->OpenDialog("SavePaletteFile", "Save Palette File", ".pal", config);
 				}
 
+                if(ImGui::MenuItem("Save palette and auto-load")) {
+                    saveAndAssign=true;saveLegacy=false;
+                    IGFD::FileDialogConfig cfg;cfg.path=".";cfg.flags=ImGuiFileDialogFlags_ConfirmOverwrite;
+                    ImGuiFileDialog::Instance()->OpenDialog("SavePaletteFile","Save palette and auto-load",".pal",cfg);
+                }
+                if(ImGui::MenuItem("Export legacy colors only")) {
+                    saveAndAssign=false;saveLegacy=true;
+                    IGFD::FileDialogConfig cfg;cfg.path=".";cfg.flags=ImGuiFileDialogFlags_ConfirmOverwrite;
+                    ImGuiFileDialog::Instance()->OpenDialog("SavePaletteFile","Export legacy colors only",".pal",cfg);
+                }
 				if (ImGui::MenuItem("Load Palette"))
 				{
 					IGFD::FileDialogConfig config;
@@ -176,6 +205,8 @@ void Drawing::DrawPaletteTabItem() {
 	ImGui::Spacing();
 
 	DrawCharacterPaletteNumSlider();
+    if (!AdvancedPalette::Status.empty())
+        ImGui::TextWrapped("%s", AdvancedPalette::Status.c_str());
 
 	ImGui::Separator();
 
@@ -270,6 +301,7 @@ void Drawing::DrawCharacterPaletteNumSlider() {
 		// Проверяем, действительно ли значение изменилось
 		if (newPaletteIndex != Curent_Char.Current_Palette_Num) {
 			PlayableCharactersManager::ChangePaletteNumber(newPaletteIndex);
+            AdvancedPalette::PaletteChanged();
 		}
 	}
 
@@ -461,6 +493,7 @@ void Drawing::DrawCharacterColors() {
 				if (ImGui::IsItemHovered()) {
 					ImGui::SetTooltip("Paste colors from clipboard to this group");
 				}
+                AdvancedPalette::DrawGroup(group);
 				ImGui::Separator();
 				ImGui::Spacing();
 			}
@@ -578,148 +611,34 @@ void Drawing::ProcessColorChange(int index, const ImVec4& colorVec) {
 }
 
 void Drawing::DrawAutoLoadPaletteTabItem() {
-
-	if (ImGui::Button("Add new Auto Load Pallete")) {
-		AutoPalette::Auto_Pals.push_back(Auto_Pal{ "Filia", 0, "" });
-		AutoPalette::save(); //We save new AutoPal
-	}
-	if (ImGui::Button("Reset Auto Palettes")) {
-		AutoPalette::init();
-	}
-	ImGui::Separator();
-
-	for (int i = 0; i < AutoPalette::Auto_Pals.size(); i++) {
-		Auto_Pal& pal = AutoPalette::Auto_Pals[i];
-
-		ImGui::PushID(i);
-		ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.3f, 0.3f, 0.6f, 0.9f));
-
-		// Группируем каждый элемент в Child с адаптивной высотой
-		std::string childId = "AutoPal_group_" + std::to_string(i);
-
-		// Используем флаг для авто-размера вместо фиксированной высоты
-		ImGui::BeginChild(childId.c_str(), ImVec2(0, 0), ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_AlwaysUseWindowPadding, 0);
-
-		// === Первая строка: Выбор персонажа и номер палитры ===
-		
-		ImGui::BeginGroup();
-		{
-			// Левая часть: Название + Combo
-			ImGui::BeginGroup();
-			ImGui::Text("Character Name");
-			ImGui::SameLine();
-
-			const char* preview_value = pal.CharName.c_str();
-			std::string comboId = "##CharacterName_" + std::to_string(i);
-
-			// Автоматическая ширина для Combo (50% от доступного пространства)
-			float comboWidth = ImGui::GetContentRegionAvail().x * 0.5f - ImGui::GetStyle().ItemSpacing.x * 2;
-			comboWidth = std::max(comboWidth, 100.0f); // Минимальная ширина
-			ImGui::SetNextItemWidth(comboWidth);
-
-			if (ImGui::BeginCombo(comboId.c_str(), preview_value)) {
-				for (int j = 0; j < IM_ARRAYSIZE(PlayableCharacterNames); j++) {
-					bool isSelected = (pal.CharName == PlayableCharacterNames[j]);
-					if (ImGui::Selectable(PlayableCharacterNames[j], isSelected)) {
-						pal.CharName = PlayableCharacterNames[j];
-						AutoPalette::save();
-					}
-					if (isSelected) {
-						ImGui::SetItemDefaultFocus();
-					}
-				}
-				ImGui::EndCombo();
-			}
-			ImGui::EndGroup();
-
-			// Правая часть: Номер палитры
-			ImGui::SameLine(0, ImGui::GetStyle().ItemSpacing.x * 2); // Больший отступ
-
-			ImGui::BeginGroup();
-			ImGui::Text("Palette #");
-			ImGui::SameLine();
-
-			std::string palNumId = "##PalNum_" + std::to_string(i);
-			int displayValue = pal.PalNum + 1;
-
-			// Фиксированная ширина для InputInt (ширина для 3-4 цифр)
-			ImGui::SetNextItemWidth(ImGui::CalcTextSize("00000000").x + ImGui::GetStyle().FramePadding.x * 2);
-			if (ImGui::InputInt(palNumId.c_str(), &displayValue)) {
-				if (displayValue < 1) displayValue = 1;
-				pal.PalNum = displayValue - 1;
-				AutoPalette::save();
-			}
-			ImGui::EndGroup();
-		}
-		ImGui::EndGroup();
-
-		ImGui::Spacing(); // Отступ между строками
-
-		// === Вторая строка: Путь к палитре ===
-		ImGui::BeginGroup();
-		{
-			// Текст слева
-			ImGui::Text("Path to the Palette");
-			ImGui::SameLine();
-
-			// Группа для InputText и кнопки
-			ImGui::BeginGroup();
-			{
-				char pathBuffer[512];
-				strncpy_s(pathBuffer, pal.PalPath.c_str(), sizeof(pathBuffer));
-				pathBuffer[sizeof(pathBuffer) - 1] = '\0';
-				std::string pathId = "##Path_" + std::to_string(i);
-
-				// InputText занимает всё доступное пространство минус кнопка
-				float availableWidth = ImGui::GetContentRegionAvail().x;
-				float buttonWidth = ImGui::CalcTextSize("Open").x + ImGui::GetStyle().FramePadding.x * 2;
-				float inputWidth = availableWidth - buttonWidth - ImGui::GetStyle().ItemSpacing.x;
-
-				ImGui::PushItemWidth(inputWidth);
-				if (ImGui::InputText(pathId.c_str(), pathBuffer, sizeof(pathBuffer), ImGuiInputTextFlags_ElideLeft)) {
-					pal.PalPath = pathBuffer;
-					AutoPalette::save();
-				}
-				ImGui::PopItemWidth();
-
-				// Кнопка "Open" на той же строке
-				ImGui::SameLine();
-				if (ImGui::Button("Open")) {
-					IGFD::FileDialogConfig config;
-					config.path = ".";
-					config.userDatas = reinterpret_cast<void*>(&pal);
-					ImGuiFileDialog::Instance()->OpenDialog("LoadPaletteFile_AutoLoad", "Load Palette File for Auto Loading", ".pal", config);
-				}
-			}
-			ImGui::EndGroup();
-		}
-		ImGui::EndGroup();
-
-		ImGui::Spacing(); // Отступ перед разделителем
-
-		ImGui::Separator();
-
-		ImGui::Spacing(); // Отступ после разделителя
-
-		// === Третья строка: Кнопка Delete ===
-		// Центрируем кнопку Delete
-
-		
-		if (ImGui::Button("Delete")) {
-			AutoPalette::Auto_Pals.erase(AutoPalette::Auto_Pals.begin() + i);
-			AutoPalette::save();
-		}
-
-		ImGui::EndChild();
-		ImGui::PopStyleColor();
-		ImGui::PopID();
-
-		//// Отступ между элементами списка
-		//if (i < AutoPallete::Auto_Pals.size() - 1) {
-		//	ImGui::Dummy(ImVec2(0, ImGui::GetStyle().ItemSpacing.y));
-		//}
-	}
-
+    if(ImGuiFileDialog::Instance()->IsOpened()) {ImGui::TextUnformatted("Finish the file dialog to edit assignments.");return;}
+    ImGui::TextWrapped("Load colors and applied shader settings once per palette, and again in each new match.");
+    if(ImGui::Button("Add assignment")){AutoPalette::Auto_Pals.push_back({"Filia",0,""});AutoPalette::save();}
+    ImGui::SameLine();if(ImGui::Button("Retry assignments"))AutoPalette::init();
+    int remove=-1;
+    for(int i=0;i<(int)AutoPalette::Auto_Pals.size();i++) {
+        auto& pal=AutoPalette::Auto_Pals[i];ImGui::PushID(i);ImGui::Separator();
+        if(ImGui::Checkbox("Enabled",&pal.Enabled))AutoPalette::save();
+        ImGui::SetNextItemWidth(220);
+        if(ImGui::BeginCombo("Character",pal.CharName.c_str())){
+            for(auto name:PlayableCharacterNames)if(ImGui::Selectable(name,pal.CharName==name)){pal.CharName=name;AutoPalette::save();}
+            ImGui::EndCombo();
+        }
+        int number=pal.PalNum+1;ImGui::SetNextItemWidth(180);
+        if(ImGui::InputInt("Palette number",&number)){pal.PalNum=std::clamp(number,1,256)-1;AutoPalette::save();}
+        char path[32769]{};strncpy_s(path,pal.PalPath.c_str(),_TRUNCATE);
+        ImGui::SetNextItemWidth(std::max(150.0f,ImGui::GetContentRegionAvail().x-95));
+        if(ImGui::InputText("##path",path,sizeof(path)))pal.PalPath=path;
+        if(ImGui::IsItemDeactivatedAfterEdit())AutoPalette::save();
+        ImGui::SameLine();if(ImGui::Button("Browse")){
+            IGFD::FileDialogConfig cfg;cfg.path=".";cfg.userDatas=reinterpret_cast<void*>(&pal);
+            ImGuiFileDialog::Instance()->OpenDialog("LoadPaletteFile_AutoLoad","Choose auto-load palette",".pal",cfg);
+        }
+        ImGui::TextWrapped("%s",pal.Status.c_str());
+        if(ImGui::Button("Remove assignment"))remove=i;
+        ImGui::PopID();
+    }
+    if(remove>=0){AutoPalette::Auto_Pals.erase(AutoPalette::Auto_Pals.begin()+remove);AutoPalette::save();}
 }
 
 void Drawing::DrawOptionsTabItem()
@@ -759,7 +678,12 @@ void Drawing::DrawFileDialog() {
 
 			std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
 
-			PalleteFile::SaveToFile(filePathName);
+			if(AdvancedPalette::Save(filePathName,saveLegacy) && saveAndAssign) {
+                auto& c=PlayableCharactersManager::GetCurrentCharacter();bool found=false;
+                for(auto& entry:AutoPalette::Auto_Pals)if(entry.CharName==c.Char_Name && entry.PalNum==c.Current_Palette_Num){entry.PalPath=filePathName;entry.Enabled=true;found=true;break;}
+                if(!found)AutoPalette::Auto_Pals.push_back({c.Char_Name,c.Current_Palette_Num,filePathName});
+                AutoPalette::save();
+            }
 		}
 
 		// close

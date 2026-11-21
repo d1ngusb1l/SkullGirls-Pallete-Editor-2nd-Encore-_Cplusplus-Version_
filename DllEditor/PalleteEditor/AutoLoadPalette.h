@@ -7,6 +7,8 @@ struct Auto_Pal
 	std::string CharName;
 	int PalNum;
 	std::string PalPath;
+    bool Enabled=true;
+    std::string Status;
 };
 
 class AutoPalette {
