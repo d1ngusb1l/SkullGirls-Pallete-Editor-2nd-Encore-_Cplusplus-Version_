@@ -1,20 +1,38 @@
-# Palette Editor for Skullgirls 2nd Encore
+# Skullgirls Palette Editor — V1 release candidate
 
-The palette editor for Skullgirls 2nd Encore is a specialized tool for creating, editing, and automatically uploading custom character color palettes. Change colors instantly, save your palettes, and share them with the community.
+This fork brings the current advanced palette features into one editor, with compatible `.pal` saving and full-palette auto-loading. The standalone build currently targets Skullgirls game build **26588330**.
 
-![Palette Editor](./PalleteEditor/data01/image_palette-editor.jpg)
+## Use
 
-# install .exe version (v0.5)
-- Download the executable file from [GitHub](https://github.com/Skullgirls-Communitys-Cut/SkullGirls-Pallete-Editor-2nd-Encore-_Cplusplus-Version_/releases/tag/v0.5).
-- Launch the game
-- Launch the editor
+Keep `PaletteEditor-V1.exe`, `groups.json`, and `overlay-textures.json` together in a writable folder outside the game directory. Start the game and editor, then open a match.
 
-We recommend placing the executable (EXE) outside the game's folder, as the editor currently conflicts with CoreMessaging.dll ([SkullLoader](https://github.com/Skullgirls-Communitys-Cut/SkullLoader)).
+- **Palette** contains the normal color editor. Its collapsed **Advanced** section contains overlay textures, rainbow, opacity, always-on color links, and conditional transformations. Existing named triggers and manual previews remain available.
+- Apply advanced changes before saving. **File → Save palette** stores live colors, opacity, line/shadow colors, and applied advanced assignments in one `.pal` file. Unapplied controls are not saved.
+- **File → Load palette** accepts both plain legacy `.pal` files and extended V1 files. Invalid or mismatched files are rejected before game data changes.
+- **File → Save palette and auto-load** saves and assigns the file to the selected character/palette number. The **Auto-load** tab also lets you add, browse, enable/disable, and retry assignments.
+- Auto-load waits for the assigned character and palette number, applies once per match/palette, and reapplies after a new match or file update. It does not continuously overwrite subsequent manual edits. Disabling an assignment stops future loads; it does not undo the current palette.
 
-# install the .dll version (v0.6)
-- Download the .dll from [GitHub](https://github.com/Skullgirls-Communitys-Cut/SkullGirls-Pallete-Editor-2nd-Encore-_Cplusplus-Version_/releases/tag/v0.6).
-- Place d3d9.dll in the game folder (so that the d3d9.dll is located next to Skullgirls.exe!)
-- Launch the game
+Keep the editor running for auto-loading. Advanced overrides are restored on normal editor exit; color edits retain the original editor's in-match behavior. Settings live in `PaletteEditorConfig.json` beside the executable. On first use, existing `Documents/Skullgirls/PalEditConfig.json` settings are copied when available; the legacy settings file is left untouched.
 
-To hide or show the editor window, press the `INSERT` key.  
-In this version palettes work **online**.
+## Legacy `.pal` compatibility
+
+A new file extension is **not** required. V1 preserves the original binary color prefix and appends an optional versioned effects block. Older readers can read the colors; they cannot apply the new effect assignments. Saving through an older editor strips that block. **Export legacy colors only** creates an exact legacy-length file for stricter tools.
+
+V1 stores editor-applied overrides. Unmodified built-in palette rules remain native to the destination palette slot; arbitrary native condition graphs and character animation assets are not exported. See [the format specification](docs/PAL-FORMAT.md) for the layout and validation rules.
+
+## Build and test
+
+Install Visual Studio 2022 with **Desktop development with C++**, the v143 toolset, and a Windows SDK. The project vendors its C++ dependencies.
+
+```powershell
+./scripts/build.ps1          # Win32 Release build and offline compatibility tests
+./scripts/build.ps1 -Package # Also produce dist/PaletteEditor-1.0.0-rc.1.zip
+```
+
+The opt-in `/persistence-smoke` executable argument tests real save/load and auto-load against an open isolated Training runner. It temporarily changes a palette and restores it, and writes `persistence-smoke.json` plus local fixtures beside the executable. Do not run it alongside another editor. Other existing opt-in effect probes remain available for regression work.
+
+The normal build requires the Microsoft Visual C++ x86 runtime. Automated tests cover legacy/extended files, packed color preservation, malformed input, Unicode paths, and atomic saves. Runtime validation covers colors plus all current editor effects, auto-load persistence, manual-edit retention, and session reapplication. See [contribution procedures](CONTRIBUTING.md) for the branch/review workflow.
+
+## Project history
+
+Based on [Skullgirls Community's Cut's palette editor](https://github.com/Skullgirls-Communitys-Cut/SkullGirls-Pallete-Editor-2nd-Encore-_Cplusplus-Version_). The [original README](docs/UPSTREAM-README.md) is retained for attribution and historical EXE/DLL instructions; those old releases are separate from this fork's V1 standalone build.
