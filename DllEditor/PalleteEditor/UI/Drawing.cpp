@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "Drawing.h"
+#include "../../../ReleaseVersion.h"
 #include "AdvancedPalette.h"
 #include "MainThread.h"
 
@@ -177,8 +178,8 @@ void Drawing::DrawAboutWindow() {
 	if (!bDrawAboutWindow) return;
 	ImGui::Begin("About", &bDrawAboutWindow);
 	{
-		ImGui::Text("Skullgirls Pallete Editor 2nd Enocore (DLL Version)");
-		ImGui::TextDisabled("Version: v0.7");
+		ImGui::Text("Skullgirls Palette Editor (DLL Version)");
+		ImGui::TextDisabled("Version: " SGPE_VERSION);
 		ImGui::TextDisabled("Author: ImpDi");
 		ImGui::Text("Also, check our Discord: ");
 		ImGui::TextLinkOpenURL("Discord", "https://discord.gg/4ufGJQjkpc");

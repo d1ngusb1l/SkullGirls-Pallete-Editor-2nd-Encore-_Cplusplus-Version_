@@ -1,5 +1,7 @@
 # Skullgirls Palette Editor — V1 release candidate
 
+V1 release assets are prepared with `scripts/prepare-release.ps1` from a clean committed tree. It rebuilds the DLL and standalone EXE, runs offline checks, and creates `dist/v1.0.0/` containing both complete packages, raw assets matching earlier release conventions, source ZIP/tar.gz archives, release notes, and SHA-256 checksums. It does not create a tag or publish a release. See [release notes and validation status](release-docs/RELEASE-NOTES.md) and [DLL installation](release-docs/INSTALL-DLL.md).
+
 This fork brings the current advanced palette features into one editor, with compatible `.pal` saving and full-palette auto-loading. The standalone build currently targets Skullgirls game build **26588330**.
 
 ## Use
@@ -26,7 +28,9 @@ Install Visual Studio 2022 with **Desktop development with C++**, the v143 tools
 
 ```powershell
 ./scripts/build.ps1          # Win32 Release build and offline compatibility tests
-./scripts/build.ps1 -Package # Also produce dist/PaletteEditor-1.0.0-rc.1.zip
+./scripts/build.ps1 -Package # Also produce dist/PaletteEditor-1.0.0.zip
+./scripts/build-dll.ps1      # Current in-game DLL editor
+./scripts/prepare-release.ps1 # Complete V1 release assets, from a clean commit
 ```
 
 The opt-in `/persistence-smoke` executable argument tests real save/load and auto-load against an open isolated Training runner. It temporarily changes a palette and restores it, and writes `persistence-smoke.json` plus local fixtures beside the executable. Do not run it alongside another editor. Other existing opt-in effect probes remain available for regression work.
