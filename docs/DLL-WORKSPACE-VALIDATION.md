@@ -50,8 +50,66 @@ Autoload now watches recent, read-only palette texture snapshots before attachin
 
 The new visibility-history tests cover absent targets, another palette, expiry, return and match clearing. The updated validation DLL builds and passes network exclusion inspection. The user confirmed the initially-benched -> tag-in workflow waits and then loads automatically.
 
+## Authored sprite timeline preview
+
+The preview preparation now reads Cerebella's version-9 FOIT frame table and root
+move table. Each timeline entry retains its authored duration and three stored
+sprite slots. The first slot is the underlying body sprite record shown in the
+inspector; repeated timeline entries remain separate manual frame positions.
+Numeric move IDs are the current stable selector fallback until authored names
+are available reliably from the local table.
+
+The local asset format is `SGPOSE2`. It has explicit limits of 128 MiB,
+4,096 sprite records, 1,000 animations, 65,535 timeline frames per animation,
+2,048 pixels per layer dimension and 16 MiB per layer. It stores variable-dimension
+body-layer 0/1 records from local art banks 4 (art-pt), 5 (main), and 6 (art-pt).
+The fixed sprite 2 record remains a fallback and `SGPOSE1` fixed-pose assets remain
+loadable for compatibility.
+
+Unsupported or malformed timeline frames are not guessed or substituted. The
+preparation JSON reports skipped unsupported animations by stable ID and reason.
+It rejects unsupported art banks, invalid sprite references, zero/invalid durations,
+missing body layers, malformed RLE data, oversized dimensions and unsupported
+FOIT versions. Local layer slots 2-7 are not silently composited in this increment;
+they are listed as unsupported. Alt. normal layers and offsets need field
+comparison before display equivalence is claimed.
+
+The runtime preview maintains separate Original and Edited vectors across frame
+selection and retains highlight/local recoloring. It does not call live fighter
+animation, native actor actions, save APIs or live palette/application functions.
+Variable frames are composited on their own bounded canvas; zoom is not reset by
+frame changes. Unsupported overlays, native lighting, rainbow, redirects,
+transformations and super visuals remain explicitly labelled not previewed.
+
+Prepare only from a local game installation:
+
+`python scripts/prepare-dll-preview.py GAME_DIRECTORY OUTPUT_DIRECTORY`
+
+Put the generated `cerebella-pose.bin` and optional JSON beside the test DLL.
+Do not commit `cerebella-pose.bin`, FOIT, GFS, artwork or DDS data.
+
 ## Build checks
 
 `./scripts/build-dll.ps1 -Validation` builds `build/dll/d3d9.dll`. Networking inspection reports palette networking, lobby tools, Steam imports, and legacy protocol markers all false. `OverlayBindingMatchTests.cpp` covers unrelated startup changes, true shared bindings, missing/inconsistent bindings, gradient interpolation, tolerance, and invalid layouts. `PaletteDocumentTests.exe` passed 32 existing format/legacy/validation/atomic-I/O checks.
 
 The isolated runner contains the test DLL, pose asset and new workspace Autoload fixture. The user's existing Cerebella palette-2 fixture and assignment are retained. This is a validation build, not a packaged release.
+
+## Animation increment evidence
+
+- Unit: `tests/SpriteTimelinePreparationTests.py` passes 5 timeline mapping,
+  repeated-frame, boundary, invalid-reference, invalid-duration and art-bank
+  selection checks.
+- Local preparation: `prepare-dll-preview.py` prepared
+  `build/cerebella-pose.bin` (SGPOSE2) and provenance JSON from the local runtime
+  installation. The output contains 564 numeric fallback move IDs, 3,370 timeline
+  frames and 2 body-layer sprite records in the measured local set.
+- Build: `scripts/build-dll.ps1 -Validation` completed and produced
+  `build/dll/d3d9.dll`; network exclusion verification reported all four markers
+  false. DLL SHA-256:
+  `3C87BBFB37A19B5B76A2F26AB548385E324D9E2E4A111737B6B8CE1088C8789E`.
+- Existing format suite: 32/32 checks passed.
+- In-game work remains for the user: replace and restart only while the runner
+  is stopped, prepare/inspect a group absent from idle, verify frame
+  highlighting/recoloring/Original-Edited, confirm saved/live palette data
+  remains unchanged, compare at least one frame against the local reference,
+  and recheck initially-benched two-overlay Autoload after tag-in.
