@@ -95,3 +95,13 @@ The validation native probe accepts a paletteFile field together with slot and s
 The normal Load and Auto-load entry points still reject two-overlay files before modifying live state. This diagnostic path does not yet replace target draw identification or expose production editing controls.
 
 Live saved-assignment validation on Peacock Color 10 rendered Water on bands 1 and 2, and Ravenous Veins on bands 15 and 21. The user confirmed all four groups. The shader preview recorded 949 substituted draws and the native probe verified restoration.
+
+## Current limit and target identification
+
+The prototype and schema 2 support two simultaneous textures, with multiple groups per texture. This is a limit of the current shader and data model. The native shader has one Chowder sampler. The replacement adds a second sampler and a group lookup. A higher limit would require separate shader and resource-binding validation, including the instruction and sampler budget of each supported variant.
+
+Run scripts/test-overlay-target.ps1 against the isolated runner with the validation DLL and a two-overlay palette. It captures a baseline, temporarily gives the chosen slot a distinctive texture, then selects the single feature texture whose overlay binding changed. Ambiguous captures fail rather than picking a fighter by draw order. The probe restores the previous overlay and the script removes its temporary palette. The optional -Preview switch then uses the original saved assignments for a timed draw test.
+
+An initial tint marker did not change the captured sampler constants; comparing the actual texture binding identified Player 1 successfully. These bindings are valid only in the current process and match. Normal Apply, Load, and Auto-load still need the target-resolution logic moved into the editor with cancellation across palette and match transitions.
+
+The Fire marker identified a unique feature binding and restored successfully. A repeat Fire run found no change because the prior binding remained cached. The script now retries another marker on zero matches and fails on ambiguous matches. A Space-marker run reached the saved palette preview, but the runner exited before reporting the draw result or restoration. The cause of the exit is unverified, so the end-to-end automated preview remains open.
