@@ -8,7 +8,7 @@ Use this package for the external editor. This is a fresh Win32 Release build of
 
 The executable is Windows x86 (32-bit), including on 64-bit Windows, and requires the Microsoft Visual C++ x86 runtime. Advanced effects currently target Skullgirls game build **26588330**. Dependency installers are not bundled.
 
-**Palette** contains colors, color wheels, and a collapsible **Advanced** section. Use **Overlay textures → Add second texture** to configure two assignments. A color group's **Shader settings → Assign overlay** stages its choice for the same panel.
+**Palette** contains colors, color wheels, and a collapsible **Advanced** section. Use **Overlay textures → Add second texture for DLL** to configure two assignments. A color group's **Shader settings → Assign overlay** stages its choice for the same panel.
 
 The EXE runs on its own and previews the primary texture. **Preview primary and keep both** retains the secondary assignment, which standard Save, Load, and Auto-load preserve in the same .pal file. The in-game DLL renders both textures together.
 

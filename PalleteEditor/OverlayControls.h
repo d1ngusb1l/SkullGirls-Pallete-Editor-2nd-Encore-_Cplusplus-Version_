@@ -94,20 +94,20 @@ inline void DrawDraftOverlay(PaletteData::Overlay& assignment,const OverlayEdito
 template<class Apply>
 void Draw(Character& c,std::string& Status,bool busy,bool liveSecond,Apply apply) {
     if(!ImGui::CollapsingHeader("Overlay textures"))return;
+    if(!liveSecond)ImGui::TextWrapped("The standalone EXE can preview only one overlay texture at a time. The second slot is saved in the .pal file for the in-game DLL, which can show both textures together.");
     auto data=OverlayEditor::AppearanceData(c);
     auto& draft=Draft(c);
     if(OverlayEditor::templates.empty())OverlayEditor::Catalog();
     ImGui::Combo("Lighting",&draft.primary.lighting,"Original\0Unlit\0Lit\0");
     DrawDraftOverlay(draft.primary,data,"Primary overlay");
     if(draft.hasSecond) {
-        if(!liveSecond)ImGui::TextWrapped("The EXE previews the primary texture. Both assignments are saved for the DLL.");
         draft.secondary.lighting=draft.primary.lighting;
         DrawDraftOverlay(draft.secondary,data,"Secondary overlay");
         if(ImGui::Button("Remove second texture")) {
             draft.hasSecond=false;
             draft.secondary.bands.clear();
         }
-    } else if(ImGui::Button("Add second texture")) {
+    } else if(ImGui::Button(liveSecond?"Add second texture":"Add second texture for DLL")) {
         draft.hasSecond=true;
     }
     if(ImGui::BeginChild("Draft groups",ImVec2(0,180))) {

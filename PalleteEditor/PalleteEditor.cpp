@@ -13,7 +13,7 @@ void PalEdit::DrawAdvanced() {
     try {
         OverlayControls::Draw(character,OverlayEditor::status,false,false,[&](PaletteData::Document document) {
             OverlayEditor::ApplyPalette(character,document,true);
-            OverlayEditor::status=document.secondOverlay?"Primary preview active. Save Palette keeps both assignments.":"Overlay applied.";
+            OverlayEditor::status=document.secondOverlay?"Previewing the primary texture only. Save Palette keeps both slots for the in-game DLL.":"Overlay applied.";
         });
     }catch(const std::exception& error) {
         ImGui::TextWrapped("%s",error.what());

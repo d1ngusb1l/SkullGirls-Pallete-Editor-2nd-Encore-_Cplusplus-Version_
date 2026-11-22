@@ -10,7 +10,7 @@ bool PalleteFile::LoadPath(Character& character,const std::filesystem::path& pat
         OverlayEditor::ApplyPalette(character,document,true);
         OverlayControls::overlayDrafts.erase(OverlayControls::DraftKey(character));
         Status=document.legacy?"Legacy palette loaded. Existing advanced assignments preserved.":"Palette colors and saved advanced assignments loaded.";
-        if(document.secondOverlay)Status="Palette loaded. The EXE previews the primary texture and keeps both assignments for saving.";
+        if(document.secondOverlay)Status="Palette loaded. The EXE previews only the primary texture. Save Palette keeps both slots for the in-game DLL.";
         return true;
     } catch(const std::exception& error) { Status=std::string("Load failed: ")+error.what(); return false; }
 }
