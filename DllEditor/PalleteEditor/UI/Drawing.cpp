@@ -349,6 +349,9 @@ void Drawing::DrawCharacterPaletteNumSlider() {
     ImGui::SameLine();if(ImGui::Button("Next")){++displayValue;changed=true;}
     if(changed && displayValue>=1 && displayValue<=Curent_Char.Max_Palette_Num && displayValue-1!=Curent_Char.Current_Palette_Num)RequestTarget(-1,displayValue-1);
     ImGui::SameLine();ImGui::Text("of %d",Curent_Char.Max_Palette_Num);
+    int sliderValue=Curent_Char.Current_Palette_Num+1;
+    ImGui::SetNextItemWidth(360);
+    if(ImGui::SliderInt("Palette slider",&sliderValue,1,Curent_Char.Max_Palette_Num) && sliderValue-1!=Curent_Char.Current_Palette_Num)RequestTarget(-1,sliderValue-1);
     ImGui::EndDisabled();
 }
 
