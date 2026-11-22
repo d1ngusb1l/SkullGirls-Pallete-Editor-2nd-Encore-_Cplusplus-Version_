@@ -1,5 +1,6 @@
 #pragma once
 #include <wrl/client.h>
+#include <string_view>
 
 namespace RendererTrace {
 namespace OverlayDrawValidation {
@@ -12,6 +13,12 @@ inline unsigned drawsReplaced=0;
 inline int captureSlot=0;
 inline std::string targetFeature;
 inline unsigned tint[2]{};
+}
+}
+
+#include "OverlayTextureArchive.h"
+
+namespace RendererTrace::OverlayDrawValidation {
 
 inline void Reset() {
     deadline=0;
@@ -39,8 +46,15 @@ inline void Tick(IDirect3DDevice9* device) {
             captureSlot=action=="capture-first"?1:2;
             return;
         }
-        if(action!="preview" || deadline || !first || !second || !feature || first.Get()==second.Get())
-            throw std::runtime_error("Two distinct textures from the same target draw are required.");
+        if(action!="preview" || deadline || !first || !feature)
+            throw std::runtime_error("Capture the target draw before starting the preview.");
+        if(data.contains("secondTexture")) {
+            const int index=data.value("secondTintBand",0);
+            if(index<0 || index>255)throw std::runtime_error("Invalid second overlay tint band.");
+            second=LoadOverlayTexture(device,data.at("secondTexture").get<std::string>());
+            tint[1]=static_cast<unsigned>(index);
+        }
+        if(!second || first.Get()==second.Get())throw std::runtime_error("Two distinct texture resources are required.");
         const int band=data.at("secondBand").get<int>();
         if(band<1 || band>255)throw std::runtime_error("Invalid overlay band.");
         std::ifstream shader("overlay-shader/prototype.bin",std::ios::binary|std::ios::ate);
@@ -113,6 +127,5 @@ HRESULT Run(IDirect3DDevice9* device,Draw draw) {
     state->Apply();
     if(SUCCEEDED(result))++drawsReplaced;
     return result;
-}
 }
 }

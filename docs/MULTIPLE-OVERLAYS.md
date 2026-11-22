@@ -79,3 +79,9 @@ The user also confirmed that neither group turned black under hit lighting durin
 The palette switch test passed on Player 1 Peacock. During the two-texture preview the user switched from Color 10 to Color 1 and saw neither overlay carryover nor black rendering. After returning to Color 10, a read-only snapshot showed zero overlay records.
 
 The experimental palette codec adds schema version 2 only for documents with a second overlay. It keeps the existing binary color prefix and version 1 serialization for ordinary files. Version 2 requires two disjoint band assignments. The current editor rejects live application of version 2 before modifying palette data until the renderer can resolve and bind both resources without the manual probe.
+
+## Direct texture resolution
+
+The validation preview can resolve its second texture from the installed game archive. Add "secondTexture":"umbrella_veins" and "secondTintBand":39 to the preview request after capturing the target Water draw. The loader opens data01/sprites.gfs read-only, locates the requested Chowder DDS, validates its bounds and DXT5 layout, and uploads its compressed rows to a managed Direct3D texture. The preview releases that resource on completion or cancellation. This eliminates the second capture pass and the need to put Umbrella in the match for the secondary resource.
+
+The current probe still captures the first native overlay to identify the target feature texture. Production integration still needs a reliable mapping from character and palette to the draw resource, automatic tint and sampler settings, and the normal Apply and Load entry points.
