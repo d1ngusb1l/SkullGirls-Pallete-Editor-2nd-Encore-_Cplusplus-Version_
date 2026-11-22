@@ -301,6 +301,7 @@ PaletteData::Document PendingDocument() {
     auto c=Current(); auto document=OverlayEditor::CapturePalette(c); auto& draft=Draft(c);
     if(draft.primary.bands.empty())document.overlay.reset(); else document.overlay=draft.primary;
     if(draft.hasSecond && !draft.secondary.bands.empty())document.secondOverlay=draft.secondary; else document.secondOverlay.reset();
+    if(!document.overlay && document.secondOverlay){document.overlay=document.secondOverlay;document.secondOverlay.reset();}
     return document;
 }
 }
@@ -308,7 +309,10 @@ bool HasPending() {
     try {
         auto c=Current();if(!overlayDrafts.count(DraftKey(c)))return false;
         auto live=OverlayEditor::CapturePalette(c);auto staged=PendingDocument();
-        return PaletteData::EncodePal(live)!=PaletteData::EncodePal(staged);
+        auto same=[](const auto& a,const auto& b) {
+            return bool(a)==bool(b) && (!a || (a->texture==b->texture && a->bands==b->bands && a->lighting==b->lighting && a->tintBand==b->tintBand));
+        };
+        return !same(live.overlay,staged.overlay) || !same(live.secondOverlay,staged.secondOverlay);
     }catch(...) { return false; }
 }
 void DiscardPending() { try {overlayDrafts.erase(DraftKey(Current()));Status="Pending assignments discarded.";}catch(const std::exception& e){Status=e.what();} }
@@ -347,6 +351,7 @@ void Draw() {
     if(!Status.empty())ImGui::TextWrapped("%s",Status.c_str());
     try {
         auto c=Current();OverlayEditor::Draw(OverlayEditor::process,OverlayEditor::base,c);
+        if(RevealNativeBands){ImGui::SetNextItemOpen(true);ImGui::SetScrollHereY(0.0f);RevealNativeBands=false;}
         OverlayControls::Draw(c,Status,LiveOverlays::Busy(),true,[&](PaletteData::Document document) {
             if(document.secondOverlay) {
                 ApplyDualOverlay(c,std::move(document),[](const std::string& error) {

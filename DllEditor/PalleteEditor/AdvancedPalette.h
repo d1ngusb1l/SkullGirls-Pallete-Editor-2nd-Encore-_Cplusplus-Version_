@@ -6,6 +6,7 @@
 namespace AdvancedPalette {
     extern std::string Status;
     inline bool OpenAdvanced=false;
+    inline bool RevealNativeBands=false;
     std::vector<int> PreviewLayout();
     std::set<int> PreviewBands(const ColorGroup& group);
     bool Busy();

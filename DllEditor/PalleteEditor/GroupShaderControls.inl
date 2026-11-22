@@ -102,21 +102,21 @@ void DrawGroup(const ColorGroup& group) {
             }
             if(ImGui::Button("Remove shader assignments from this group")) {
                 for(int b:bands) {
-                    if(d.overlay)d.overlay->bands.erase(b);
                     if(d.rainbow)d.rainbow->bands.erase(b);
                     if(d.colorLinks)d.colorLinks->links.erase(b);
                     if(d.transformation)d.transformation->links.erase(b);
                 }
-                if(d.overlay && d.overlay->bands.empty())d.overlay.reset();
                 if(d.rainbow && d.rainbow->bands.empty())d.rainbow.reset();
                 if(d.colorLinks && d.colorLinks->links.empty())d.colorLinks.reset();
                 if(d.transformation && d.transformation->links.empty())d.transformation.reset();
                 apply();
+                for(int b:bands)AssignDraftBand(Draft(c),b,0);
+                if(HasPending())Status="Other assignments removed. Overlay removal Pending; use Apply overlays.";
             }
             if(!Status.empty())ImGui::TextWrapped("%s",Status.c_str());
         }catch(const std::exception& e){
             ImGui::TextWrapped("%s",e.what());
-            if(ImGui::Button("Open Advanced native band controls"))OpenAdvanced=true;
+            if(ImGui::Button("Open Advanced native band controls")){OpenAdvanced=true;RevealNativeBands=true;}
         }
     }
     ImGui::PopID();ImGui::PopID();ImGui::PopID();
