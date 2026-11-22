@@ -59,10 +59,15 @@ void Sync() {
 #ifdef SGPE_DLL_VALIDATION
 #include "../../tests/DllPaletteSmoke.inl"
 #include "../../tests/DllOverlayProbe.inl"
+#include "DualOverlayControls.inl"
+#else
+void DrawDualOverlayDialogs() {}
 #endif
 void ForgetMatch() {
 #ifdef SGPE_DLL_VALIDATION
     CancelOverlayDrawPreview();
+    overlayDrafts.clear();
+    pendingDraftFile.reset();
 #endif
     OverlayEditor::ForgetMatch();identity.clear();attempted.clear();nextCheck=0;
 }
@@ -139,6 +144,9 @@ void Draw() {
     if(!Status.empty())ImGui::TextWrapped("%s",Status.c_str());
     try {
         auto c=Current();OverlayEditor::Draw(OverlayEditor::process,OverlayEditor::base,c);
+#ifdef SGPE_DLL_VALIDATION
+        DrawDualOverlayControls(c);
+#endif
         // The shared controls may change alpha; keep the DLL color editor in sync.
         auto& dst=PlayableCharactersManager::GetCurrentCharacter();
         if(!c.Character_Colors.empty())dst.Character_Colors.assign(c.Character_Colors.begin(),c.Character_Colors.end());

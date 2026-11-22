@@ -27,6 +27,9 @@ void DrawGroup(const ColorGroup& group) {
             auto includes=[&](const std::set<int>& selected){return std::all_of(bands.begin(),bands.end(),[&](int b){return selected.count(b)!=0;});};
             auto outside=[&](const std::set<int>& selected){return std::any_of(selected.begin(),selected.end(),[&](int b){return !bands.count(b);});};
             ImGui::TextUnformatted(group.groupName.c_str());
+#ifdef SGPE_DLL_VALIDATION
+            DrawDraftGroup(c,bands);
+#endif
             ImGui::TextDisabled("Changes apply immediately to this palette number.");
             bool overlay=d.overlay && includes(d.overlay->bands);
             if(ImGui::Checkbox("Overlay texture",&overlay)) {

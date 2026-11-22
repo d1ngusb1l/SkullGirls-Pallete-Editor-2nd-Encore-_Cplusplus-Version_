@@ -5,6 +5,7 @@ namespace AdvancedPalette {
     extern std::string Status;
     void Tick();
     void Draw();
+    void DrawDualOverlayDialogs();
     void DrawGroup(const ColorGroup& group);
     void PaletteChanged();
     void ForgetMatch();

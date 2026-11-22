@@ -104,4 +104,10 @@ Run scripts/test-overlay-target.ps1 against the isolated runner with the validat
 
 An initial tint marker did not change the captured sampler constants; comparing the actual texture binding identified Player 1 successfully. These bindings are valid only in the current process and match. Normal Apply, Load, and Auto-load still need the target-resolution logic moved into the editor with cancellation across palette and match transitions.
 
-The Fire marker identified a unique feature binding and restored successfully. A repeat Fire run found no change because the prior binding remained cached. The script now retries another marker on zero matches and fails on ambiguous matches. A Space-marker run reached the saved palette preview, but the runner exited before reporting the draw result or restoration. The cause of the exit is unverified, so the end-to-end automated preview remains open.
+The Fire marker identified a unique feature binding and restored successfully. A repeat Fire run found no change because the prior binding remained cached. The script now retries another marker on zero matches and fails on ambiguous matches. A Space-marker run reached the saved palette preview, but the draw result timed out without verified restoration. The same runner PID was later observed, so this did not establish a crash.
+
+## Validation editor wiring
+
+The automated Fire-marker run subsequently identified Peacock's draw, substituted 802 draws from the saved palette, and verified native restoration. This is a draw-count and cleanup check. The prior manual saved-palette preview supplied visual confirmation of the two patterns.
+
+The validation DLL has a Two-texture draft panel in Advanced and a draft assignment menu in each compatible group row. Assigning a group moves its bands from the other slot. Drafts are scoped to the match, actor slot, and palette number. Load draft imports the two overlay assignments for the current character and band layout. Save draft captures current live colors and other effects together with the draft assignments. These controls prepare files for the existing timed preview. Normal file loading and auto-load still reject two-texture live application before writing any palette data.
