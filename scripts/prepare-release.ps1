@@ -9,7 +9,7 @@ try {
     if($versionHeader -notmatch '#define SGPE_VERSION "(\d+\.\d+\.\d+)"'){throw 'ReleaseVersion.h must contain a numeric release version.'}
     $version=$Matches[1]
     & "$PSScriptRoot/build.ps1" -Version $version
-    & "$PSScriptRoot/build-dll.ps1" -Version $version
+    & "$PSScriptRoot/build-dll.ps1" -Version $version -RequireOverlayShader
     if(@(& git status --porcelain).Count -or (& git rev-parse HEAD).Trim() -ne $revision){throw 'Source changed during the build.'}
 
     $output=Join-Path $repoRoot "dist/v$version"
@@ -48,10 +48,18 @@ try {
         Copy-Item -LiteralPath 'docs/PAL-FORMAT.md' -Destination "$stage/PAL-FORMAT.md"
         Copy-Item -LiteralPath 'docs/UPSTREAM-README.md' -Destination "$stage/UPSTREAM-README.md"
         $manifest=[ordered]@{version=$version;variant=$variant;architecture='x86';configuration='Release';sourceCommit=$revision;workingTreeDirty=$false;gameBuild=26588330;binary=$binaryName;binarySha256=(Get-FileHash (Join-Path $stage $binaryName)).Hash;onlinePaletteSharingEnabled=$false;validationProbesEnabled=($variant -eq 'EXE');runtimeSignoffComplete=$false}
-        $manifest | ConvertTo-Json | Set-Content -LiteralPath "$stage/build-manifest.json" -Encoding utf8
         $members=@($binaryName,'groups.json','overlay-textures.json','RELEASE-NOTES.md','README.md','PAL-FORMAT.md','UPSTREAM-README.md','build-manifest.json')
         $zipName="PaletteEditor-$variant-$version-win32.zip"
         $paths=@($members|ForEach-Object {Join-Path $stage $_})
+        if($variant -eq 'DLL') {
+            $shaderFolder=Join-Path $stage 'overlay-shader'
+            New-Item -ItemType Directory -Force -Path $shaderFolder|Out-Null
+            Copy-Item -LiteralPath 'build/dll/overlay-shader/prototype.bin' -Destination $shaderFolder
+            $manifest.overlayShaderSha256=(Get-FileHash (Join-Path $shaderFolder 'prototype.bin')).Hash
+            $members+='overlay-shader/prototype.bin'
+            $paths+=$shaderFolder
+        }
+        $manifest | ConvertTo-Json | Set-Content -LiteralPath "$stage/build-manifest.json" -Encoding utf8
         Compress-Archive -LiteralPath $paths -DestinationPath (Join-Path $output $zipName) -Force
         $zip=[IO.Compression.ZipFile]::OpenRead((Join-Path $output $zipName))
         try {

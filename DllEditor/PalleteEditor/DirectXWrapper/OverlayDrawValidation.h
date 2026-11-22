@@ -4,7 +4,9 @@
 #include "LiveOverlays.h"
 #include "../../../PalleteEditor/Data/PaletteDocument.h"
 
+#ifdef SGPE_DLL_VALIDATION
 namespace AdvancedPalette { void FinishOverlayPreview(); }
+#endif
 
 namespace RendererTrace {
 namespace OverlayDrawValidation {
@@ -24,12 +26,15 @@ inline unsigned tint[2]{};
 
 namespace RendererTrace::OverlayDrawValidation {
 
+#ifdef SGPE_DLL_VALIDATION
 inline void Reset() {
     if(deadline)AdvancedPalette::FinishOverlayPreview();
     deadline=0;
     captureSlot=0;
     first.Reset(); second.Reset(); feature.Reset(); replacement.Reset(); bandMap.Reset();
 }
+
+#endif
 
 inline void BuildResources(IDirect3DDevice9* device,const std::set<int>& bands,unsigned primaryTint,
     unsigned secondaryTint,ComPtr<IDirect3DPixelShader9>& shaderOut,ComPtr<IDirect3DTexture9>& bandMap) {
@@ -53,6 +58,7 @@ inline void BuildResources(IDirect3DDevice9* device,const std::set<int>& bands,u
     if(FAILED(bandMap->UnlockRect(0)))throw std::runtime_error("Could not finish the band selector.");
 }
 
+#ifdef SGPE_DLL_VALIDATION
 inline void Tick(IDirect3DDevice9* device) {
     if(deadline && GetTickCount64()>=deadline) {
         const auto count=drawsReplaced;
@@ -105,6 +111,7 @@ inline void Tick(IDirect3DDevice9* device) {
     }
 }
 
+#endif
 }
 
 #include "LiveOverlays.inl"

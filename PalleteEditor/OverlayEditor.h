@@ -251,6 +251,7 @@ inline void Draw(HANDLE h,DWORD b,Character& c) {
         DrawTransformation(c);
         DrawAppearance(c);
         DrawRainbow(c);
+#ifndef SGPE_DLL_HOST
         if(!ImGui::CollapsingHeader("Overlay textures")) return;
         if(templates.empty()) Catalog();
         if(ImGui::Button("Refresh available textures")) Catalog();
@@ -292,7 +293,8 @@ inline void Draw(HANDLE h,DWORD b,Character& c) {
             int l=j.at("lighting"),t=j.at("tintBand"); if(l<0||l>2||t<0||t>=count) throw std::runtime_error("Preset settings out of range.");
             selected=bands; texture=j.at("texture");lighting=l;tint=t;status="Preset loaded. Click Apply overlay to preview.";
         }
-        ImGui::TextWrapped("%s",status.c_str());
+#endif
+        if(!status.empty())ImGui::TextWrapped("%s",status.c_str());
     } catch(const std::exception& e) { status=e.what(); ImGui::TextWrapped("Overlay: %s",status.c_str()); }
 }
 }

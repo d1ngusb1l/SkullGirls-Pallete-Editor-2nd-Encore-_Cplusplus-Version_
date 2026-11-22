@@ -25,8 +25,8 @@ struct GroupColorGroup {
 #include "../../PalleteEditor/OverlayEditor.h"
 #include "../../PalleteEditor/Data/AtomicFile.h"
 
-#ifdef SGPE_DLL_VALIDATION
 #include "DirectXWrapper/LiveOverlays.h"
+#ifdef SGPE_DLL_VALIDATION
 void CancelOverlayDrawPreview();
 #endif
 
@@ -60,12 +60,15 @@ void Sync() {
 #ifdef SGPE_DLL_VALIDATION
 #include "../../tests/DllPaletteSmoke.inl"
 #include "../../tests/DllOverlayProbe.inl"
+#endif
 namespace {
 using OverlayCompletion=std::function<void(const std::string&)>;
 
 void ApplyDualOverlay(Character c,PaletteData::Document document,OverlayCompletion report) {
     using namespace OverlayEditor;
-    if(LiveOverlays::Busy() || overlayProbe)throw std::runtime_error("Wait for the current overlay operation.");
+    if(LiveOverlays::Busy())throw std::runtime_error("Wait for the current overlay operation.");
+    if(!std::filesystem::exists("overlay-shader/prototype.bin"))
+        throw std::runtime_error("Missing overlay-shader/prototype.bin. Install the shader included with the DLL.");
     ValidatePalette(c,document,true);
     const auto& primary=*document.overlay;
     const auto& secondary=*document.secondOverlay;
@@ -115,17 +118,12 @@ void ApplyDualOverlay(Character c,PaletteData::Document document,OverlayCompleti
 }
 }
 #include "DualOverlayControls.inl"
-#else
-void DrawDualOverlayDialogs() {}
-#endif
 void ForgetMatch() {
 #ifdef SGPE_DLL_VALIDATION
     CancelOverlayDrawPreview();
+#endif
     LiveOverlays::Clear();
     overlayDrafts.clear();
-    pendingDraftFile.reset();
-    revealDraft.reset();
-#endif
     OverlayEditor::ForgetMatch();identity.clear();attempted.clear();nextCheck=0;
 }
 void ResetAutoLoad() {attempted.clear();nextCheck=0;}
@@ -139,20 +137,16 @@ void PaletteChanged() {
 bool Load(const std::string& path) {
     try {
         auto c=Current();auto d=PaletteData::ReadFile(PaletteData::PathFromText(path));
-#ifdef SGPE_DLL_VALIDATION
         if(d.secondOverlay) {
             ApplyDualOverlay(c,d,[key=DraftKey(c)](const std::string& error) {
-                if(error.empty()) {
-                    overlayDrafts.erase(key);
-                    revealDraft=key;
-                }
+                if(error.empty())overlayDrafts.erase(key);
                 Status=error.empty()?"Colors and both overlays applied.":"Load failed: "+error;
             });
             Status="Preparing both overlays.";
             return true;
         }
-#endif
         OverlayEditor::ApplyPalette(c,d);Sync();
+        overlayDrafts.erase(DraftKey(c));
         Status=d.legacy?"Legacy colors loaded; existing advanced assignments preserved.":"Colors and applied shader settings loaded.";
         return true;
     } catch(const std::exception& e) {Status=std::string("Load failed: ")+e.what();return false;}
@@ -214,14 +208,14 @@ void Tick() {
                     auto key=std::to_string(current[2+2*slot])+":"+std::to_string(entry.PalNum);
                     if(attempted.count(key) && attempted[key]==fingerprint)continue;
                     auto document=PaletteData::ReadFile(path);
-#ifdef SGPE_DLL_VALIDATION
                     if(LiveOverlays::Busy())continue;
                     if(document.secondOverlay) {
                         attempted[key]=fingerprint;
                         const auto character=entry.CharName;
                         const auto palette=entry.PalNum;
                         const auto savedPath=entry.PalPath;
-                        ApplyDualOverlay(c,std::move(document),[character,palette,savedPath](const std::string& failure) {
+                        ApplyDualOverlay(c,std::move(document),[character,palette,savedPath,draftKey=DraftKey(c)](const std::string& failure) {
+                            if(failure.empty())overlayDrafts.erase(draftKey);
                             for(auto& target:AutoPalette::Auto_Pals)
                                 if(target.CharName==character && target.PalNum==palette && target.PalPath==savedPath)
                                     target.Status=failure.empty()?"Loaded colors and both overlays.":"Auto-load failed: "+failure;
@@ -229,9 +223,9 @@ void Tick() {
                         entry.Status="Preparing both overlays.";
                         continue;
                     }
-#endif
                     attempted[key]=fingerprint;
                     OverlayEditor::ApplyPalette(c,document);
+                    overlayDrafts.erase(DraftKey(c));
                     if(slot==selected)Sync();entry.Status="Loaded colors and shader settings.";
                 } catch(const std::exception& e) {entry.Status=std::string("Auto-load failed: ")+e.what();}
             }
@@ -243,9 +237,7 @@ void Draw() {
     if(!Status.empty())ImGui::TextWrapped("%s",Status.c_str());
     try {
         auto c=Current();OverlayEditor::Draw(OverlayEditor::process,OverlayEditor::base,c);
-#ifdef SGPE_DLL_VALIDATION
         DrawDualOverlayControls(c);
-#endif
         // The shared controls may change alpha; keep the DLL color editor in sync.
         auto& dst=PlayableCharactersManager::GetCurrentCharacter();
         if(!c.Character_Colors.empty())dst.Character_Colors.assign(c.Character_Colors.begin(),c.Character_Colors.end());

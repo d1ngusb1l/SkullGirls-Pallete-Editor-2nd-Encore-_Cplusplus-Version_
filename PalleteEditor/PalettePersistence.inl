@@ -67,7 +67,7 @@ inline void ValidatePalette(const Character& c,const PaletteData::Document& docu
     if(document.overlay) ResolveOverlayTexture(document.overlay->texture);
     if(document.secondOverlay) ResolveOverlayTexture(document.secondOverlay->texture);
 }
-inline void ApplyPalette(Character& c,const PaletteData::Document& document,bool allowTwo=false) {
+inline void ApplyPalette(Character& c,const PaletteData::Document& document,bool allowTwo=false,bool keepOverlays=false) {
     ValidatePalette(c,document,allowTwo); auto data=AppearanceData(c);
     DWORD line=Word(data.palette+0x38)+4*c.Current_Pallete_Num,shadow=Word(Word(data.palette+0xc)+4*c.Current_Pallete_Num);
     DWORD overlay=Word(data.palette+0x14)+12*c.Current_Pallete_Num,hue=RainbowAddress(c),links=ColorLinkAddress(c,data);
@@ -94,8 +94,10 @@ inline void ApplyPalette(Character& c,const PaletteData::Document& document,bool
             if(document.colorLinks) { assignment.staticLinks=document.colorLinks->links; assignment.staticMask=document.colorLinks->shadeMask; }
             if(document.transformation) { assignment.hasTransformation=true; assignment.transformation=DocumentTransformation(c,data,*document.transformation); }
             CommitColorAssignment(c,data,assignment);
-            if(document.overlay) { selected=document.overlay->bands; texture=document.overlay->texture; lighting=document.overlay->lighting; tint=document.overlay->tintBand; Apply(c,document.secondOverlay?&*document.secondOverlay:nullptr); }
-            else Remove(overlay);
+            if(!keepOverlays) {
+                if(document.overlay) { selected=document.overlay->bands; texture=document.overlay->texture; lighting=document.overlay->lighting; tint=document.overlay->tintBand; Apply(c,document.secondOverlay?&*document.secondOverlay:nullptr); }
+                else Remove(overlay);
+            }
             if(document.rainbow) { rainbowBands=document.rainbow->bands; rainbowSpeed=document.rainbow->speed; rainbowInterval=document.rainbow->interval; ApplyRainbow(c); }
             else Remove(hue);
         } else if(document.legacyHueSpeed) {

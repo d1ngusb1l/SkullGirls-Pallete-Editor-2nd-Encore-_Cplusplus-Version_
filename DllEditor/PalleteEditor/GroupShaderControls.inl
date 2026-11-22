@@ -21,40 +21,19 @@ void DrawGroup(const ColorGroup& group) {
             }
             if(bands.empty() || covered!=group.count)throw std::runtime_error("This group does not match the native shader layout.");
             auto apply=[&](){
-                try {OverlayEditor::ApplyPalette(c,d);Sync();Status="Group shader settings applied. Save palette to keep them.";}
+                try {
+                    if(LiveOverlays::Busy())throw std::runtime_error("Wait for the overlay operation to finish.");
+                    OverlayEditor::ApplyPalette(c,d,true,true);
+                    Sync();
+                    Status="Group shader settings applied.";
+                }
                 catch(const std::exception& e){Status=e.what();}
             };
             auto includes=[&](const std::set<int>& selected){return std::all_of(bands.begin(),bands.end(),[&](int b){return selected.count(b)!=0;});};
             auto outside=[&](const std::set<int>& selected){return std::any_of(selected.begin(),selected.end(),[&](int b){return !bands.count(b);});};
             ImGui::TextUnformatted(group.groupName.c_str());
-#ifdef SGPE_DLL_VALIDATION
             DrawDraftGroup(c,bands);
-#endif
-            ImGui::TextDisabled("Changes apply immediately to this palette number.");
-            bool overlay=d.overlay && includes(d.overlay->bands);
-            if(ImGui::Checkbox("Overlay texture",&overlay)) {
-                if(overlay) {
-                    if(!d.overlay)d.overlay=PaletteData::Overlay{"Fire",{},0,0};
-                    d.overlay->bands.insert(bands.begin(),bands.end());
-                } else if(d.overlay) {
-                    for(int b:bands)d.overlay->bands.erase(b);
-                    if(d.overlay->bands.empty())d.overlay.reset();
-                }
-                apply();
-            }
-            if(d.overlay) {
-                bool shared=outside(d.overlay->bands);
-                ImGui::BeginDisabled(shared);
-                if(ImGui::BeginCombo("Texture",d.overlay->texture.c_str())) {
-                    if(OverlayEditor::templates.empty())OverlayEditor::Catalog();
-                    for(auto& entry:OverlayEditor::templates)if(ImGui::Selectable(entry.first.c_str(),entry.first==d.overlay->texture)){d.overlay->texture=entry.first;apply();}
-                    ImGui::EndCombo();
-                }
-                int lighting=d.overlay->lighting;
-                if(ImGui::Combo("Lighting",&lighting,"Original\0Unlit\0Lit\0")){d.overlay->lighting=lighting;apply();}
-                ImGui::EndDisabled();
-                if(shared)ImGui::TextDisabled("Texture and lighting are shared. Change them in Advanced.");
-            }
+            ImGui::TextDisabled("Other shader changes apply immediately to this palette number.");
             bool rainbow=d.rainbow && includes(d.rainbow->bands);
             if(ImGui::Checkbox("Rainbow",&rainbow)) {
                 if(rainbow){if(!d.rainbow)d.rainbow=PaletteData::Rainbow{{},4,8};d.rainbow->bands.insert(bands.begin(),bands.end());}

@@ -665,7 +665,6 @@ void Drawing::DrawOptionsTabItem()
 
 
 void Drawing::DrawFileDialog() {
-    AdvancedPalette::DrawDualOverlayDialogs();
 
 	ImGui::SetNextWindowSize(vFileDialogSize, ImGuiCond_Once);
 

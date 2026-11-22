@@ -121,3 +121,7 @@ Apply both overlays, File → Load Palette, and Autoload use the same preparatio
 The validation runner needs the tested `overlay-shader/prototype.bin` built with `scripts/build-overlay-preview.ps1`. Use two distinct textures on disjoint groups with matching lighting settings. The standalone editor and release DLL continue to use their existing single-overlay renderer.
 
 In offline Training, File → Load Palette kept Water on Cerebella's hat and Fire on her dress without a timer. Both cleared when switching to an unmodified palette. An Auto-load assignment to a clean color applied both patterns and reported success. Loading the file into the draft and clicking Apply both overlays on another clean color kept both patterns visible.
+
+## Standard DLL menu
+
+The DLL now uses one Overlay textures panel in Advanced. It starts with one slot and exposes the second through Add second texture. The group popup stages assignments for the same Apply overlays button. The standard package includes the checked shader bytecode in its overlay-shader folder. Diagnostic request files remain exclusive to validation builds. The standalone editor retains its single-overlay renderer.

@@ -1,26 +1,13 @@
-// Draft controls for the validation build. Drafts are separate from live effects.
+// An overlay assignment is staged until Apply overlays is clicked.
 namespace {
 struct DualOverlayDraft {
     PaletteData::Overlay primary{"Water",{},1,0};
+    bool hasSecond=false;
     PaletteData::Overlay secondary{"umbrella_veins",{},1,0};
 };
 std::map<std::pair<int,int>,DualOverlayDraft> overlayDrafts;
-std::optional<std::pair<int,int>> pendingDraftFile;
-std::optional<std::pair<int,int>> revealDraft;
 
 std::pair<int,int> DraftKey(const Character& c) {return {c.ID,c.Current_Pallete_Num};}
-
-void LoadDualOverlayDraft(const Character& c,const PaletteData::Document& document) {
-    const auto data=OverlayEditor::AppearanceData(c);
-    std::vector<int> sizes;
-    for(const auto& group:data.groups)sizes.push_back(group.count);
-    if(document.character!=c.Char_Name || document.groupSizes!=sizes || !document.overlay || !document.secondOverlay)
-        throw std::runtime_error("Choose a two-texture file for the current character and group layout.");
-    const auto key=DraftKey(c);
-    overlayDrafts[key]={*document.overlay,*document.secondOverlay};
-    revealDraft=key;
-    Status="Both overlay assignments loaded into Advanced > Two-texture draft. The timed preview runs separately.";
-}
 
 DualOverlayDraft& Draft(const Character& c) {
     auto key=DraftKey(c);
@@ -28,7 +15,7 @@ DualOverlayDraft& Draft(const Character& c) {
     DualOverlayDraft draft;
     auto live=OverlayEditor::CapturePalette(c);
     if(live.overlay)draft.primary=*live.overlay;
-    if(live.secondOverlay)draft.secondary=*live.secondOverlay;
+    if(live.secondOverlay) {draft.secondary=*live.secondOverlay;draft.hasSecond=true;}
     return overlayDrafts.emplace(key,std::move(draft)).first->second;
 }
 
@@ -46,15 +33,17 @@ int DraftBand(const DualOverlayDraft& draft,int band) {
 }
 
 void DrawDraftGroup(const Character& c,const std::set<int>& bands) {
-    if(!ImGui::BeginMenu("Two-texture draft"))return;
+    if(!ImGui::BeginMenu("Assign overlay"))return;
     // Draft initialization can read live data. Always balance the ImGui menu.
     try {
         auto& draft=Draft(c);
-        for(int slot=0;slot<=2;slot++) {
+        for(int slot=0;slot<=(draft.hasSecond?2:1);slot++) {
             const char* labels[]={"No overlay","Primary overlay","Secondary overlay"};
             const bool selected=std::all_of(bands.begin(),bands.end(),[&](int b){return DraftBand(draft,b)==slot;});
-            if(ImGui::MenuItem(labels[slot],nullptr,selected))
+            if(ImGui::MenuItem(labels[slot],nullptr,selected)) {
                 for(int band:bands)AssignDraftBand(draft,band,slot);
+                Status="Overlay selection updated. Use Apply overlays in Advanced.";
+            }
         }
     }catch(const std::exception& e){Status=e.what();}
     ImGui::EndMenu();
@@ -68,7 +57,6 @@ void DrawDraftOverlay(PaletteData::Overlay& assignment,const OverlayEditor::Appe
             if(ImGui::Selectable(name.c_str(),assignment.texture==name))assignment.texture=name;
         ImGui::EndCombo();
     }
-    ImGui::Combo("Lighting",&assignment.lighting,"Original\0Unlit\0Lit\0");
     const auto validTint=[&](int band) {return band>0 && band<static_cast<int>(data.groups.size()) && data.groups[band].count>0;};
     const auto& tint=assignment.tintBand;
     if(ImGui::BeginCombo("Tint",validTint(tint)?data.groups[tint].label.c_str():"Texture default")) {
@@ -84,78 +72,58 @@ void DrawDraftOverlay(PaletteData::Overlay& assignment,const OverlayEditor::Appe
     ImGui::PopID();
 }
 
-void DrawDualOverlayControls(const Character& c) {
-    if(revealDraft==DraftKey(c)) {
-        ImGui::SetNextItemOpen(true,ImGuiCond_Always);
-        revealDraft.reset();
-    }
-    if(!ImGui::CollapsingHeader("Two-texture draft"))return;
+void DrawDualOverlayControls(Character& c) {
+    if(!ImGui::CollapsingHeader("Overlay textures"))return;
     auto data=OverlayEditor::AppearanceData(c);
     auto& draft=Draft(c);
     if(OverlayEditor::templates.empty())OverlayEditor::Catalog();
-    ImGui::TextWrapped("Apply two textures to different groups on this palette. Both textures use the same lighting setting.");
-    DrawDraftOverlay(draft.primary,data,"Primary");
-    DrawDraftOverlay(draft.secondary,data,"Secondary");
+    ImGui::Combo("Lighting",&draft.primary.lighting,"Original\0Unlit\0Lit\0");
+    DrawDraftOverlay(draft.primary,data,"Primary overlay");
+    if(draft.hasSecond) {
+        draft.secondary.lighting=draft.primary.lighting;
+        DrawDraftOverlay(draft.secondary,data,"Secondary overlay");
+        if(ImGui::Button("Remove second texture")) {
+            draft.hasSecond=false;
+            draft.secondary.bands.clear();
+        }
+    } else if(ImGui::Button("Add second texture")) {
+        draft.hasSecond=true;
+    }
     if(ImGui::BeginChild("Draft groups",ImVec2(0,180))) {
         for(const auto& group:data.groups) {
             if(!group.band || !group.count)continue;
             ImGui::PushID(group.band);
             int selected=DraftBand(draft,group.band);
             ImGui::SetNextItemWidth(130);
-            if(ImGui::Combo("##assignment",&selected,"None\0Primary\0Secondary\0"))AssignDraftBand(draft,group.band,selected);
+            if(ImGui::Combo("##assignment",&selected,draft.hasSecond?"None\0Primary\0Secondary\0":"None\0Primary\0"))AssignDraftBand(draft,group.band,selected);
             ImGui::SameLine();
             ImGui::TextUnformatted(group.label.c_str());
             ImGui::PopID();
         }
     }
     ImGui::EndChild();
-    IGFD::FileDialogConfig cfg;
-    cfg.path=".";
-    ImGui::BeginDisabled(draft.primary.bands.empty() || draft.secondary.bands.empty());
-    if(ImGui::Button("Apply both overlays"))try {
+    ImGui::BeginDisabled(draft.primary.bands.empty() || (draft.hasSecond && draft.secondary.bands.empty()) || LiveOverlays::Busy());
+    if(ImGui::Button("Apply overlays"))try {
         auto document=OverlayEditor::CapturePalette(c);
         document.overlay=draft.primary;
-        document.secondOverlay=draft.secondary;
-        ApplyDualOverlay(c,std::move(document),[](const std::string& error) {
-            Status=error.empty()?"Both overlays applied.":"Apply failed: "+error;
-        });
-        Status="Preparing both overlays.";
+        if(draft.hasSecond)document.secondOverlay=draft.secondary;
+        else document.secondOverlay.reset();
+        if(document.secondOverlay) {
+            ApplyDualOverlay(c,std::move(document),[](const std::string& error) {
+                Status=error.empty()?"Both overlays applied.":"Apply failed: "+error;
+            });
+            Status="Preparing both overlays.";
+        } else {
+            OverlayEditor::ApplyPalette(c,document);
+            Status="Overlay applied.";
+        }
     }catch(const std::exception& e){Status=e.what();}
-    ImGui::SameLine();
-    if(ImGui::Button("Save two-texture draft")) {
-        pendingDraftFile=DraftKey(c);
-        cfg.flags=ImGuiFileDialogFlags_ConfirmOverwrite;
-        ImGuiFileDialog::Instance()->OpenDialog("SaveDualOverlayDraft","Save Two-Texture Draft",".pal",cfg);
-    }
     ImGui::EndDisabled();
     ImGui::SameLine();
-    if(ImGui::Button("Load two-texture draft")) {
-        pendingDraftFile=DraftKey(c);
-        ImGuiFileDialog::Instance()->OpenDialog("LoadDualOverlayDraft","Load Two-Texture Draft",".pal",cfg);
+    if(ImGui::Button("Reset overlays")) {
+        OverlayEditor::Remove(OverlayEditor::Word(data.palette+0x14)+12*c.Current_Pallete_Num);
+        overlayDrafts.erase(DraftKey(c));
+        Status="Original overlay restored.";
     }
 }
-}
-
-void DrawDualOverlayDialogs() {
-    for(const char* id:{"SaveDualOverlayDraft","LoadDualOverlayDraft"}) {
-        auto* dialog=ImGuiFileDialog::Instance();
-        if(!dialog->Display(id))continue;
-        if(dialog->IsOk())try {
-            auto c=Current();
-            if(pendingDraftFile!=DraftKey(c))throw std::runtime_error("Palette changed while the dialog was open.");
-            const auto path=PaletteData::PathFromText(dialog->GetFilePathName());
-            if(std::string_view(id)=="SaveDualOverlayDraft") {
-                auto d=OverlayEditor::CapturePalette(c);
-                const auto& draft=Draft(c);
-                d.overlay=draft.primary;
-                d.secondOverlay=draft.secondary;
-                PaletteData::AtomicWrite(path,PaletteData::EncodePal(d));
-                Status="Two-texture draft saved.";
-            } else {
-                LoadDualOverlayDraft(c,PaletteData::ReadFile(path));
-            }
-        }catch(const std::exception& e){Status=e.what();}
-        pendingDraftFile.reset();
-        dialog->Close();
-    }
 }

@@ -1,8 +1,8 @@
 #include "pch.h"
 
-#ifdef SGPE_DLL_VALIDATION
 #include "RendererTrace.h"
 #include "OverlayDrawValidation.h"
+#ifdef SGPE_DLL_VALIDATION
 
 void CancelOverlayDrawPreview() {
     RendererTrace::OverlayDrawValidation::Reset();
@@ -132,8 +132,8 @@ UINT IDirect3DDevice9Proxy::GetNumberOfSwapChains(void){
 HRESULT IDirect3DDevice9Proxy::Reset(D3DPRESENT_PARAMETERS* pPresentationParameters) {
 #ifdef SGPE_DLL_VALIDATION
     CancelOverlayDrawPreview();
-    LiveOverlays::Cancel();
 #endif
+    LiveOverlays::Cancel();
 	if (callbacks[PRERESET])
 		((D3D9DevicePreResetFunc)callbacks[PRERESET])();
 
@@ -149,8 +149,9 @@ HRESULT IDirect3DDevice9Proxy::Present(CONST RECT* pSourceRect, CONST RECT* pDes
 	HRESULT res = (origIDirect3DDevice9->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion));
 #ifdef SGPE_DLL_VALIDATION
 	RendererTrace::EndFrame(origIDirect3DDevice9);
-	try {RendererTrace::OverlayDrawValidation::Tick(origIDirect3DDevice9); LiveOverlays::Tick(origIDirect3DDevice9);} catch(...) {}
+	try {RendererTrace::OverlayDrawValidation::Tick(origIDirect3DDevice9);} catch(...) {}
 #endif
+	try {LiveOverlays::Tick(origIDirect3DDevice9);} catch(...) {}
 	if (callbacks[POSTPRESENT])
 		((D3D9DevicePostPresentFunc)callbacks[POSTPRESENT])(this, res);
 	return res;
@@ -429,11 +430,7 @@ float   IDirect3DDevice9Proxy::GetNPatchMode(void)
 HRESULT IDirect3DDevice9Proxy::DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType,UINT StartVertex,UINT PrimitiveCount)
 {
 	auto draw=[&]{return origIDirect3DDevice9->DrawPrimitive(PrimitiveType,StartVertex,PrimitiveCount);};
-#ifdef SGPE_DLL_VALIDATION
 	HRESULT result=RendererTrace::OverlayDrawValidation::Run(origIDirect3DDevice9,draw);
-#else
-	HRESULT result=draw();
-#endif
 #ifdef SGPE_DLL_VALIDATION
 	if(SUCCEEDED(result))RendererTrace::Draw(this,"DrawPrimitive",PrimitiveCount);
 #endif
