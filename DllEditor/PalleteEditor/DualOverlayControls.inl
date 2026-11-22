@@ -28,6 +28,7 @@ DualOverlayDraft& Draft(const Character& c) {
     DualOverlayDraft draft;
     auto live=OverlayEditor::CapturePalette(c);
     if(live.overlay)draft.primary=*live.overlay;
+    if(live.secondOverlay)draft.secondary=*live.secondOverlay;
     return overlayDrafts.emplace(key,std::move(draft)).first->second;
 }
 
@@ -92,7 +93,7 @@ void DrawDualOverlayControls(const Character& c) {
     auto data=OverlayEditor::AppearanceData(c);
     auto& draft=Draft(c);
     if(OverlayEditor::templates.empty())OverlayEditor::Catalog();
-    ImGui::TextWrapped("Drafts save to .pal for the validation preview. Live effects stay as applied.");
+    ImGui::TextWrapped("Apply two textures to different groups on this palette. Both textures use the same lighting setting.");
     DrawDraftOverlay(draft.primary,data,"Primary");
     DrawDraftOverlay(draft.secondary,data,"Secondary");
     if(ImGui::BeginChild("Draft groups",ImVec2(0,180))) {
@@ -111,6 +112,16 @@ void DrawDualOverlayControls(const Character& c) {
     IGFD::FileDialogConfig cfg;
     cfg.path=".";
     ImGui::BeginDisabled(draft.primary.bands.empty() || draft.secondary.bands.empty());
+    if(ImGui::Button("Apply both overlays"))try {
+        auto document=OverlayEditor::CapturePalette(c);
+        document.overlay=draft.primary;
+        document.secondOverlay=draft.secondary;
+        ApplyDualOverlay(c,std::move(document),[](const std::string& error) {
+            Status=error.empty()?"Both overlays applied.":"Apply failed: "+error;
+        });
+        Status="Preparing both overlays.";
+    }catch(const std::exception& e){Status=e.what();}
+    ImGui::SameLine();
     if(ImGui::Button("Save two-texture draft")) {
         pendingDraftFile=DraftKey(c);
         cfg.flags=ImGuiFileDialogFlags_ConfirmOverwrite;

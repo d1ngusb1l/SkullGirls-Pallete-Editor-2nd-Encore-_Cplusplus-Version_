@@ -113,3 +113,9 @@ The automated Fire-marker run subsequently identified Peacock's draw, substitute
 The validation DLL has a Two-texture draft panel in Advanced and a draft assignment menu in each compatible group row. Assigning a group moves its bands from the other slot. Drafts are scoped to the match, actor slot, and palette number. Load draft imports the two overlay assignments for the current character and band layout. Save draft captures current live colors and other effects together with the draft assignments. These controls prepare files for the existing timed preview. In the validation DLL, File → Load Palette also imports a two-texture file into the draft panel. Live rendering still requires the timed preview. Auto-load rejects two-texture files before writing any palette data.
 
 After merging the shader-loading fixes, the saved Cerebella test produced 1,635 substituted draws. A follow-up run with preview-end cleanup produced 1,714 substituted draws on Color 2 and verified the original overlay header about 16 ms after the draw preview finished. The native probe retains its timeout as a fallback.
+
+## Live wiring in the validation DLL
+
+Apply both overlays, File → Load Palette, and Autoload use the same preparation path. It temporarily attaches a marker texture, compares native draw bindings with the requested textures, and commits the saved palette only after identifying one changed feature binding. Preparation restores the prior overlay on failure. The renderer checks the character, palette number, and applied native header before using the replacement shader.
+
+The validation runner needs the tested `overlay-shader/prototype.bin` built with `scripts/build-overlay-preview.ps1`. Use two distinct textures on disjoint groups with matching lighting settings. The standalone editor and release DLL continue to use their existing single-overlay renderer.

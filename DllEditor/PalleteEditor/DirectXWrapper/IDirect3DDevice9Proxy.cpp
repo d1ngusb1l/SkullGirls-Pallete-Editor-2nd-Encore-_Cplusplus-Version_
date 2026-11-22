@@ -132,6 +132,7 @@ UINT IDirect3DDevice9Proxy::GetNumberOfSwapChains(void){
 HRESULT IDirect3DDevice9Proxy::Reset(D3DPRESENT_PARAMETERS* pPresentationParameters) {
 #ifdef SGPE_DLL_VALIDATION
     CancelOverlayDrawPreview();
+    LiveOverlays::Cancel();
 #endif
 	if (callbacks[PRERESET])
 		((D3D9DevicePreResetFunc)callbacks[PRERESET])();
@@ -148,7 +149,7 @@ HRESULT IDirect3DDevice9Proxy::Present(CONST RECT* pSourceRect, CONST RECT* pDes
 	HRESULT res = (origIDirect3DDevice9->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion));
 #ifdef SGPE_DLL_VALIDATION
 	RendererTrace::EndFrame(origIDirect3DDevice9);
-	try {RendererTrace::OverlayDrawValidation::Tick(origIDirect3DDevice9);} catch(...) {}
+	try {RendererTrace::OverlayDrawValidation::Tick(origIDirect3DDevice9); LiveOverlays::Tick(origIDirect3DDevice9);} catch(...) {}
 #endif
 	if (callbacks[POSTPRESENT])
 		((D3D9DevicePostPresentFunc)callbacks[POSTPRESENT])(this, res);

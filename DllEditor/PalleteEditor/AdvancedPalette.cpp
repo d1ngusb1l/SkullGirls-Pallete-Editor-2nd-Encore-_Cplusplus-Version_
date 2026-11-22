@@ -26,6 +26,7 @@ struct GroupColorGroup {
 #include "../../PalleteEditor/Data/AtomicFile.h"
 
 #ifdef SGPE_DLL_VALIDATION
+#include "DirectXWrapper/LiveOverlays.h"
 void CancelOverlayDrawPreview();
 #endif
 
@@ -59,6 +60,60 @@ void Sync() {
 #ifdef SGPE_DLL_VALIDATION
 #include "../../tests/DllPaletteSmoke.inl"
 #include "../../tests/DllOverlayProbe.inl"
+namespace {
+using OverlayCompletion=std::function<void(const std::string&)>;
+
+void ApplyDualOverlay(Character c,PaletteData::Document document,OverlayCompletion report) {
+    using namespace OverlayEditor;
+    if(LiveOverlays::Busy() || overlayProbe)throw std::runtime_error("Wait for the current overlay operation.");
+    ValidatePalette(c,document,true);
+    const auto& primary=*document.overlay;
+    const auto& secondary=*document.secondOverlay;
+    if(primary.texture==secondary.texture)throw std::runtime_error("Choose two distinct textures.");
+    if(primary.lighting!=secondary.lighting)throw std::runtime_error("Use the same lighting setting for both textures.");
+    auto data=AppearanceData(c);
+    const DWORD address=Word(data.palette+0x14)+12*c.Current_Pallete_Num;
+    Original owner{data.actor,data.palette,address,c.ID,Read(address,12)};
+    auto marker=primary;
+    marker.texture=primary.texture=="Fire"?"Water":"Fire";
+    const auto markerHeader=OverlayHeader(marker);
+    const auto targetHeader=OverlayHeader(primary,&secondary);
+    auto installed=std::make_shared<Bytes>(markerHeader);
+    auto applied=std::make_shared<Bytes>();
+    auto current=[owner,c]() {
+        try {return Valid(owner) && Read(owner.actor+0x330,1)[0]==c.Current_Pallete_Num;}
+        catch(...) {return false;}
+    };
+    auto replace=[owner](const Bytes& header) {PausedWrite(owner.address,header);Refresh();};
+    LiveOverlays::Request request{c.ID,c.Current_Pallete_Num,primary,secondary,
+        [current,owner,installed]() {return current() && Read(owner.address,12)==*installed;},
+        [replace,targetHeader,installed]() {
+            *installed=targetHeader;
+            replace(targetHeader);
+        },
+        [owner,c,document=std::move(document),replace,installed,applied,report](const std::string& error) mutable {
+            try {
+                if(Valid(owner) && Read(owner.address,12)==*installed)replace(owner.header);
+                if(!error.empty()) {report(error);return;}
+                OverlayEditor::ApplyPalette(c,document,true);
+                *applied=Read(owner.address,12);
+                if(c.ID==PlayableCharactersManager::GetCurrentCharacterIndex())Sync();
+                report("");
+            }catch(const std::exception& e) {
+                report(e.what());
+                if(error.empty())throw;
+            }
+        },
+        [current,owner,applied]() {
+            try {return current() && !applied->empty() && Read(owner.address,12)==*applied;}
+            catch(...) {return false;}
+        }
+    };
+    LiveOverlays::Start(std::move(request));
+    try {replace(markerHeader);}
+    catch(...) {LiveOverlays::Cancel();throw;}
+}
+}
 #include "DualOverlayControls.inl"
 #else
 void DrawDualOverlayDialogs() {}
@@ -66,6 +121,7 @@ void DrawDualOverlayDialogs() {}
 void ForgetMatch() {
 #ifdef SGPE_DLL_VALIDATION
     CancelOverlayDrawPreview();
+    LiveOverlays::Clear();
     overlayDrafts.clear();
     pendingDraftFile.reset();
     revealDraft.reset();
@@ -85,7 +141,14 @@ bool Load(const std::string& path) {
         auto c=Current();auto d=PaletteData::ReadFile(PaletteData::PathFromText(path));
 #ifdef SGPE_DLL_VALIDATION
         if(d.secondOverlay) {
-            LoadDualOverlayDraft(c,d);
+            ApplyDualOverlay(c,d,[key=DraftKey(c)](const std::string& error) {
+                if(error.empty()) {
+                    overlayDrafts.erase(key);
+                    revealDraft=key;
+                }
+                Status=error.empty()?"Colors and both overlays applied.":"Load failed: "+error;
+            });
+            Status="Preparing both overlays.";
             return true;
         }
 #endif
@@ -117,7 +180,7 @@ void Tick() {
         }
         auto now=GetTickCount64();if(now<nextCheck)return;nextCheck=now+250;
 #ifdef SGPE_DLL_VALIDATION
-        if(TickOverlayProbe())return;
+        if(!LiveOverlays::Busy() && TickOverlayProbe())return;
         if(std::filesystem::exists("dll-texture-resources.request")) {
             std::filesystem::remove("dll-texture-resources.request");
             nlohmann::json results=nlohmann::json::object();
@@ -150,8 +213,25 @@ void Tick() {
                     auto fingerprint=PaletteData::PathText(path)+(error?":missing":":"+std::to_string(time.time_since_epoch().count()));
                     auto key=std::to_string(current[2+2*slot])+":"+std::to_string(entry.PalNum);
                     if(attempted.count(key) && attempted[key]==fingerprint)continue;
+                    auto document=PaletteData::ReadFile(path);
+#ifdef SGPE_DLL_VALIDATION
+                    if(LiveOverlays::Busy())continue;
+                    if(document.secondOverlay) {
+                        attempted[key]=fingerprint;
+                        const auto character=entry.CharName;
+                        const auto palette=entry.PalNum;
+                        const auto savedPath=entry.PalPath;
+                        ApplyDualOverlay(c,std::move(document),[character,palette,savedPath](const std::string& failure) {
+                            for(auto& target:AutoPalette::Auto_Pals)
+                                if(target.CharName==character && target.PalNum==palette && target.PalPath==savedPath)
+                                    target.Status=failure.empty()?"Loaded colors and both overlays.":"Auto-load failed: "+failure;
+                        });
+                        entry.Status="Preparing both overlays.";
+                        continue;
+                    }
+#endif
                     attempted[key]=fingerprint;
-                    OverlayEditor::ApplyPalette(c,PaletteData::ReadFile(path));
+                    OverlayEditor::ApplyPalette(c,document);
                     if(slot==selected)Sync();entry.Status="Loaded colors and shader settings.";
                 } catch(const std::exception& e) {entry.Status=std::string("Auto-load failed: ")+e.what();}
             }

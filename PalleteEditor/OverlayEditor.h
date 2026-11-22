@@ -204,22 +204,31 @@ inline Bytes BuildOverlayRecord(const PaletteData::Overlay& assignment) {
     std::fill(record.begin()+96,record.end(),0); Put(record,116,15);
     return record;
 }
-inline void Apply(const Character& c) {
+inline Bytes OverlayHeader(const PaletteData::Overlay& primary,const PaletteData::Overlay* secondary=nullptr) {
+    auto records=BuildOverlayRecord(primary);
+    if(secondary) {
+        auto record=BuildOverlayRecord(*secondary);
+        records.insert(records.end(),record.begin(),record.end());
+    }
+    DWORD memory=Allocate(records.size()); Write(memory,records);
+    DWORD end=memory+static_cast<DWORD>(records.size());
+    Bytes header(12); Put(header,0,memory); Put(header,4,end); Put(header,8,end);
+    return header;
+}
+inline void Apply(const Character& c,const PaletteData::Overlay* secondary=nullptr) {
     Catalog();
-    auto record=BuildOverlayRecord({texture,selected,lighting,tint});
+    const auto header=OverlayHeader({texture,selected,lighting,tint},secondary);
     DWORD root=Word(base+0x85ea4c), actor=Word(root+0x5e8+4*c.ID), pal=Word(actor+0x328);
     DWORD address=Word(pal+0x14)+12*c.Current_Pallete_Num;
     Original original{actor,pal,address,c.ID,Read(address,12)};
     auto old=originals.find(address); if(old!=originals.end()) original=old->second;
-    DWORD memory=Allocate(120); Write(memory,record);
-    Bytes header(12); Put(header,0,memory); Put(header,4,memory+120); Put(header,8,memory+120);
-    // One overlay texture per draw: replace this palette's overlay definitions,
-    // retaining the original vector for an explicit reset or normal editor exit.
     EffectUpdateGuard updateGuard(process);
     try { if(!Valid(original)) throw std::runtime_error("Match changed; retry in the new match."); originals[address]=original; Write(address,header); }
     catch(...) { throw; }
 
     overlayAssignments[address]={{"texture",texture},{"bands",selected},{"lighting",lighting},{"tintBand",tint}};
+    if(secondary)overlayAssignments[address]["secondOverlay"]={
+        {"texture",secondary->texture},{"bands",secondary->bands},{"lighting",secondary->lighting},{"tintBand",secondary->tintBand}};
     Refresh(); status="Overlay applied. Reset restores the original overlay.";
 }
 #include "RainbowControls.inl"
