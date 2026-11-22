@@ -59,3 +59,9 @@ The runner was closed during compilation. Live validation needs a targeted draw 
 The validation DLL also accepts an overlay-shader-check.request file. It tries to create baseline.bin, prototype.bin and unlit.bin from the runner's overlay-shader directory and records device limits and creation results in overlay-shader-check-result.json. It releases each shader immediately after the check. No shader is bound during this test.
 
 The live runner accepted the baseline, lit prototype and unlit prototype through CreatePixelShader. All returned S_OK. The active device reports 4096 ps_3_0 instruction slots, so the 581-slot lit prototype fits on this device. A draw-level visual test is still pending.
+
+## Live Water and Ravenous Veins bindings
+
+Three captures on Player 1 Peacock Color 10 used Water on both test bands, Ravenous Veins on both, then Water on the hat and Ravenous Veins on the dress. The four draws per capture retained the same shader identity. The two players had distinct feature texture objects, and Player 1's feature texture object stayed stable throughout the captures. Sampler 3 used distinct objects in the single-texture cases. The mixed case bound the Water object only, consistent with the first definition winning in this arrangement. All three probes verified restoration of the original headers.
+
+Water exposed a Chowder palette index of zero. Ravenous Veins exposed 39/255 despite the probe's zero tint input. The initial shader prototype shares a single tint uniform, so a faithful substitution should preserve each resource's effective tint as well as selecting the texture by band. The captures are session-local and their texture pointers must never be reused across processes.
