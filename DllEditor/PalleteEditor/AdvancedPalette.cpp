@@ -25,6 +25,10 @@ struct GroupColorGroup {
 #include "../../PalleteEditor/OverlayEditor.h"
 #include "../../PalleteEditor/Data/AtomicFile.h"
 
+#ifdef SGPE_DLL_VALIDATION
+void CancelOverlayDrawPreview();
+#endif
+
 namespace AdvancedPalette {
 std::string Status;
 namespace {
@@ -57,10 +61,16 @@ void Sync() {
 #include "../../tests/DllOverlayProbe.inl"
 #endif
 void ForgetMatch() {
+#ifdef SGPE_DLL_VALIDATION
+    CancelOverlayDrawPreview();
+#endif
     OverlayEditor::ForgetMatch();identity.clear();attempted.clear();nextCheck=0;
 }
 void ResetAutoLoad() {attempted.clear();nextCheck=0;}
 void PaletteChanged() {
+#ifdef SGPE_DLL_VALIDATION
+    CancelOverlayDrawPreview();
+#endif
     try { OverlayEditor::Refresh();OverlayEditor::selectionKey.clear(); }
     catch(const std::exception& e) {Status=e.what();}
 }
@@ -89,7 +99,10 @@ void Tick() {
         for(int slot=0;slot<6;slot++) {auto actor=OverlayEditor::Word(root+0x5e8+4*slot);current.push_back(actor);current.push_back(actor?OverlayEditor::Word(actor+0x328):0);}
         if(identity!=current) {ForgetMatch();identity=current;}
         int selected=PlayableCharactersManager::GetCurrentCharacterIndex();
-        if(selected>=0 && Model(selected).Current_Pallete_Num!=PlayableCharactersManager::GetCurrentCharacter().Current_Palette_Num)Sync();
+        if(selected>=0 && Model(selected).Current_Pallete_Num!=PlayableCharactersManager::GetCurrentCharacter().Current_Palette_Num) {
+            PaletteChanged();
+            Sync();
+        }
         auto now=GetTickCount64();if(now<nextCheck)return;nextCheck=now+250;
 #ifdef SGPE_DLL_VALIDATION
         if(TickOverlayProbe())return;

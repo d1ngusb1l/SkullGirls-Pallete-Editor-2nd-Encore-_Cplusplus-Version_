@@ -3,6 +3,10 @@
 #ifdef SGPE_DLL_VALIDATION
 #include "RendererTrace.h"
 #include "OverlayDrawValidation.h"
+
+void CancelOverlayDrawPreview() {
+    RendererTrace::OverlayDrawValidation::Reset();
+}
 #endif
 
 IDirect3DDevice9Proxy *IDirect3DDevice9Proxy::lastDevice = NULL;
@@ -126,6 +130,9 @@ UINT IDirect3DDevice9Proxy::GetNumberOfSwapChains(void){
 }
 
 HRESULT IDirect3DDevice9Proxy::Reset(D3DPRESENT_PARAMETERS* pPresentationParameters) {
+#ifdef SGPE_DLL_VALIDATION
+    CancelOverlayDrawPreview();
+#endif
 	if (callbacks[PRERESET])
 		((D3D9DevicePreResetFunc)callbacks[PRERESET])();
 
