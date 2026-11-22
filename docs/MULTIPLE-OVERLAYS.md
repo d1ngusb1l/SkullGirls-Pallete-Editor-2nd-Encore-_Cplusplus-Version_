@@ -57,3 +57,5 @@ Compiled against the locally extracted shader with Windows SDK FXC 10.0.26100.0.
 The runner was closed during compilation. Live validation needs a targeted draw substitution that checks shader identity, matches the target palette resource, validates device support, and restores the original shader and added sampler state after the draw. Test the lit variant first, then verify hit lighting and other palette shader variants before exposing controls or changing the file format.
 
 The validation DLL also accepts an overlay-shader-check.request file. It tries to create baseline.bin, prototype.bin and unlit.bin from the runner's overlay-shader directory and records device limits and creation results in overlay-shader-check-result.json. It releases each shader immediately after the check. No shader is bound during this test.
+
+The live runner accepted the baseline, lit prototype and unlit prototype through CreatePixelShader. All returned S_OK. The active device reports 4096 ps_3_0 instruction slots, so the 581-slot lit prototype fits on this device. A draw-level visual test is still pending.
