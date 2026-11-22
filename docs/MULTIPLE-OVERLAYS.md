@@ -75,3 +75,7 @@ The band lookup stores texture selection in red and native tint in green. The re
 Live result on November 21, 2026: Player 1 Peacock Color 10 showed Water on hat main and Ravenous Veins on dress main simultaneously. The user confirmed both distinct patterns and the draw probe reported 1,182 successful substituted draws. The native probe verified restoration of the original overlay header. Hit lighting, palette switching, and reset coverage still need targeted tests. This result validates the lit character draw path on the tested runner.
 
 The user also confirmed that neither group turned black under hit lighting during the live preview. Palette-switch and device-reset regression testing remains open. The validation DLL cancels its preview and releases captured textures on an editor palette change, a detected palette change for the selected character, a match change, or a D3D device reset.
+
+The palette switch test passed on Player 1 Peacock. During the two-texture preview the user switched from Color 10 to Color 1 and saw neither overlay carryover nor black rendering. After returning to Color 10, a read-only snapshot showed zero overlay records.
+
+The experimental palette codec adds schema version 2 only for documents with a second overlay. It keeps the existing binary color prefix and version 1 serialization for ordinary files. Version 2 requires two disjoint band assignments. The current editor rejects live application of version 2 before modifying palette data until the renderer can resolve and bind both resources without the manual probe.

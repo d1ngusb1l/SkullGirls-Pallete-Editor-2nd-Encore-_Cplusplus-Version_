@@ -39,6 +39,7 @@ inline TransformSettings DocumentTransformation(const Character& c,const Appeara
     ValidateTransformation(c,data,settings); return settings;
 }
 inline void ValidatePalette(const Character& c,const PaletteData::Document& document) {
+    if(document.secondOverlay)throw std::runtime_error("This editor build cannot yet apply two overlay textures.");
     auto data=AppearanceData(c);
     if(document.character!=c.Char_Name) throw std::runtime_error("Palette file belongs to a different character.");
     if(document.colors.size()!=(size_t)data.colorCount) throw std::runtime_error("Palette file color count does not match this character.");
