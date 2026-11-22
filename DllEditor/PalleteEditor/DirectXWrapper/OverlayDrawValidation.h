@@ -120,13 +120,13 @@ namespace RendererTrace::OverlayDrawValidation {
 
 template<class Draw>
 HRESULT Run(IDirect3DDevice9* device,Draw draw) {
-    if(!captureSlot && !deadline && !LiveOverlays::Busy() && LiveOverlays::effects.empty())return draw();
+    if(!captureSlot && !deadline && !LiveOverlays::Busy() && LiveOverlays::effects.empty() && !LiveOverlays::WatchingVisibility())return draw();
     ComPtr<IDirect3DBaseTexture9> currentFeature, overlay, currentPalette;
     if(FAILED(device->GetTexture(1,currentPalette.GetAddressOf())) || !currentPalette)return draw();
     if(FAILED(device->GetTexture(2,currentFeature.GetAddressOf())) || !currentFeature ||
-       FAILED(device->GetTexture(3,overlay.GetAddressOf())) || !overlay)return draw();
+       FAILED(device->GetTexture(3,overlay.GetAddressOf())))return draw();
     const auto* live=LiveOverlays::Find(currentFeature.Get(),overlay.Get(),currentPalette.Get());
-    if(!live && !LiveOverlays::Busy() &&
+    if(!live && !LiveOverlays::Busy() && !LiveOverlays::WatchingVisibility() &&
         (captureSlot ? Pointer(currentFeature.Get())!=targetFeature : currentFeature.Get()!=feature.Get()))return draw();
     ComPtr<IDirect3DPixelShader9> shader;
     UINT size=0;
@@ -134,6 +134,7 @@ HRESULT Run(IDirect3DDevice9* device,Draw draw) {
        FAILED(shader->GetFunction(nullptr,&size)) || size!=10812)return draw();
     std::vector<unsigned char> bytes(size);
     if(FAILED(shader->GetFunction(bytes.data(),&size)) || Identity(bytes)!="4f2d54bdda78e7fd")return draw();
+    LiveOverlays::RecordPalette(currentPalette.Get());
     LiveOverlays::Observe(currentFeature,overlay,currentPalette.Get());
     if(captureSlot && Pointer(currentFeature.Get())==targetFeature) {
         float paletteIndex[4]{};

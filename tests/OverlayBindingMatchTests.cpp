@@ -1,5 +1,6 @@
 #include "../DllEditor/PalleteEditor/DirectXWrapper/OverlayBindingMatch.h"
 #include <cassert>
+#include "../DllEditor/PalleteEditor/DirectXWrapper/PaletteVisibility.h"
 #include "../DllEditor/PalleteEditor/DirectXWrapper/PaletteTextureMatch.h"
 int main() {
     using namespace OverlayBindingMatch;
@@ -9,6 +10,14 @@ int main() {
     assert(PaletteTextureMatch::Close(0xffa1815f,gradients[1][15]));
     assert(!PaletteTextureMatch::Close(0xffa4815f,gradients[1][15]));
     bool invalid=false;try{PaletteTextureMatch::Build({0},{2});}catch(...){invalid=true;}assert(invalid);
+    PaletteTextureMatch::VisibilityHistory visibility;
+    assert(!visibility.Contains(gradients));
+    visibility.Record(gradients);assert(visibility.Contains(gradients));
+    auto other=gradients;other[1][0]=0xffffff;assert(!visibility.Contains(other));
+    visibility.Advance();visibility.Advance();assert(visibility.Contains(gradients));
+    visibility.Advance();assert(!visibility.Contains(gradients));
+    visibility.Record(gradients);assert(visibility.Contains(gradients));
+    visibility.Clear();assert(!visibility.Contains(gradients));
     // The target follows A/B/A/B; a second fighter changes only during startup.
     Snapshot marker{{1,10},{2,20}},primary{{1,11},{2,21}},againMarker{{1,10},{2,21}};
     auto c=Changed(marker,primary);assert(c.size()==2);

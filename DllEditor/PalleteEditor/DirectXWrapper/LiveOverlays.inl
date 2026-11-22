@@ -1,4 +1,5 @@
 #include "OverlayBindingMatch.h"
+#include "PaletteVisibility.h"
 namespace LiveOverlays {
 using Microsoft::WRL::ComPtr;
 using Texture = ComPtr<IDirect3DBaseTexture9>;
@@ -33,6 +34,29 @@ struct Pending {
 inline std::optional<Pending> pending;
 inline std::map<std::pair<int,int>, RenderEffect> effects;
 
+inline PaletteTextureMatch::VisibilityHistory visibility;
+inline bool watchVisibility=false;
+bool WatchingVisibility(){return watchVisibility;}
+bool VisiblePalette(const PaletteTextureMatch::Rows& expected) {
+    watchVisibility=true;return visibility.Contains(expected);
+}
+void RecordPalette(IDirect3DBaseTexture9* base) {
+    if(!watchVisibility || !base || base->GetType()!=D3DRTYPE_TEXTURE)return;
+    auto* texture=static_cast<IDirect3DTexture9*>(base);D3DSURFACE_DESC desc{};
+    if(FAILED(texture->GetLevelDesc(0,&desc)) || desc.Width!=16 || desc.Height!=256 || desc.Format!=D3DFMT_A8R8G8B8 || desc.Pool!=D3DPOOL_MANAGED)return;
+    D3DLOCKED_RECT lock{};if(FAILED(texture->LockRect(0,&lock,nullptr,D3DLOCK_READONLY)))return;
+    PaletteTextureMatch::Rows colors;
+    if(lock.pBits && lock.Pitch>=64) {
+        colors.resize(256);
+        for(int row=0;row<256;++row) {
+            const auto* pixels=reinterpret_cast<const DWORD*>(static_cast<const unsigned char*>(lock.pBits)+row*lock.Pitch);
+            for(int x=0;x<16;++x)colors[row][x]=pixels[x]&0xffffff;
+        }
+    }
+    texture->UnlockRect(0);if(colors.empty())return;
+    visibility.Record(std::move(colors));
+}
+
 bool Busy() { return pending.has_value(); }
 void Start(Request request) {
     if(Busy())throw std::runtime_error("Another two-texture palette is being prepared.");
@@ -64,10 +88,12 @@ void Cancel() {
 }
 void Clear() {
     Cancel();
+    visibility.Clear();watchVisibility=false;
     effects.clear();
 }
 
 inline void Tick(IDirect3DDevice9* device) {
+    visibility.Advance();
     for(auto& [slot,effect]:effects) {
         try {
             effect.visible=effect.active();
@@ -77,7 +103,7 @@ inline void Tick(IDirect3DDevice9* device) {
     if(!pending)return;
     try {
         if(!pending->request.current())throw std::runtime_error("Palette changed during two-texture preparation.");
-        if(GetTickCount64()>=pending->deadline)throw std::runtime_error("Could not identify a unique draw for this fighter.");
+        if(GetTickCount64()>=pending->deadline)throw std::runtime_error(WaitingForDraw);
         if(++pending->frames<8) {pending->observed.clear();return;}
         auto& task=*pending;
         if(task.marker.empty()) {
@@ -104,7 +130,7 @@ inline void Tick(IDirect3DDevice9* device) {
                 // their palette textures differ. A unique full-color signature
                 // identifies this target without requiring a Chowder pointer change.
                 const auto matching=snapshot(task.observed);
-                if(matching.size()==1 && matching.begin()->second && task.marker.count(task.observed.begin()->first)) {
+                if(task.request.uniqueOriginalColors && matching.size()==1 && matching.begin()->second && task.marker.count(task.observed.begin()->first)) {
                     task.effect.binding=task.observed.begin()->second;Finish("");return;
                 }
                 task.observed.clear();task.frames=0;return;

@@ -38,6 +38,8 @@ namespace {
 std::vector<DWORD> identity;
 std::map<std::string,std::string> attempted;
 std::map<std::string,std::string> attemptResults;
+std::map<std::string,std::string> preparedColors;
+std::map<std::string,ULONGLONG> retryAfter;
 ULONGLONG nextCheck=0;
 Character Model(int slot) {
     DWORD root=OverlayEditor::Word(OverlayEditor::base+0x85ea4c);
@@ -119,8 +121,16 @@ void ApplyDualOverlay(Character c,PaletteData::Document document,OverlayCompleti
     };
     auto replace=[owner](const Bytes& header) {PausedWrite(owner.address,header);Refresh();};
     const auto baseline=OverlayEditor::CapturePalette(c);
+    const auto baselineRows=PaletteTextureMatch::Build(baseline.colors,baseline.groupSizes);
+    bool uniqueColors=true;
+    for(int slot=0;slot<6;++slot)if(slot!=c.ID) {
+        try {
+            const auto other=OverlayEditor::CapturePalette(Model(slot));
+            if(PaletteTextureMatch::Build(other.colors,other.groupSizes)==baselineRows)uniqueColors=false;
+        }catch(...) {}
+    }
     LiveOverlays::Request request{c.ID,c.Current_Pallete_Num,primary,secondary,
-        PaletteTextureMatch::Build(baseline.colors,baseline.groupSizes),PaletteTextureMatch::Build(document.colors,document.groupSizes),
+        baselineRows,PaletteTextureMatch::Build(document.colors,document.groupSizes),uniqueColors,
         [current,owner,installed]() {return current() && Read(owner.address,12)==*installed;},
         [replace,targetHeader,installed]() {
             *installed=targetHeader;
@@ -179,9 +189,9 @@ void ForgetMatch() {
         retiredDualOverlays.insert_or_assign(address,std::move(entry));
     nativeDualOverlays.clear();
     overlayDrafts.clear();
-    OverlayEditor::ForgetMatch();identity.clear();attempted.clear();attemptResults.clear();nextCheck=0;
+    OverlayEditor::ForgetMatch();identity.clear();attempted.clear();attemptResults.clear();preparedColors.clear();retryAfter.clear();nextCheck=0;
 }
-void ResetAutoLoad() {attempted.clear();attemptResults.clear();nextCheck=0;}
+void ResetAutoLoad() {attempted.clear();attemptResults.clear();preparedColors.clear();retryAfter.clear();nextCheck=0;}
 void PaletteChanged() {
 #ifdef SGPE_DLL_VALIDATION
     CancelOverlayDrawPreview();
@@ -267,22 +277,44 @@ void Tick() {
                     auto fingerprint=PaletteData::PathText(path)+(error?":missing":":"+std::to_string(time.time_since_epoch().count()));
                     if(attempted.count(key) && attempted[key]==fingerprint){if(attemptResults.count(key))entry.Status=attemptResults[key];continue;}
                     auto document=PaletteData::ReadFile(path);
-                    if(LiveOverlays::Busy())continue;
                     if(document.secondOverlay) {
+                        if(!preparedColors.count(key) || preparedColors[key]!=fingerprint) {
+                            // Validate the complete assignment before any early color write.
+                            // A legacy-shaped colors-only import preserves all live effects.
+                            OverlayEditor::ValidatePalette(c,document,true);
+                            PaletteData::Document colors;
+                            colors.character=document.character;colors.colors=document.colors;colors.groupSizes=document.groupSizes;
+                            colors.lineColor=document.lineColor;colors.shadow1=document.shadow1;colors.shadow2=document.shadow2;colors.legacy=true;
+                            OverlayEditor::ApplyPalette(c,colors,false,true);
+                            preparedColors[key]=fingerprint;
+                            if(slot==selected)Sync();
+                        }
+                        if(LiveOverlays::Busy()) {entry.Status="Base colors loaded; waiting for overlay preparation.";continue;}
+                        if(retryAfter.count(key) && GetTickCount64()<retryAfter[key]) {entry.Status="Base colors loaded; waiting for fighter to be visible (tag in).";continue;}
+                        const auto live=OverlayEditor::CapturePalette(c);
+                        if(!LiveOverlays::VisiblePalette(PaletteTextureMatch::Build(live.colors,live.groupSizes))) {
+                            entry.Status="Base colors loaded; waiting for fighter to be visible (tag in).";continue;
+                        }
+                        // Do not overwrite manual colors edited while shaders waited.
+                        document.colors=live.colors;document.lineColor=live.lineColor;
+                        document.shadow1=live.shadow1;document.shadow2=live.shadow2;
                         attempted[key]=fingerprint;
                         const auto character=entry.CharName;
                         const auto palette=entry.PalNum;
                         const auto savedPath=entry.PalPath;
                         ApplyDualOverlay(c,std::move(document),[character,palette,savedPath,key,draftKey=DraftKey(c)](const std::string& failure) {
                             if(failure.empty())overlayDrafts.erase(draftKey);
-                            attemptResults[key]=failure.empty()?"Loaded colors and both overlays.":"Auto-load failed: "+failure;
+                            if(failure==LiveOverlays::WaitingForDraw){attempted.erase(key);retryAfter[key]=GetTickCount64()+1000;}
+                            attemptResults[key]=failure.empty()?"Loaded colors and both overlays.":
+                                failure==LiveOverlays::WaitingForDraw?"Base colors loaded; waiting for fighter to be visible (tag in).":"Auto-load failed: "+failure;
                             for(auto& target:AutoPalette::Auto_Pals)
                                 if(target.CharName==character && target.PalNum==palette && target.PalPath==savedPath)
-                                    target.Status=failure.empty()?"Loaded colors and both overlays.":"Auto-load failed: "+failure;
+                                    target.Status=attemptResults[key];
                         });
                         entry.Status="Preparing both overlays.";
                         continue;
                     }
+                    if(LiveOverlays::Busy())continue;
                     attempted[key]=fingerprint;
                     OverlayEditor::ApplyPalette(c,document);
                     overlayDrafts.erase(DraftKey(c));
