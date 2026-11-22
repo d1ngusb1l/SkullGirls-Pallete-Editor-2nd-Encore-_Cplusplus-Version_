@@ -188,15 +188,29 @@ inline void Draw(int targetSlot,int targetPalette,const char* character,const st
     ImGui::Separator();
     ImGui::TextColored(ImVec4(0.4f,0.85f,1.0f,1.0f),"Animation / frame selection");
     ImGui::TextDisabled("%zu animations loaded | select an animation to reveal its frame controls",animations.size());
-    ImGui::InputTextWithHint("##AnimationSearch","Search authored name or numeric move ID",animationSearch,sizeof(animationSearch));
-    ImGui::BeginChild("Animation list",ImVec2(220,140),true);
+    ImGui::InputTextWithHint("##AnimationSearch","Filter animation name or numeric move ID",animationSearch,sizeof(animationSearch));
+    ImGui::BeginChild("Animation list",ImVec2(300,140),true);
     std::string query=animationSearch;std::transform(query.begin(),query.end(),query.begin(),::tolower);
+    std::vector<int> filtered;
     for(int i=0;i<(int)animations.size();++i){
         auto name=animations[i].name;std::string lower=name;std::transform(lower.begin(),lower.end(),lower.begin(),::tolower);
         std::string id=std::to_string(animations[i].id);
         if(!query.empty()&&lower.find(query)==std::string::npos&&id.find(query)==std::string::npos)continue;
-        std::string label=name.empty()?("Move "+id):name+" ["+id+"]";
-        if(ImGui::Selectable(label.c_str(),selectedAnimation==i)){selectedAnimation=i;frameIndex=0;}
+        filtered.push_back(i);
+    }
+    int comboIndex=-1;
+    for(int i=0;i<(int)filtered.size();++i)if(filtered[i]==selectedAnimation)comboIndex=i;
+    std::string selectedLabel="Choose animation";
+    if(comboIndex>=0){const auto& a=animations[selectedAnimation];selectedLabel=a.name.empty()?("Move "+std::to_string(a.id)):a.name+" ["+std::to_string(a.id)+"]";}
+    ImGui::SetNextItemWidth(-1);
+    if(ImGui::BeginCombo("Animation dropdown",selectedLabel.c_str())){
+        for(int i=0;i<(int)filtered.size();++i){
+            int animationIndex=filtered[i];const auto& a=animations[animationIndex];
+            std::string label=a.name.empty()?("Move "+std::to_string(a.id)):a.name+" ["+std::to_string(a.id)+"]";
+            if(ImGui::Selectable(label.c_str(),selectedAnimation==animationIndex)){selectedAnimation=animationIndex;frameIndex=0;}
+            if(selectedAnimation==animationIndex)ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
     }
     ImGui::EndChild();ImGui::SameLine();
     ImGui::BeginGroup();
@@ -208,6 +222,17 @@ inline void Draw(int targetSlot,int targetPalette,const char* character,const st
         frameIndex=std::clamp(frameIndex,0,(int)animation.frames.size()-1);
         if(ImGui::Button("Previous"))frameIndex=(std::max)(0,frameIndex-1);ImGui::SameLine();
         if(ImGui::Button("Next"))frameIndex=(std::min)((int)animation.frames.size()-1,frameIndex+1);
+        std::string frameLabel="Frame "+std::to_string(frameIndex+1)+" / "+std::to_string(animation.frames.size());
+        ImGui::SetNextItemWidth(180);
+        if(ImGui::BeginCombo("Frame dropdown",frameLabel.c_str())){
+            for(int i=0;i<(int)animation.frames.size();++i){
+                auto& entry=animation.frames[i];
+                std::string label="Frame "+std::to_string(i+1)+" - sprite "+std::to_string(entry.sprite)+" - "+std::to_string(entry.duration)+" ticks";
+                if(ImGui::Selectable(label.c_str(),frameIndex==i))frameIndex=i;
+                if(frameIndex==i)ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
         ImGui::SetNextItemWidth(100);ImGui::InputInt("Frame within animation",&frameIndex);
         frameIndex=std::clamp(frameIndex,0,(int)animation.frames.size()-1);
         ImGui::SliderInt("Frame", &frameIndex,0,(int)animation.frames.size()-1);
