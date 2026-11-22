@@ -64,6 +64,33 @@ void Sync() {
 #endif
 namespace {
 using OverlayCompletion=std::function<void(const std::string&)>;
+struct NativeOverlayOverride {
+    DWORD palette;
+    int paletteNumber;
+    OverlayEditor::Bytes original;
+    std::shared_ptr<OverlayEditor::Bytes> written;
+};
+std::map<DWORD,NativeOverlayOverride> nativeDualOverlays;
+std::map<DWORD,NativeOverlayOverride> retiredDualOverlays;
+
+void RestoreRetiredOverlays(const std::vector<DWORD>& match) {
+    using namespace OverlayEditor;
+    bool restored=false;
+    for(const auto& [address,entry]:retiredDualOverlays) {
+        for(int slot=0;slot<6;slot++) {
+            if(match[2+2*slot]!=entry.palette)continue;
+            if(entry.paletteNumber<static_cast<int>(Word(entry.palette)) &&
+                Word(entry.palette+0x14)+12*entry.paletteNumber==address &&
+                Read(address,12)==*entry.written) {
+                PausedWrite(address,entry.original);
+                restored=true;
+            }
+            break;
+        }
+    }
+    retiredDualOverlays.clear();
+    if(restored)Refresh();
+}
 
 void ApplyDualOverlay(Character c,PaletteData::Document document,OverlayCompletion report) {
     using namespace OverlayEditor;
@@ -82,6 +109,8 @@ void ApplyDualOverlay(Character c,PaletteData::Document document,OverlayCompleti
     const auto targetHeader=OverlayHeader(primary,&secondary);
     auto installed=std::make_shared<Bytes>(markerHeader);
     auto applied=std::make_shared<Bytes>();
+    const auto previousEntry=nativeDualOverlays.find(address);
+    const auto previous=previousEntry==nativeDualOverlays.end()?std::optional<NativeOverlayOverride>{}:previousEntry->second;
     auto current=[owner,c]() {
         try {return Valid(owner) && Read(owner.actor+0x330,1)[0]==c.Current_Pallete_Num;}
         catch(...) {return false;}
@@ -93,15 +122,23 @@ void ApplyDualOverlay(Character c,PaletteData::Document document,OverlayCompleti
             *installed=targetHeader;
             replace(targetHeader);
         },
-        [owner,c,document=std::move(document),replace,installed,applied,report](const std::string& error) mutable {
+        [owner,c,document=std::move(document),replace,installed,applied,report,previous](const std::string& error) mutable {
+            auto restoreTracking=[&]() {
+                if(!Valid(owner) || Read(owner.address,12)!=owner.header)return;
+                if(previous)nativeDualOverlays.insert_or_assign(owner.address,*previous);
+                else nativeDualOverlays.erase(owner.address);
+            };
             try {
                 if(Valid(owner) && Read(owner.address,12)==*installed)replace(owner.header);
-                if(!error.empty()) {report(error);return;}
+                if(!error.empty()) {restoreTracking();report(error);return;}
                 OverlayEditor::ApplyPalette(c,document,true);
                 *applied=Read(owner.address,12);
+                nativeDualOverlays.insert_or_assign(owner.address,NativeOverlayOverride{
+                    owner.palette,c.Current_Pallete_Num,originals.at(owner.address).header,applied});
                 if(c.ID==PlayableCharactersManager::GetCurrentCharacterIndex())Sync();
                 report("");
             }catch(const std::exception& e) {
+                try {restoreTracking();}catch(...) {}
                 report(e.what());
                 if(error.empty())throw;
             }
@@ -112,6 +149,9 @@ void ApplyDualOverlay(Character c,PaletteData::Document document,OverlayCompleti
         }
     };
     LiveOverlays::Start(std::move(request));
+    const auto original=originals.find(address);
+    nativeDualOverlays.insert_or_assign(address,NativeOverlayOverride{
+        owner.palette,c.Current_Pallete_Num,original==originals.end()?owner.header:original->second.header,installed});
     try {replace(markerHeader);}
     catch(...) {LiveOverlays::Cancel();throw;}
 }
@@ -122,6 +162,9 @@ void ForgetMatch() {
     CancelOverlayDrawPreview();
 #endif
     LiveOverlays::Clear();
+    for(auto& [address,entry]:nativeDualOverlays)
+        retiredDualOverlays.insert_or_assign(address,std::move(entry));
+    nativeDualOverlays.clear();
     overlayDrafts.clear();
     OverlayEditor::ForgetMatch();identity.clear();attempted.clear();nextCheck=0;
 }
@@ -165,7 +208,11 @@ void Tick() {
         if(!root || OverlayEditor::Word(root+0x168)!=4) {if(!identity.empty())ForgetMatch();return;}
         std::vector<DWORD> current{root};
         for(int slot=0;slot<6;slot++) {auto actor=OverlayEditor::Word(root+0x5e8+4*slot);current.push_back(actor);current.push_back(actor?OverlayEditor::Word(actor+0x328):0);}
-        if(identity!=current) {ForgetMatch();identity=current;}
+        if(identity!=current) {
+            ForgetMatch();
+            RestoreRetiredOverlays(current);
+            identity=current;
+        }
         int selected=PlayableCharactersManager::GetCurrentCharacterIndex();
         if(selected>=0 && Model(selected).Current_Pallete_Num!=PlayableCharactersManager::GetCurrentCharacter().Current_Palette_Num) {
             PaletteChanged();
