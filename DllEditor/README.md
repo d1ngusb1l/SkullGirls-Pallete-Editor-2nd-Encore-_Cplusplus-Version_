@@ -1,4 +1,4 @@
-# Skullgirls Palette Editor — DLL release candidate
+﻿# Skullgirls Palette Editor — DLL release candidate
 
 This version builds on the `dll_version` editor at commit `0b09e4c`, retaining its in-game interface, color wheel, group Copy/Paste, and eyedropper. It shares the advanced effect backend and compatible `.pal` format with the standalone V1 editor. The native effect layouts currently target game build **26588330**.
 
@@ -6,10 +6,11 @@ This version builds on the `dll_version` editor at commit `0b09e4c`, retaining i
 
 Close the game before replacing the DLL. Extract **d3d9.dll**, **groups.json**, **overlay-textures.json**, and the **overlay-shader** folder beside the isolated runner's `SkullGirls.exe`. Keep a backup of any existing `d3d9.dll`. Restart the game after a DLL update. Press **F1** or **Insert** to show or hide the editor.
 
-- **Palette** contains ordinary colors, line/shadow settings, color wheels, and group Copy/Paste.
-- **Advanced** is a separate tab containing overlay textures, rainbow, opacity, color links, and conditional transformations. It has its own character and palette selectors, shared with Palette.
-- **Advanced → Overlay textures** starts with one texture. Use **Add second texture** to assign another texture to separate groups, then click **Apply overlays**. Both textures share one lighting setting.
-- **Shader settings → Assign overlay** in an expanded color group stages that group's overlay choice. Use **Apply overlays** in Advanced to commit it. Other group shader changes apply immediately. Use Advanced for display groups that split a native shader band.
+- The persistent target bar shows team, character, palette number and the active Autoload file. Use the numeric field, Previous/Next, or the retained slider. Palette and Advanced share this target; pending overlay changes offer Apply, Discard or Cancel before switching.
+- **Palette** has a searchable group list with swatches/applied effects and a selected-group inspector for color editing, Copy/Paste, the color wheel and shader assignments. A different-size paste explicitly offers **Paste matching swatches**. **Undo paste** restores the entire paste in one action, provided those colors have not subsequently changed.
+- Assign up to two distinct overlay textures to disjoint groups and click **Apply overlays** in the same inspector. The nearby status reports Pending, Applied, or an error. Display groups that split a native shader band link to Advanced.
+- **Advanced** keeps palette-wide line/shadow colors, effect settings and native band assignment controls. **Auto-load** manages file assignments.
+- **Sprite preview (prototype)** shows one fixed Cerebella pose using a separately prepared local asset. Local swatch edits, zoom, highlighting and Original/Edited affect only this pane. Original is the pane's captured snapshot. Effects are not previewed. To prepare the asset, run `python scripts/prepare-dll-preview.py GAME_DIRECTORY OUTPUT_DIRECTORY` using a working Python 3 installation and put `cerebella-pose.bin` beside the DLL. See [workspace validation](../docs/DLL-WORKSPACE-VALIDATION.md) for its precise limits and tested workflows.
 - **File → Save Palette** saves colors and applied advanced assignments together. **Save palette and auto-load** also assigns the file to the current slot. **Export legacy colors only** produces an exact legacy file.
 - **Auto-load** supports enabled assignments, a character/palette number, a file picker, and status messages. It loads once per palette, again after a file update, and again in a new match. Later manual edits are retained. Disabling an assignment stops future loading; it does not undo the current palette.
 
