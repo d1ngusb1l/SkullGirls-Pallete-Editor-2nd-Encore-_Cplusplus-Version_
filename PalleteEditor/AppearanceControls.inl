@@ -139,8 +139,8 @@ inline void DrawAppearance(Character& c) {
         ImGui::SameLine(); if(ImGui::Button("Reset opacity for this palette")) { ResetOpacity(c); SyncAppearanceColors(c); }
         ImGui::Separator();
         ImGui::TextWrapped("Always-on color links replace native rules for each chosen source group. Sampling is one step: A -> B uses B's own colors, even if B -> C also exists. Rainbow and overlay masks follow the destination band.");
-        AppearanceGroupCombo("Source group",linkSource,data);
-        AppearanceGroupCombo("Borrow colors from",linkDestination,data);
+        AppearanceGroupCombo("Copy colors from",linkDestination,data);
+        AppearanceGroupCombo("Apply colors to",linkSource,data);
         if(ImGui::Button("Add / update link")) {
             CheckAppearanceBand(data,linkSource); CheckAppearanceBand(data,linkDestination);
             if(linkSource==linkDestination) throw std::runtime_error("Choose different source and destination groups.");
@@ -148,7 +148,7 @@ inline void DrawAppearance(Character& c) {
         }
         int erase=-1;
         for(auto& rule:colorLinks) {
-            ImGui::PushID(rule.first); ImGui::Text("%s -> %s",data.groups.at(rule.first).label.c_str(),data.groups.at(rule.second).label.c_str());
+            ImGui::PushID(rule.first); ImGui::Text("Copy colors from %s; apply colors to %s",data.groups.at(rule.second).label.c_str(),data.groups.at(rule.first).label.c_str());
             ImGui::SameLine(); if(ImGui::SmallButton("Remove")) erase=rule.first; ImGui::PopID();
         }
         if(erase!=-1) colorLinks.erase(erase);

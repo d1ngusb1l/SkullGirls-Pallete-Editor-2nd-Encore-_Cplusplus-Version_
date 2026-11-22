@@ -49,14 +49,16 @@ inline void DrawTransformation(const Character& c) {
             ImGui::EndCombo();
         }
         ImGui::PushID("transformation");
-        AppearanceGroupCombo("Source group",transformSource,data);
-        AppearanceGroupCombo("Transformed colors",transformDestination,data);
+        AppearanceGroupCombo("Copy colors from",transformDestination,data);
+        if(ImGui::IsItemHovered()) ImGui::SetTooltip("The group whose colors are borrowed while the trigger is active.");
+        AppearanceGroupCombo("Apply colors to",transformSource,data);
+        if(ImGui::IsItemHovered()) ImGui::SetTooltip("The group that receives the borrowed colors while the trigger is active.");
         bool add=ImGui::Button("Add / update transformed link");
         bool example=c.Char_Name=="Annie" && ImGui::Button("Example: hair / braid borrow foot colors");
         int erase=-1;
         for(auto& rule:transformDraft.links) {
             ImGui::PushID(rule.first);
-            ImGui::Text("%s -> %s",data.groups.at(rule.first).label.c_str(),data.groups.at(rule.second).label.c_str());
+            ImGui::Text("Copy colors from %s; apply colors to %s",data.groups.at(rule.second).label.c_str(),data.groups.at(rule.first).label.c_str());
             ImGui::SameLine(); if(ImGui::SmallButton("Remove")) erase=rule.first;
             ImGui::PopID();
         }
