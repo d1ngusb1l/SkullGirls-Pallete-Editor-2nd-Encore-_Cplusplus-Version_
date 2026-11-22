@@ -139,7 +139,7 @@ HRESULT IDirect3DDevice9Proxy::Present(CONST RECT* pSourceRect, CONST RECT* pDes
 
 	HRESULT res = (origIDirect3DDevice9->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion));
 #ifdef SGPE_DLL_VALIDATION
-	RendererTrace::EndFrame();
+	RendererTrace::EndFrame(origIDirect3DDevice9);
 #endif
 	if (callbacks[POSTPRESENT])
 		((D3D9DevicePostPresentFunc)callbacks[POSTPRESENT])(this, res);

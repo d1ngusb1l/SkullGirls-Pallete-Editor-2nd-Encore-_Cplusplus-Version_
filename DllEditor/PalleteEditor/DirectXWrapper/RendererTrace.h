@@ -160,8 +160,40 @@ inline void Draw(IDirect3DDevice9* device,const char* kind,UINT primitives,
         draws.push_back({{"kind",kind},{"primitives",primitives},{"geometry",geometry},{"shader",id},{"textures",textures},{"constants",values}});
     }catch(const std::exception& e){if(draws.size()<512)draws.push_back({{"error",e.what()}});}
 }
-inline void EndFrame() {
+inline void CheckOverlayShader(IDirect3DDevice9* device) {
+    const auto request=std::filesystem::path("overlay-shader-check.request");
+    if(!std::filesystem::exists(request))return;
+    std::filesystem::remove(request);
+    Json result=Json::object();
+    D3DCAPS9 caps{};
+    if(SUCCEEDED(device->GetDeviceCaps(&caps))) {
+        result["pixelShaderVersion"]=caps.PixelShaderVersion;
+        result["maxInstructionSlots"]=caps.MaxPixelShader30InstructionSlots;
+    }
+    for(const char* variant:{"baseline","prototype","unlit"}) {
+        std::ifstream input(std::filesystem::path("overlay-shader")/(std::string(variant)+".bin"),std::ios::binary|std::ios::ate);
+        const auto size=input.tellg();
+        if(size<8 || size>65536 || static_cast<size_t>(size)%4) {
+            result[variant]={{"error","Missing or invalid shader file"}};
+            continue;
+        }
+        std::vector<DWORD> tokens(static_cast<size_t>(size)/4);
+        input.seekg(0);
+        if(!input.read(reinterpret_cast<char*>(tokens.data()),size) ||
+           tokens.front()!=D3DPS_VERSION(3,0) || tokens.back()!=0xffff) {
+            result[variant]={{"error","Expected complete ps_3_0 bytecode"}};
+            continue;
+        }
+        IDirect3DPixelShader9* shader=nullptr;
+        const auto status=device->CreatePixelShader(tokens.data(),&shader);
+        result[variant]={{"accepted",SUCCEEDED(status) && shader!=nullptr},{"hresult",static_cast<uint32_t>(status)}};
+        if(shader)shader->Release();
+    }
+    PaletteData::AtomicWriteText("overlay-shader-check-result.json",result.dump(2));
+}
+inline void EndFrame(IDirect3DDevice9* device) {
     try {
+        CheckOverlayShader(device);
         if(frames && --frames==0) {
             PaletteData::AtomicWriteText("renderer-trace/capture.json",Json({{"shaders",shaders},{"draws",draws},
                 {"readOnlyCapture",true},{"drawLimit",512},{"shaderIdentity","FNV-1a diagnostic identifier; not an integrity checksum"}}).dump(2));
