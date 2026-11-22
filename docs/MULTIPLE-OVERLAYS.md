@@ -119,3 +119,5 @@ After merging the shader-loading fixes, the saved Cerebella test produced 1,635 
 Apply both overlays, File → Load Palette, and Autoload use the same preparation path. It temporarily attaches a marker texture, compares native draw bindings with the requested textures, and commits the saved palette only after identifying one changed feature binding. Preparation restores the prior overlay on failure. The renderer checks the character, palette number, and applied native header before using the replacement shader.
 
 The validation runner needs the tested `overlay-shader/prototype.bin` built with `scripts/build-overlay-preview.ps1`. Use two distinct textures on disjoint groups with matching lighting settings. The standalone editor and release DLL continue to use their existing single-overlay renderer.
+
+In offline Training, File → Load Palette kept Water on Cerebella's hat and Fire on her dress without a timer. Both cleared when switching to an unmodified palette. An Auto-load assignment to a clean color applied both patterns and reported success. Loading the file into the draft and clicking Apply both overlays on another clean color kept both patterns visible.
