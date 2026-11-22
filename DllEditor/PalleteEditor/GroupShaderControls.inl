@@ -5,8 +5,8 @@ void DrawGroup(const ColorGroup& group) {
     ImGui::PushID(PlayableCharactersManager::GetCurrentCharacterIndex());
     ImGui::PushID(selected.Current_Palette_Num);
     ImGui::PushID(group.startIndex);
-    if(ImGui::Button("Shader settings"))ImGui::OpenPopup("Group shader settings");
-    if(ImGui::BeginPopup("Group shader settings")) {
+    ImGui::SeparatorText("Shader assignments");
+    {
         try {
             auto c=Current();auto data=OverlayEditor::AppearanceData(c);
             auto d=OverlayEditor::CapturePalette(c);
@@ -23,7 +23,28 @@ void DrawGroup(const ColorGroup& group) {
             auto includes=[&](const std::set<int>& selected){return std::all_of(bands.begin(),bands.end(),[&](int b){return selected.count(b)!=0;});};
             auto outside=[&](const std::set<int>& selected){return std::any_of(selected.begin(),selected.end(),[&](int b){return !bands.count(b);});};
             ImGui::TextUnformatted(group.groupName.c_str());
-            DrawDraftGroup(c,bands,Status);
+            auto& draft=Draft(c);
+            if(OverlayEditor::templates.empty())OverlayEditor::Catalog();
+            auto slotControls=[&](PaletteData::Overlay& overlay,int slot,const char* label) {
+                ImGui::PushID(slot);
+                if(ImGui::BeginCombo(label,overlay.texture.c_str())) {
+                    for(const auto& entry:OverlayEditor::templates)if(ImGui::Selectable(entry.first.c_str(),entry.first==overlay.texture))overlay.texture=entry.first;
+                    ImGui::EndCombo();
+                }
+                bool assigned=std::all_of(bands.begin(),bands.end(),[&](int b){return DraftBand(draft,b)==slot;});
+                if(ImGui::Checkbox("Assign to this group",&assigned))for(int b:bands)AssignDraftBand(draft,b,assigned?slot:0);
+                ImGui::PopID();
+            };
+            ImGui::BeginDisabled(Busy());
+            slotControls(draft.primary,1,"First overlay");
+            if(draft.hasSecond)slotControls(draft.secondary,2,"Second overlay");
+            else if(ImGui::Button("Add second texture"))draft.hasSecond=true;
+            draft.secondary.lighting=draft.primary.lighting;
+            ImGui::Combo("Overlay lighting",&draft.primary.lighting,"Original\0Unlit\0Lit\0");
+            if(ImGui::Button("Apply overlays"))ApplyPending();
+            ImGui::SameLine();ImGui::TextUnformatted(HasPending()?"Pending":"Applied");
+            ImGui::EndDisabled();
+            if(!Status.empty())ImGui::TextWrapped("%s",Status.c_str());
             ImGui::TextDisabled("Other shader changes apply immediately to this palette number.");
             bool rainbow=d.rainbow && includes(d.rainbow->bands);
             if(ImGui::Checkbox("Rainbow",&rainbow)) {
@@ -93,8 +114,10 @@ void DrawGroup(const ColorGroup& group) {
                 apply();
             }
             if(!Status.empty())ImGui::TextWrapped("%s",Status.c_str());
-        }catch(const std::exception& e){ImGui::TextWrapped("%s",e.what());}
-        ImGui::EndPopup();
+        }catch(const std::exception& e){
+            ImGui::TextWrapped("%s",e.what());
+            if(ImGui::Button("Open Advanced native band controls"))OpenAdvanced=true;
+        }
     }
     ImGui::PopID();ImGui::PopID();ImGui::PopID();
 }

@@ -7,7 +7,7 @@ class Drawing
 {
 private:
 	inline static LPCSTR lpWindowName = "Skullgirls Palette Editor - DLL";
-	inline static ImVec2 vWindowSize = { 512, 512 };
+	inline static ImVec2 vWindowSize = { 1000, 720 };
 	inline static ImVec2 vFileDialogSize = { 768, 256 };
 	inline static ImGuiWindowFlags WindowFlags = ImGuiWindowFlags_MenuBar;
 	inline static bool bDrawAll = true;
@@ -39,6 +39,7 @@ private:
 	static void DrawCharacterPaletteNumSlider();
 	static void DrawCharacterOptions();
 	static void DrawCharacterColors();
+    static void DrawPaletteWideColors();
 	static void DrawColorButton(int index, ImU32 colorU32);
 	static void ProcessColorChange(int index, const ImVec4& colorVec);
 

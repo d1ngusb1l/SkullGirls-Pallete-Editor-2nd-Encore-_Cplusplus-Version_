@@ -3,6 +3,12 @@
 #include "Files/GroupJSONFiles.h"
 namespace AdvancedPalette {
     extern std::string Status;
+    inline bool OpenAdvanced=false;
+    bool Busy();
+    bool HasPending();
+    void DiscardPending();
+    void ApplyPending();
+    std::string GroupEffects(const ColorGroup& group);
     void Tick();
     void Draw();
     void DrawGroup(const ColorGroup& group);

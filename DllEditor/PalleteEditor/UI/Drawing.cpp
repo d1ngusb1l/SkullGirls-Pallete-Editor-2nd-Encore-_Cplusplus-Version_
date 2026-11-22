@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "Drawing.h"
 #include "../../../ReleaseVersion.h"
 #include "AdvancedPalette.h"
@@ -24,6 +24,23 @@
 auto DrawingLogger = LOGGER::createLocal("Drawing", LogLevel::GENERAL_LOG);
 static std::unordered_map<std::string, bool> wheelOpenMap;
 static bool saveAndAssign=false,saveLegacy=false;
+static std::string copiedGroup;
+static int requestedSlot=-1, requestedPalette=-1;
+static bool openAdvanced=false, switchAfterApply=false;
+struct PasteUndo { int slot, palette, start; std::vector<ImU32> before, after; };
+static std::vector<PasteUndo> pasteUndo;
+static void RequestTarget(int slot,int palette) {
+    requestedSlot=slot; requestedPalette=palette;
+}
+static void CommitTarget() {
+    if(requestedSlot>=0) {
+        PlayableCharactersManager::instance().SetCurrentCharacterIndex(requestedSlot);
+        PlayableCharactersManager::LoadCharacter();
+    } else if(requestedPalette>=0) PlayableCharactersManager::ChangePaletteNumber(requestedPalette);
+    AdvancedPalette::PaletteChanged();
+    requestedSlot=requestedPalette=-1;
+    pasteUndo.clear();
+}
 
 
 
@@ -52,20 +69,53 @@ void Drawing::Draw()
 
 			EyeDropper::getInstance().EyeDropperToolTip();
 
-			if (ImGui::BeginTabBar("##TabBar")) {
+			if(MainThread::Match_Readed) {
+                DrawPlayableCharactersComboBox();
+                if(PlayableCharactersManager::GetCurrentCharacterIndex()>=0) {
+                    DrawCharacterPaletteNumSlider();
+                    const auto& target=PlayableCharactersManager::GetCurrentCharacter();
+                    ImGui::Text("Team %d | %s | Palette %d",PlayableCharactersManager::GetCurrentCharacterIndex()/3+1,target.Char_Name,target.Current_Palette_Num+1);
+                    bool assigned=false;
+                    for(const auto& entry:AutoPalette::Auto_Pals)if(entry.Enabled && entry.CharName==target.Char_Name && entry.PalNum==target.Current_Palette_Num) {
+                        ImGui::TextWrapped("Autoload: %s (%s)",entry.PalPath.c_str(),entry.Status.c_str());assigned=true;break;
+                    }
+                    if(!assigned)ImGui::TextDisabled("Autoload: None");
+                }
+            } else pasteUndo.clear();
+            if(switchAfterApply && !AdvancedPalette::Busy()) {
+                switchAfterApply=false;
+                if(!AdvancedPalette::HasPending() && AdvancedPalette::Status=="Applied")CommitTarget();
+                else requestedSlot=requestedPalette=-1;
+            }
+            if((requestedSlot>=0 || requestedPalette>=0) && !switchAfterApply) {
+                if(AdvancedPalette::Busy()) { requestedSlot=requestedPalette=-1; }
+                else if(AdvancedPalette::HasPending())ImGui::OpenPopup("Pending edits");
+                else CommitTarget();
+            }
+            if(ImGui::BeginPopupModal("Pending edits",nullptr,ImGuiWindowFlags_AlwaysAutoResize)) {
+                ImGui::TextUnformatted("Apply or discard pending overlay assignments before changing target.");
+                if(ImGui::Button("Apply")) { AdvancedPalette::ApplyPending(); switchAfterApply=true; ImGui::CloseCurrentPopup(); }
+                ImGui::SameLine();
+                if(ImGui::Button("Discard")) { AdvancedPalette::DiscardPending(); CommitTarget(); ImGui::CloseCurrentPopup(); }
+                ImGui::SameLine();
+                if(ImGui::Button("Cancel")) { requestedSlot=requestedPalette=-1; ImGui::CloseCurrentPopup(); }
+                ImGui::EndPopup();
+            }
+            if (ImGui::BeginTabBar("##TabBar")) {
 
 				if (ImGui::BeginTabItem("Palette")) {
 					DrawPaletteTabItem();
 					ImGui::EndTabItem();
 				}
-                if (ImGui::BeginTabItem("Advanced")) {
+                if (ImGui::BeginTabItem("Advanced",nullptr,openAdvanced?ImGuiTabItemFlags_SetSelected:0)) {
+                    openAdvanced=false;
                     if (!MainThread::Match_Readed) {
                         ImGui::TextUnformatted("Start a match to use advanced settings.");
                     } else {
-                        DrawPlayableCharactersComboBox();
                         if (PlayableCharactersManager::GetCurrentCharacterIndex() != -1) {
-                            DrawCharacterPaletteNumSlider();
                             ImGui::Separator();
+                            DrawCharacterOptions();
+                            DrawPaletteWideColors();
                             AdvancedPalette::Draw();
                         }
                     }
@@ -198,18 +248,15 @@ void Drawing::DrawPaletteTabItem() {
 		ImGui::Text("Start a match to use the editor.");
 		return;
 	}
-	DrawPlayableCharactersComboBox();
 	if (charMgr.GetCurrentCharacterIndex() == -1) return;
 
 	ImGui::Spacing();
 
-	DrawCharacterPaletteNumSlider();
     if (!AdvancedPalette::Status.empty())
         ImGui::TextWrapped("%s", AdvancedPalette::Status.c_str());
 
 	ImGui::Separator();
 
-	DrawCharacterOptions();
 
 	ImGui::Separator();
 
@@ -227,7 +274,8 @@ void Drawing::DrawPlayableCharactersComboBox() {
 	if (Curent_Index != -1) {
 		preview_text = allCharsNames[Curent_Index].value();
 	}
-	ImGui::Text("Select character:");
+	ImGui::Text("Target");
+    ImGui::BeginDisabled(AdvancedPalette::Busy());
 
 	if (ImGui::BeginCombo("##CharSelect", preview_text.c_str())) {
 
@@ -253,8 +301,7 @@ void Drawing::DrawPlayableCharactersComboBox() {
 				// Сохраняем ID выбранного персонажа
 				LOG_LOCAL_DEBUG(DrawingLogger, "Choose new Playable Character ", allCharsNames[i].value(), " at ", i);
 				m_ActiveColorIndex = 1;
-				charMgr.SetCurrentCharacterIndex(i);
-				charMgr.LoadCharacter();
+				RequestTarget(i,-1);
 				LOG_DEBUG("Loading character from slot: ", i);
 				LOG_DEBUG("Character name: ", Curent_Char.Char_Name);
 				LOG_DEBUG("Character count of palette: ", Curent_Char.Max_Palette_Num);
@@ -271,6 +318,7 @@ void Drawing::DrawPlayableCharactersComboBox() {
 		ImGui::EndCombo();
 	}
 
+    ImGui::EndDisabled();
 }
 
 void Drawing::DrawCharacterOptions() {
@@ -293,83 +341,20 @@ void Drawing::DrawCharacterPaletteNumSlider() {
 	auto& Curent_Char = PlayableCharactersManager::GetCurrentCharacter();
 	int displayValue = Curent_Char.Current_Palette_Num + 1;
 
-	if (ImGui::SliderInt("Palette Number##", &displayValue, 1, Curent_Char.Max_Palette_Num)) {
-		// Вычитаем 1 для получения реального индекса (0-based)
-		int newPaletteIndex = displayValue - 1;
-
-		// Проверяем, действительно ли значение изменилось
-		if (newPaletteIndex != Curent_Char.Current_Palette_Num) {
-			PlayableCharactersManager::ChangePaletteNumber(newPaletteIndex);
-            AdvancedPalette::PaletteChanged();
-		}
-	}
-
-	// Можно добавить отображение текущего значения
-	ImGui::SameLine();
-	ImGui::Text("(%d/%d)", displayValue, Curent_Char.Max_Palette_Num);
+    ImGui::BeginDisabled(AdvancedPalette::Busy());
+    bool changed=false;
+    if(ImGui::Button("Previous")){--displayValue;changed=true;}
+    ImGui::SameLine();ImGui::SetNextItemWidth(100);
+    changed=ImGui::InputInt("Palette number",&displayValue,0,0,ImGuiInputTextFlags_EnterReturnsTrue)||changed;
+    ImGui::SameLine();if(ImGui::Button("Next")){++displayValue;changed=true;}
+    if(changed && displayValue>=1 && displayValue<=Curent_Char.Max_Palette_Num && displayValue-1!=Curent_Char.Current_Palette_Num)RequestTarget(-1,displayValue-1);
+    ImGui::SameLine();ImGui::Text("of %d",Curent_Char.Max_Palette_Num);
+    ImGui::EndDisabled();
 }
 
 void Drawing::DrawCharacterColors() {
 
-	ImGui::Text("Additional colors: ");
-	ImGui::Spacing();
-	auto& Curent_Char = PlayableCharactersManager::GetCurrentCharacter();
-	//First of all, we change BGRA to RGBA
-
-	ImVec4 colorLineColorVec = ColorsTools::ImU32BGRAtoImVec4RGBA(Curent_Char.LineColor);
-	//Then, we do the same for ShadowColor1
-	ImVec4 colorShadowColor1Vec = ColorsTools::ImU32BGRAtoImVec4RGBA(Curent_Char.SuperShadowColor1);
-	//And ShadowColor2
-	ImVec4 colorShadowColor2Vec = ColorsTools::ImU32BGRAtoImVec4RGBA(Curent_Char.SuperShadowColor2);
-
-	//Be careful - We will ColorEdit3, instead of ColorEdit4, becouse Alpha Channel don't change anything
-	if (ImGui::ColorEdit3("Line Color", &colorLineColorVec.x, ImGuiColorEditFlags_NoInputs)) {
-		LOG_LOCAL_DEBUG(DrawingLogger, "Change Line color: ");
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorLineColorVec.x);
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorLineColorVec.y);
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorLineColorVec.z);
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorLineColorVec.w);
-		LOG_LOCAL_DEBUG(DrawingLogger, "Red, Green, Blue, Alpha");
-		//First, we change from float ImVec4 to ImU32 (__int32)
-
-		//Then, we change BGRA to RGBA
-		ImU32 ColorToWrite = ColorsTools::ImVec4RGBAtoImU32BGRA(colorLineColorVec);
-
-		PlayableCharactersManager::ChangeOptionPaletteColor(ColorToWrite, ColorOptionFlag::FLAG_LINE_COLOR);
-	}
-
-	ImGui::SameLine();
-
-	if (ImGui::ColorEdit3("Shadow Color 1", &colorShadowColor1Vec.x, ImGuiColorEditFlags_NoInputs)) {
-		LOG_LOCAL_DEBUG(DrawingLogger, "Change Shadow Color: ");
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorShadowColor1Vec.x);
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorShadowColor1Vec.y);
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorShadowColor1Vec.z);
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorShadowColor1Vec.w);
-		LOG_LOCAL_DEBUG(DrawingLogger, "Red, Green, Blue, Alpha");
-		//First, we change from float ImVec4 to ImU32 (__int32)
-		ImU32 ColorToWrite = ColorsTools::ImVec4RGBAtoImU32BGRA(colorShadowColor1Vec);
-
-		PlayableCharactersManager::ChangeOptionPaletteColor(ColorToWrite, ColorOptionFlag::FLAG_SUPER_SHADOW_1);
-	}
-
-	ImGui::SameLine();
-
-	if (ImGui::ColorEdit3("Shadow Color 2", &colorShadowColor2Vec.x, ImGuiColorEditFlags_NoInputs)) {
-		LOG_LOCAL_DEBUG(DrawingLogger, "Change Line color: ");
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorShadowColor2Vec.x);
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorShadowColor2Vec.y);
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorShadowColor2Vec.z);
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorShadowColor2Vec.w);
-		LOG_LOCAL_DEBUG(DrawingLogger, "Red, Green, Blue, Alpha");
-		//First, we change from float ImVec4 to ImU32 (__int32)
-		ImU32 ColorToWrite = ColorsTools::ImVec4RGBAtoImU32BGRA(colorShadowColor2Vec);
-
-		PlayableCharactersManager::ChangeOptionPaletteColor(ColorToWrite, ColorOptionFlag::FLAG_SUPER_SHADOW_2);
-	}
-
-	ImGui::Spacing();
-
+    auto& Curent_Char = PlayableCharactersManager::GetCurrentCharacter();
 	ImGui::Text("Colors Palette: %d", Curent_Char.Num_Of_Color);
 	auto& colors = Curent_Char.Character_Colors;
 	bool hasGroups = false;
@@ -407,99 +392,57 @@ void Drawing::DrawCharacterColors() {
 			std::transform(searchLower.begin(), searchLower.end(), searchLower.begin(), ::tolower);
 
 			//return groupNameLower.find(searchLower) != std::string::npos; //Mathes
-			return groupNameLower.rfind(searchLower, 0) == 0; //First latter
+			return groupNameLower.find(searchLower) != std::string::npos; //First latter
 			};
 
-		static bool collapseAll = false;
-		static bool expandAll = false;
-
-		if (ImGui::Button("Collapse All")) {
-			collapseAll = true;
-			expandAll = false;
-		}
-		ImGui::SameLine();
-		if (ImGui::Button("Expand All")) {
-			expandAll = true;
-			collapseAll = false;
-		}
-		for (const auto& group : groups) {
-			if (!groupMatchesSearch(group)) continue;
-
-			if (collapseAll) {
-				ImGui::SetNextItemOpen(false, ImGuiCond_Always);
-			}
-			else if (expandAll) {
-				ImGui::SetNextItemOpen(true, ImGuiCond_Always);
-			}
-
-			if (ImGui::CollapsingHeader(group.groupName.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
-				ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 4));
-
-				for (int i = group.startIndex;
-					i < group.startIndex + group.count && i < colors.size();
-					i++) {
-					DrawColorButton(i, colors[i]);
-
-					// Используем SameLine() с проверкой
-					bool isLastInGroup = (i == group.startIndex + group.count - 1);
-					bool isLastValidColor = (i == colors.size() - 1);
-
-					if (!isLastInGroup && !isLastValidColor) {
-						ImGui::SameLine();
-					}
-				}
-				ImGui::PopStyleVar();
-				ImGui::Separator();
-				std::string wheelKey = Curent_Char.Char_Name + std::string("|") + group.groupName;
-				std::string btn_id = std::string("wheelBtn_") + std::to_string(group.startIndex);
-				ImGui::PushID(btn_id.c_str());
-				if (ImGui::Button(("Open Wheel##" + btn_id).c_str())) {
-					wheelOpenMap[wheelKey] = !wheelOpenMap[wheelKey];
-				}
-				ImGui::PopID();
-
-				auto itOpen = wheelOpenMap.find(wheelKey);
-				if (itOpen != wheelOpenMap.end() && itOpen->second) {
-					bool& openRef = itOpen->second;
-					ColorWheel::Draw(group, openRef);
-				}
-				float available_width = ImGui::GetContentRegionAvail().x;
-				float button2_width = ImGui::CalcTextSize("Copy").x + ImGui::GetStyle().FramePadding.x * 2.0f;
-				float button3_width = ImGui::CalcTextSize("Paste").x + ImGui::GetStyle().FramePadding.x * 2.0f;
-				float spacing = ImGui::GetStyle().ItemSpacing.x;
-
-				ImGui::SameLine(available_width - (button2_width + button3_width + spacing));
-
-
-				// Кнопка Copy
-				if (ImGui::Button(("Copy##" + group.groupName).c_str())) {
-					CopyGroupColors(group);
-				}
-
-				// Подсказка для кнопки Copy
-				if (ImGui::IsItemHovered()) {
-					ImGui::SetTooltip("Copy all colors in this group to clipboard");
-				}
-
-				ImGui::SameLine();
-
-				// Кнопка Paste
-				if (ImGui::Button(("Paste##" + group.groupName).c_str())) {
-					PasteGroupColors(group);
-				}
-
-				// Подсказка для кнопки Paste
-				if (ImGui::IsItemHovered()) {
-					ImGui::SetTooltip("Paste colors from clipboard to this group");
-				}
-                AdvancedPalette::DrawGroup(group);
-				ImGui::Separator();
-				ImGui::Spacing();
-			}
-			ImGui::Spacing();
-		}
-		collapseAll = false;
-		expandAll = false;
+        static int selected=0;
+        static std::string character;
+        if(character!=Curent_Char.Char_Name){selected=0;character=Curent_Char.Char_Name;}
+        if(selected>=groups.size())selected=0;
+        ImGui::BeginChild("Group list",ImVec2(230,0),true);
+        for(int n=0;n<groups.size();++n) {
+            const auto& group=groups[n];if(!groupMatchesSearch(group))continue;
+            ImGui::PushID(n);
+            if(ImGui::Selectable(group.groupName.c_str(),selected==n))selected=n;
+            for(int i=group.startIndex;i<group.startIndex+group.count && i<colors.size();++i) {
+                if(i!=group.startIndex && (i-group.startIndex)%10)ImGui::SameLine(0,2);
+                ImGui::ColorButton(("##swatch"+std::to_string(i)).c_str(),ColorsTools::ImU32BGRAtoImVec4RGBA(colors[i]),ImGuiColorEditFlags_NoTooltip,ImVec2(14,14));
+            }
+            ImGui::TextWrapped("%s",AdvancedPalette::GroupEffects(group).c_str());
+            ImGui::Separator();ImGui::PopID();
+        }
+        ImGui::EndChild();ImGui::SameLine();
+        ImGui::BeginChild("Group inspector",ImVec2(0,0),true);
+        if(!groups.empty()) {
+            const auto& group=groups[selected];
+            ImGui::SeparatorText(group.groupName.c_str());
+            ImGui::Text("%d swatches",group.count);
+            for(int i=group.startIndex;i<group.startIndex+group.count && i<colors.size();++i) {
+                DrawColorButton(i,colors[i]);
+                if((i-group.startIndex+1)%6 && i+1<group.startIndex+group.count)ImGui::SameLine();
+            }
+            if(ImGui::Button("Copy"))CopyGroupColors(group);
+            ImGui::SameLine();ImGui::BeginDisabled(s_ClipboardColors.empty());
+            const bool matching=s_ClipboardColors.size()==group.count;
+            if(ImGui::Button(matching?"Paste":"Paste matching swatches"))PasteGroupColors(group);
+            ImGui::EndDisabled();
+            if(!copiedGroup.empty())ImGui::TextWrapped("Copied: %s (%u swatches)",copiedGroup.c_str(),unsigned(s_ClipboardColors.size()));
+            ImGui::BeginDisabled(pasteUndo.empty());
+            if(ImGui::Button("Undo paste") && !pasteUndo.empty()) {
+                auto undo=pasteUndo.back();pasteUndo.pop_back();
+                bool same=undo.slot==PlayableCharactersManager::GetCurrentCharacterIndex() && undo.palette==Curent_Char.Current_Palette_Num;
+                for(int i=0;same && i<undo.after.size();++i)same=colors[undo.start+i]==undo.after[i];
+                if(same)for(int i=0;i<undo.before.size();++i)PlayableCharactersManager::ChangePaletteColor(undo.start+i,undo.before[i]);
+                else AdvancedPalette::Status="Undo skipped: palette changed since paste.";
+            }
+            ImGui::EndDisabled();
+            std::string wheelKey=std::string(Curent_Char.Char_Name)+"|"+group.groupName;
+            if(ImGui::Button("Color wheel"))wheelOpenMap[wheelKey]=!wheelOpenMap[wheelKey];
+            if(wheelOpenMap[wheelKey])ColorWheel::Draw(group,wheelOpenMap[wheelKey]);
+            AdvancedPalette::DrawGroup(group);
+            if(AdvancedPalette::OpenAdvanced){openAdvanced=true;AdvancedPalette::OpenAdvanced=false;}
+        }
+        ImGui::EndChild();
 	}
 	else {
 		// Автоматический расчет столбцов для негруппированного режима
@@ -887,6 +830,7 @@ void Drawing::CopyGroupColors(const ColorGroup& group) {
 
 	// Очищаем буфер обмена
 	s_ClipboardColors.clear();
+    copiedGroup=group.groupName;
 
 	// Копируем цвета группы в буфер обмена
 	for (int i = group.startIndex;
@@ -926,6 +870,9 @@ void Drawing::PasteGroupColors(const ColorGroup& group) {
 	// Вставляем цвета из буфера обмена
 	int pasteCount = std::min((int)s_ClipboardColors.size(), group.count);
 
+    PasteUndo undo{PlayableCharactersManager::GetCurrentCharacterIndex(),PlayableCharactersManager::GetCurrentCharacter().Current_Palette_Num,group.startIndex,{},{}};
+    for(int i=0;i<pasteCount && group.startIndex+i<colors.size();++i){undo.before.push_back(colors[group.startIndex+i]);undo.after.push_back(s_ClipboardColors[i]);}
+    if(!undo.before.empty())pasteUndo.push_back(undo);
 	for (int i = 0; i < pasteCount; i++) {
 		int colorIndex = group.startIndex + i;
 		if (colorIndex >= colors.size()) break;
@@ -973,3 +920,67 @@ void Drawing::Developer::DrawDevWindow() {
 
 	ImGui::End();
 }
+
+void Drawing::DrawPaletteWideColors() {
+	ImGui::Text("Additional colors: ");
+	ImGui::Spacing();
+	auto& Curent_Char = PlayableCharactersManager::GetCurrentCharacter();
+	//First of all, we change BGRA to RGBA
+
+	ImVec4 colorLineColorVec = ColorsTools::ImU32BGRAtoImVec4RGBA(Curent_Char.LineColor);
+	//Then, we do the same for ShadowColor1
+	ImVec4 colorShadowColor1Vec = ColorsTools::ImU32BGRAtoImVec4RGBA(Curent_Char.SuperShadowColor1);
+	//And ShadowColor2
+	ImVec4 colorShadowColor2Vec = ColorsTools::ImU32BGRAtoImVec4RGBA(Curent_Char.SuperShadowColor2);
+
+	//Be careful - We will ColorEdit3, instead of ColorEdit4, becouse Alpha Channel don't change anything
+	if (ImGui::ColorEdit3("Line Color", &colorLineColorVec.x, ImGuiColorEditFlags_NoInputs)) {
+		LOG_LOCAL_DEBUG(DrawingLogger, "Change Line color: ");
+		LOG_LOCAL_VARIABLE(DrawingLogger, colorLineColorVec.x);
+		LOG_LOCAL_VARIABLE(DrawingLogger, colorLineColorVec.y);
+		LOG_LOCAL_VARIABLE(DrawingLogger, colorLineColorVec.z);
+		LOG_LOCAL_VARIABLE(DrawingLogger, colorLineColorVec.w);
+		LOG_LOCAL_DEBUG(DrawingLogger, "Red, Green, Blue, Alpha");
+		//First, we change from float ImVec4 to ImU32 (__int32)
+
+		//Then, we change BGRA to RGBA
+		ImU32 ColorToWrite = ColorsTools::ImVec4RGBAtoImU32BGRA(colorLineColorVec);
+
+		PlayableCharactersManager::ChangeOptionPaletteColor(ColorToWrite, ColorOptionFlag::FLAG_LINE_COLOR);
+	}
+
+	ImGui::SameLine();
+
+	if (ImGui::ColorEdit3("Shadow Color 1", &colorShadowColor1Vec.x, ImGuiColorEditFlags_NoInputs)) {
+		LOG_LOCAL_DEBUG(DrawingLogger, "Change Shadow Color: ");
+		LOG_LOCAL_VARIABLE(DrawingLogger, colorShadowColor1Vec.x);
+		LOG_LOCAL_VARIABLE(DrawingLogger, colorShadowColor1Vec.y);
+		LOG_LOCAL_VARIABLE(DrawingLogger, colorShadowColor1Vec.z);
+		LOG_LOCAL_VARIABLE(DrawingLogger, colorShadowColor1Vec.w);
+		LOG_LOCAL_DEBUG(DrawingLogger, "Red, Green, Blue, Alpha");
+		//First, we change from float ImVec4 to ImU32 (__int32)
+		ImU32 ColorToWrite = ColorsTools::ImVec4RGBAtoImU32BGRA(colorShadowColor1Vec);
+
+		PlayableCharactersManager::ChangeOptionPaletteColor(ColorToWrite, ColorOptionFlag::FLAG_SUPER_SHADOW_1);
+	}
+
+	ImGui::SameLine();
+
+	if (ImGui::ColorEdit3("Shadow Color 2", &colorShadowColor2Vec.x, ImGuiColorEditFlags_NoInputs)) {
+		LOG_LOCAL_DEBUG(DrawingLogger, "Change Line color: ");
+		LOG_LOCAL_VARIABLE(DrawingLogger, colorShadowColor2Vec.x);
+		LOG_LOCAL_VARIABLE(DrawingLogger, colorShadowColor2Vec.y);
+		LOG_LOCAL_VARIABLE(DrawingLogger, colorShadowColor2Vec.z);
+		LOG_LOCAL_VARIABLE(DrawingLogger, colorShadowColor2Vec.w);
+		LOG_LOCAL_DEBUG(DrawingLogger, "Red, Green, Blue, Alpha");
+		//First, we change from float ImVec4 to ImU32 (__int32)
+		ImU32 ColorToWrite = ColorsTools::ImVec4RGBAtoImU32BGRA(colorShadowColor2Vec);
+
+		PlayableCharactersManager::ChangeOptionPaletteColor(ColorToWrite, ColorOptionFlag::FLAG_SUPER_SHADOW_2);
+	}
+
+	ImGui::Spacing();
+
+
+}
+

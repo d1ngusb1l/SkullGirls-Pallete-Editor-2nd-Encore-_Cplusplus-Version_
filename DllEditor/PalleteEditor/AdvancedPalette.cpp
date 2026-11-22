@@ -279,6 +279,48 @@ void Tick() {
         }
     } catch(const std::exception& e) {Status=e.what();}
 }
+bool Busy() { return LiveOverlays::Busy(); }
+namespace {
+PaletteData::Document PendingDocument() {
+    auto c=Current(); auto document=OverlayEditor::CapturePalette(c); auto& draft=Draft(c);
+    if(draft.primary.bands.empty())document.overlay.reset(); else document.overlay=draft.primary;
+    if(draft.hasSecond && !draft.secondary.bands.empty())document.secondOverlay=draft.secondary; else document.secondOverlay.reset();
+    return document;
+}
+}
+bool HasPending() {
+    try {
+        auto c=Current();if(!overlayDrafts.count(DraftKey(c)))return false;
+        auto live=OverlayEditor::CapturePalette(c);auto staged=PendingDocument();
+        return PaletteData::EncodePal(live)!=PaletteData::EncodePal(staged);
+    }catch(...) { return false; }
+}
+void DiscardPending() { try {overlayDrafts.erase(DraftKey(Current()));Status="Pending assignments discarded.";}catch(const std::exception& e){Status=e.what();} }
+void ApplyPending() {
+    try {
+        auto c=Current();auto document=PendingDocument();
+        if(document.secondOverlay) {
+            ApplyDualOverlay(c,std::move(document),[key=DraftKey(c)](const std::string& error) {
+                if(error.empty())overlayDrafts.erase(key);
+                Status=error.empty()?"Applied":"Apply failed: "+error;
+            });Status="Pending: preparing both overlays";
+        } else {
+            if(Busy())throw std::runtime_error("Wait for the overlay operation.");
+            OverlayEditor::ApplyPalette(c,document);overlayDrafts.erase(DraftKey(c));Sync();Status="Applied";
+        }
+    }catch(const std::exception& e){Status=std::string("Apply failed: ")+e.what();}
+}
+std::string GroupEffects(const ColorGroup& group) {
+    try {
+        auto c=Current();auto data=OverlayEditor::AppearanceData(c);auto bands=GroupBands(data,group);auto d=OverlayEditor::CapturePalette(c);
+        std::string result;
+        auto add=[&](const auto& effect,const std::string& name) {if(effect && std::any_of(bands.begin(),bands.end(),[&](int band){return effect->bands.count(band);})) {if(!result.empty())result+=", ";result+=name;}};
+        add(d.overlay,d.overlay?d.overlay->texture:"");add(d.secondOverlay,d.secondOverlay?d.secondOverlay->texture:"");add(d.rainbow,"Rainbow");
+        if(d.colorLinks)for(int b:bands)if(d.colorLinks->links.count(b)){result+=" Borrow colors";break;}
+        if(d.transformation)for(int b:bands)if(d.transformation->links.count(b)){result+=" Transformation";break;}
+        return result.empty()?"No applied effects":result;
+    }catch(...) {return "Native band controls in Advanced";}
+}
 void Draw() {
     if(!Status.empty())ImGui::TextWrapped("%s",Status.c_str());
     try {
