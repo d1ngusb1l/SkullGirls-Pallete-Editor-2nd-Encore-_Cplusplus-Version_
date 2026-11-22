@@ -37,6 +37,7 @@ std::string Status;
 namespace {
 std::vector<DWORD> identity;
 std::map<std::string,std::string> attempted;
+std::map<std::string,std::string> attemptResults;
 ULONGLONG nextCheck=0;
 Character Model(int slot) {
     DWORD root=OverlayEditor::Word(OverlayEditor::base+0x85ea4c);
@@ -117,11 +118,17 @@ void ApplyDualOverlay(Character c,PaletteData::Document document,OverlayCompleti
         catch(...) {return false;}
     };
     auto replace=[owner](const Bytes& header) {PausedWrite(owner.address,header);Refresh();};
+    const auto baseline=OverlayEditor::CapturePalette(c);
     LiveOverlays::Request request{c.ID,c.Current_Pallete_Num,primary,secondary,
+        PaletteTextureMatch::Build(baseline.colors,baseline.groupSizes),PaletteTextureMatch::Build(document.colors,document.groupSizes),
         [current,owner,installed]() {return current() && Read(owner.address,12)==*installed;},
         [replace,targetHeader,installed]() {
             *installed=targetHeader;
             replace(targetHeader);
+        },
+        [replace,markerHeader,installed]() {
+            *installed=markerHeader;
+            replace(markerHeader);
         },
         [owner,c,document=std::move(document),replace,installed,applied,report,previous](const std::string& error) mutable {
             auto restoreTracking=[&]() {
@@ -147,6 +154,10 @@ void ApplyDualOverlay(Character c,PaletteData::Document document,OverlayCompleti
         [current,owner,applied]() {
             try {return current() && !applied->empty() && Read(owner.address,12)==*applied;}
             catch(...) {return false;}
+        },
+        [c]() {
+            auto live=OverlayEditor::CapturePalette(c);
+            return PaletteTextureMatch::Build(live.colors,live.groupSizes);
         }
     };
     LiveOverlays::Start(std::move(request));
@@ -168,9 +179,9 @@ void ForgetMatch() {
         retiredDualOverlays.insert_or_assign(address,std::move(entry));
     nativeDualOverlays.clear();
     overlayDrafts.clear();
-    OverlayEditor::ForgetMatch();identity.clear();attempted.clear();nextCheck=0;
+    OverlayEditor::ForgetMatch();identity.clear();attempted.clear();attemptResults.clear();nextCheck=0;
 }
-void ResetAutoLoad() {attempted.clear();nextCheck=0;}
+void ResetAutoLoad() {attempted.clear();attemptResults.clear();nextCheck=0;}
 void PaletteChanged() {
 #ifdef SGPE_DLL_VALIDATION
     CancelOverlayDrawPreview();
@@ -248,13 +259,13 @@ void Tick() {
                 if(!current[1+2*slot])continue;
                 auto c=Model(slot);if(c.Char_Name!=entry.CharName || c.Current_Pallete_Num!=entry.PalNum)continue;
                 found=true;
+                auto key=std::to_string(current[2+2*slot])+":"+std::to_string(entry.PalNum);
                 try {
                     if(entry.PalPath.empty())throw std::runtime_error("Choose a .pal file.");
                     auto path=std::filesystem::absolute(PaletteData::PathFromText(entry.PalPath));
                     std::error_code error;auto time=std::filesystem::last_write_time(path,error);
                     auto fingerprint=PaletteData::PathText(path)+(error?":missing":":"+std::to_string(time.time_since_epoch().count()));
-                    auto key=std::to_string(current[2+2*slot])+":"+std::to_string(entry.PalNum);
-                    if(attempted.count(key) && attempted[key]==fingerprint)continue;
+                    if(attempted.count(key) && attempted[key]==fingerprint){if(attemptResults.count(key))entry.Status=attemptResults[key];continue;}
                     auto document=PaletteData::ReadFile(path);
                     if(LiveOverlays::Busy())continue;
                     if(document.secondOverlay) {
@@ -262,8 +273,9 @@ void Tick() {
                         const auto character=entry.CharName;
                         const auto palette=entry.PalNum;
                         const auto savedPath=entry.PalPath;
-                        ApplyDualOverlay(c,std::move(document),[character,palette,savedPath,draftKey=DraftKey(c)](const std::string& failure) {
+                        ApplyDualOverlay(c,std::move(document),[character,palette,savedPath,key,draftKey=DraftKey(c)](const std::string& failure) {
                             if(failure.empty())overlayDrafts.erase(draftKey);
+                            attemptResults[key]=failure.empty()?"Loaded colors and both overlays.":"Auto-load failed: "+failure;
                             for(auto& target:AutoPalette::Auto_Pals)
                                 if(target.CharName==character && target.PalNum==palette && target.PalPath==savedPath)
                                     target.Status=failure.empty()?"Loaded colors and both overlays.":"Auto-load failed: "+failure;
@@ -274,8 +286,8 @@ void Tick() {
                     attempted[key]=fingerprint;
                     OverlayEditor::ApplyPalette(c,document);
                     overlayDrafts.erase(DraftKey(c));
-                    if(slot==selected)Sync();entry.Status="Loaded colors and shader settings.";
-                } catch(const std::exception& e) {entry.Status=std::string("Auto-load failed: ")+e.what();}
+                    if(slot==selected)Sync();entry.Status="Loaded colors and shader settings.";attemptResults[key]=entry.Status;
+                } catch(const std::exception& e) {entry.Status=std::string("Auto-load failed: ")+e.what();attemptResults[key]=entry.Status;}
             }
             if(!found)entry.Status="Waiting for this character and palette number.";
         }
@@ -316,7 +328,13 @@ void ApplyPending() {
 }
 std::string GroupEffects(const ColorGroup& group) {
     try {
-        auto c=Current();auto data=OverlayEditor::AppearanceData(c);auto bands=GroupBands(data,group);auto d=OverlayEditor::CapturePalette(c);
+        auto c=Current();
+        static int frame=-1;static std::pair<int,int> target;
+        static OverlayEditor::AppearanceContext data;static PaletteData::Document d;
+        if(frame!=ImGui::GetFrameCount() || target!=DraftKey(c)) {
+            data=OverlayEditor::AppearanceData(c);d=OverlayEditor::CapturePalette(c);frame=ImGui::GetFrameCount();target=DraftKey(c);
+        }
+        auto bands=GroupBands(data,group);
         std::string result;
         auto add=[&](const auto& effect,const std::string& name) {if(effect && std::any_of(bands.begin(),bands.end(),[&](int band){return effect->bands.count(band);})) {if(!result.empty())result+=", ";result+=name;}};
         add(d.overlay,d.overlay?d.overlay->texture:"");add(d.secondOverlay,d.secondOverlay?d.secondOverlay->texture:"");add(d.rainbow,"Rainbow");

@@ -121,10 +121,11 @@ namespace RendererTrace::OverlayDrawValidation {
 template<class Draw>
 HRESULT Run(IDirect3DDevice9* device,Draw draw) {
     if(!captureSlot && !deadline && !LiveOverlays::Busy() && LiveOverlays::effects.empty())return draw();
-    ComPtr<IDirect3DBaseTexture9> currentFeature, overlay;
+    ComPtr<IDirect3DBaseTexture9> currentFeature, overlay, currentPalette;
+    if(FAILED(device->GetTexture(1,currentPalette.GetAddressOf())) || !currentPalette)return draw();
     if(FAILED(device->GetTexture(2,currentFeature.GetAddressOf())) || !currentFeature ||
        FAILED(device->GetTexture(3,overlay.GetAddressOf())) || !overlay)return draw();
-    const auto* live=LiveOverlays::Find(currentFeature.Get(),overlay.Get());
+    const auto* live=LiveOverlays::Find(currentFeature.Get(),overlay.Get(),currentPalette.Get());
     if(!live && !LiveOverlays::Busy() &&
         (captureSlot ? Pointer(currentFeature.Get())!=targetFeature : currentFeature.Get()!=feature.Get()))return draw();
     ComPtr<IDirect3DPixelShader9> shader;
@@ -133,7 +134,7 @@ HRESULT Run(IDirect3DDevice9* device,Draw draw) {
        FAILED(shader->GetFunction(nullptr,&size)) || size!=10812)return draw();
     std::vector<unsigned char> bytes(size);
     if(FAILED(shader->GetFunction(bytes.data(),&size)) || Identity(bytes)!="4f2d54bdda78e7fd")return draw();
-    LiveOverlays::Observe(currentFeature,overlay);
+    LiveOverlays::Observe(currentFeature,overlay,currentPalette.Get());
     if(captureSlot && Pointer(currentFeature.Get())==targetFeature) {
         float paletteIndex[4]{};
         if(FAILED(device->GetPixelShaderConstantF(29,paletteIndex,1)))return draw();
@@ -149,6 +150,7 @@ HRESULT Run(IDirect3DDevice9* device,Draw draw) {
     auto* shaderOverride=live?live->shader.Get():replacement.Get();
     ComPtr<IDirect3DStateBlock9> state;
     if(FAILED(device->CreateStateBlock(D3DSBT_ALL,state.GetAddressOf())) || FAILED(state->Capture()))return draw();
+    if(live && FAILED(device->SetTexture(3,live->primary.Get()))){state->Apply();return draw();}
     for(auto setting:{D3DSAMP_ADDRESSU,D3DSAMP_ADDRESSV,D3DSAMP_MINFILTER,D3DSAMP_MAGFILTER,D3DSAMP_MIPFILTER,D3DSAMP_SRGBTEXTURE}) {
         DWORD value=0;
         if(FAILED(device->GetSamplerState(3,setting,&value)) || FAILED(device->SetSamplerState(4,setting,value))) {
