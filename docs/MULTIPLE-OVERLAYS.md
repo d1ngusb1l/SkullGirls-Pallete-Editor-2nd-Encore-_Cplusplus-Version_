@@ -45,3 +45,13 @@ The capture is read-only: it does not modify shaders, textures, constants, or dr
 5. Verify simultaneous rendering, ordinary palette switching, hit lighting, save/load, auto-load and new matches. Preserve the compile-time exclusion of online palette sharing.
 
 If the native renderer only supports one active texture resource despite multiple records, document that result and investigate the shader/feature builder before exposing controls that imply unsupported behavior.
+
+## Live bindings and shader experiment
+
+The runner trace captured 308 draws, including four character draws using pixel shader 4f2d54bdda78e7fd. Its constant table declares diffuse, palette, feature, and Chowder textures at s0 through s3 respectively. The captured character draws had no overlay texture bound, so this trace establishes the sampler layout but does not identify the winning texture when both effects are active. The two players had distinct palette and feature texture objects. Those objects are candidates for identifying the target draw, subject to verification across palette swaps and device resets.
+
+The packaged Windows shader samples one Chowder texture, then applies its color inside the palette lookup using the post-redirect group's feature data. The prototype adds a second overlay at s4 and a point-sampled band selector at s5. It chooses the overlay after the redirect so neighboring samples and borrowed colors follow the existing palette lookup. It shares the native anchor, tint and blend settings for this first experiment.
+
+Compiled against the locally extracted shader with Windows SDK FXC 10.0.26100.0. The standard PaletteGradient build retains the observed c0–c34 and s0–s3 bindings and adds s4–s5. The compiler reports 581 instruction slots for the prototype versus 540 for a recompile of the stock source. The NoLight prototype compiles at 386 slots. Compilation alone does not establish device acceptance or equivalence to the captured native shader. The generated local artifacts are in build/overlay-shader.
+
+The runner was closed during compilation. Live validation needs a targeted draw substitution that checks shader identity, matches the target palette resource, validates device support, and restores the original shader and added sampler state after the draw. Test the lit variant first, then verify hit lighting and other palette shader variants before exposing controls or changing the file format.
