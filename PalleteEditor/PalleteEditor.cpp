@@ -3,12 +3,23 @@
 #include "FileLoad.h"
 #include "Auto-Load-Pallete.h"
 #include "OverlayEditor.h"
+#include "OverlayControls.h"
 
 void PalEdit::DrawAdvanced() {
     int index=FindVectorIndexByID(current_character_idx);
-    if(index>=0) OverlayEditor::Draw(s_SG_Process,s_BaseAddress,Character_Vector[index]);
+    if(index<0)return;
+    auto& character=Character_Vector[index];
+    OverlayEditor::Draw(s_SG_Process,s_BaseAddress,character);
+    try {
+        OverlayControls::Draw(character,OverlayEditor::status,false,false,[&](PaletteData::Document document) {
+            OverlayEditor::ApplyPalette(character,document,true);
+            OverlayEditor::status=document.secondOverlay?"Primary preview active. Save Palette keeps both assignments.":"Overlay applied.";
+        });
+    }catch(const std::exception& error) {
+        ImGui::TextWrapped("%s",error.what());
+    }
 }
-void PalEdit::CloseOverlay() { OverlayEditor::Shutdown(); }
+void PalEdit::CloseOverlay() { OverlayEditor::Shutdown(); OverlayControls::overlayDrafts.clear(); }
 
 #define GAME_STATUS_MATCH_STARTED 0x4
 
@@ -69,7 +80,7 @@ void PalEdit::Init() {
         &s_GameStatus);
 
     if (s_GameStatus != GAME_STATUS_MATCH_STARTED) {
-        OverlayEditor::ForgetMatch(); s_matchIdentity.clear(); AutoPallete::ResetSession();
+        OverlayEditor::ForgetMatch(); OverlayControls::overlayDrafts.clear(); s_matchIdentity.clear(); AutoPallete::ResetSession();
         current_character_idx = -1;
         Character_Vector.clear();
         bMatchStarted = false;
@@ -85,7 +96,7 @@ void PalEdit::Init() {
             identity.push_back(actor); identity.push_back(actor?OverlayEditor::Word(actor+0x328):0);
         }
         if(identity!=s_matchIdentity) {
-            OverlayEditor::ForgetMatch(); Character_Vector.clear(); current_character_idx=-1;
+            OverlayEditor::ForgetMatch(); OverlayControls::overlayDrafts.clear(); Character_Vector.clear(); current_character_idx=-1;
             AutoPallete::ResetSession(); s_matchIdentity=identity;
         }
         if(!Character_Vector.empty()) {

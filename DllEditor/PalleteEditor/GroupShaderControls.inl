@@ -10,16 +10,7 @@ void DrawGroup(const ColorGroup& group) {
         try {
             auto c=Current();auto data=OverlayEditor::AppearanceData(c);
             auto d=OverlayEditor::CapturePalette(c);
-            std::set<int> bands;int covered=0;
-            for(auto& band:data.groups) {
-                if(!band.band || !band.count)continue;
-                int begin=std::max(group.startIndex,band.start);
-                int end=std::min(group.startIndex+group.count,band.start+band.count);
-                if(begin>=end)continue;
-                if(begin!=band.start || end!=band.start+band.count)throw std::runtime_error("This display group splits a native shader band. Use Advanced to select native bands.");
-                bands.insert(band.band);covered+=band.count;
-            }
-            if(bands.empty() || covered!=group.count)throw std::runtime_error("This group does not match the native shader layout.");
+            const auto bands=OverlayControls::GroupBands(data,group);
             auto apply=[&](){
                 try {
                     if(LiveOverlays::Busy())throw std::runtime_error("Wait for the overlay operation to finish.");
@@ -32,7 +23,7 @@ void DrawGroup(const ColorGroup& group) {
             auto includes=[&](const std::set<int>& selected){return std::all_of(bands.begin(),bands.end(),[&](int b){return selected.count(b)!=0;});};
             auto outside=[&](const std::set<int>& selected){return std::any_of(selected.begin(),selected.end(),[&](int b){return !bands.count(b);});};
             ImGui::TextUnformatted(group.groupName.c_str());
-            DrawDraftGroup(c,bands);
+            DrawDraftGroup(c,bands,Status);
             ImGui::TextDisabled("Other shader changes apply immediately to this palette number.");
             bool rainbow=d.rainbow && includes(d.rainbow->bands);
             if(ImGui::Checkbox("Rainbow",&rainbow)) {

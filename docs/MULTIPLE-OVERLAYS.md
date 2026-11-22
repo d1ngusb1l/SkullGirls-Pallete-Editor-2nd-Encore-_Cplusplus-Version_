@@ -125,3 +125,5 @@ In offline Training, File → Load Palette kept Water on Cerebella's hat and Fir
 ## Standard DLL menu
 
 The DLL now uses one Overlay textures panel in Advanced. It starts with one slot and exposes the second through Add second texture. The group popup stages assignments for the same Apply overlays button. The standard package includes the checked shader bytecode in its overlay-shader folder. Diagnostic request files remain exclusive to validation builds. The standalone editor retains its single-overlay renderer.
+
+The EXE shares the overlay panel and native group assignments. Its preview writes only the primary native overlay and stores the secondary assignment alongside it. Save, Load, and Auto-load preserve the schema 2 pair, so the same file can render both textures in the DLL.

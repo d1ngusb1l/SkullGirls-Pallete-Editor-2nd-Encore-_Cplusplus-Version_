@@ -24,6 +24,7 @@ struct GroupColorGroup {
 #define SGPE_DLL_HOST
 #include "../../PalleteEditor/OverlayEditor.h"
 #include "../../PalleteEditor/Data/AtomicFile.h"
+#include "../../PalleteEditor/OverlayControls.h"
 
 #include "DirectXWrapper/LiveOverlays.h"
 #ifdef SGPE_DLL_VALIDATION
@@ -72,8 +73,6 @@ void ApplyDualOverlay(Character c,PaletteData::Document document,OverlayCompleti
     ValidatePalette(c,document,true);
     const auto& primary=*document.overlay;
     const auto& secondary=*document.secondOverlay;
-    if(primary.texture==secondary.texture)throw std::runtime_error("Choose two distinct textures.");
-    if(primary.lighting!=secondary.lighting)throw std::runtime_error("Use the same lighting setting for both textures.");
     auto data=AppearanceData(c);
     const DWORD address=Word(data.palette+0x14)+12*c.Current_Pallete_Num;
     Original owner{data.actor,data.palette,address,c.ID,Read(address,12)};
@@ -117,7 +116,7 @@ void ApplyDualOverlay(Character c,PaletteData::Document document,OverlayCompleti
     catch(...) {LiveOverlays::Cancel();throw;}
 }
 }
-#include "DualOverlayControls.inl"
+using namespace OverlayControls;
 void ForgetMatch() {
 #ifdef SGPE_DLL_VALIDATION
     CancelOverlayDrawPreview();
@@ -237,7 +236,17 @@ void Draw() {
     if(!Status.empty())ImGui::TextWrapped("%s",Status.c_str());
     try {
         auto c=Current();OverlayEditor::Draw(OverlayEditor::process,OverlayEditor::base,c);
-        DrawDualOverlayControls(c);
+        OverlayControls::Draw(c,Status,LiveOverlays::Busy(),true,[&](PaletteData::Document document) {
+            if(document.secondOverlay) {
+                ApplyDualOverlay(c,std::move(document),[](const std::string& error) {
+                    Status=error.empty()?"Both overlays applied.":"Apply failed: "+error;
+                });
+                Status="Preparing both overlays.";
+            } else {
+                OverlayEditor::ApplyPalette(c,document);
+                Status="Overlay applied.";
+            }
+        });
         // The shared controls may change alpha; keep the DLL color editor in sync.
         auto& dst=PlayableCharactersManager::GetCurrentCharacter();
         if(!c.Character_Colors.empty())dst.Character_Colors.assign(c.Character_Colors.begin(),c.Character_Colors.end());

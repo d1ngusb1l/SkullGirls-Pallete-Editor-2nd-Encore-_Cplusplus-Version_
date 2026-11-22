@@ -1,15 +1,17 @@
 // An overlay assignment is staged until Apply overlays is clicked.
-namespace {
+#pragma once
+
+namespace OverlayControls {
 struct DualOverlayDraft {
     PaletteData::Overlay primary{"Water",{},1,0};
     bool hasSecond=false;
     PaletteData::Overlay secondary{"umbrella_veins",{},1,0};
 };
-std::map<std::pair<int,int>,DualOverlayDraft> overlayDrafts;
+inline std::map<std::pair<int,int>,DualOverlayDraft> overlayDrafts;
 
-std::pair<int,int> DraftKey(const Character& c) {return {c.ID,c.Current_Pallete_Num};}
+inline std::pair<int,int> DraftKey(const Character& c) {return {c.ID,c.Current_Pallete_Num};}
 
-DualOverlayDraft& Draft(const Character& c) {
+inline DualOverlayDraft& Draft(const Character& c) {
     auto key=DraftKey(c);
     if(auto existing=overlayDrafts.find(key);existing!=overlayDrafts.end())return existing->second;
     DualOverlayDraft draft;
@@ -19,20 +21,37 @@ DualOverlayDraft& Draft(const Character& c) {
     return overlayDrafts.emplace(key,std::move(draft)).first->second;
 }
 
-void AssignDraftBand(DualOverlayDraft& draft,int band,int destination) {
+inline void AssignDraftBand(DualOverlayDraft& draft,int band,int destination) {
     draft.primary.bands.erase(band);
     draft.secondary.bands.erase(band);
     if(destination==1)draft.primary.bands.insert(band);
     if(destination==2)draft.secondary.bands.insert(band);
 }
 
-int DraftBand(const DualOverlayDraft& draft,int band) {
+inline int DraftBand(const DualOverlayDraft& draft,int band) {
     if(draft.primary.bands.count(band))return 1;
     if(draft.secondary.bands.count(band))return 2;
     return 0;
 }
 
-void DrawDraftGroup(const Character& c,const std::set<int>& bands) {
+inline std::set<int> GroupBands(const OverlayEditor::AppearanceContext& data,const ColorGroup& group) {
+    std::set<int> bands;
+    int covered=0;
+    for(const auto& band:data.groups) {
+        if(!band.band || !band.count)continue;
+        const int begin=(std::max)(group.startIndex,band.start);
+        const int end=(std::min)(group.startIndex+group.count,band.start+band.count);
+        if(begin>=end)continue;
+        if(begin!=band.start || end!=band.start+band.count)
+            throw std::runtime_error("This display group splits a native shader band. Select native bands in Advanced.");
+        bands.insert(band.band);
+        covered+=band.count;
+    }
+    if(bands.empty() || covered!=group.count)throw std::runtime_error("This group does not match the native shader layout.");
+    return bands;
+}
+
+inline void DrawDraftGroup(const Character& c,const std::set<int>& bands,std::string& Status) {
     if(!ImGui::BeginMenu("Assign overlay"))return;
     // Draft initialization can read live data. Always balance the ImGui menu.
     try {
@@ -49,7 +68,7 @@ void DrawDraftGroup(const Character& c,const std::set<int>& bands) {
     ImGui::EndMenu();
 }
 
-void DrawDraftOverlay(PaletteData::Overlay& assignment,const OverlayEditor::AppearanceContext& data,const char* label) {
+inline void DrawDraftOverlay(PaletteData::Overlay& assignment,const OverlayEditor::AppearanceContext& data,const char* label) {
     ImGui::PushID(label);
     ImGui::SeparatorText(label);
     if(ImGui::BeginCombo("Texture",assignment.texture.c_str())) {
@@ -72,7 +91,8 @@ void DrawDraftOverlay(PaletteData::Overlay& assignment,const OverlayEditor::Appe
     ImGui::PopID();
 }
 
-void DrawDualOverlayControls(Character& c) {
+template<class Apply>
+void Draw(Character& c,std::string& Status,bool busy,bool liveSecond,Apply apply) {
     if(!ImGui::CollapsingHeader("Overlay textures"))return;
     auto data=OverlayEditor::AppearanceData(c);
     auto& draft=Draft(c);
@@ -80,6 +100,7 @@ void DrawDualOverlayControls(Character& c) {
     ImGui::Combo("Lighting",&draft.primary.lighting,"Original\0Unlit\0Lit\0");
     DrawDraftOverlay(draft.primary,data,"Primary overlay");
     if(draft.hasSecond) {
+        if(!liveSecond)ImGui::TextWrapped("The EXE previews the primary texture. Both assignments are saved for the DLL.");
         draft.secondary.lighting=draft.primary.lighting;
         DrawDraftOverlay(draft.secondary,data,"Secondary overlay");
         if(ImGui::Button("Remove second texture")) {
@@ -102,21 +123,13 @@ void DrawDualOverlayControls(Character& c) {
         }
     }
     ImGui::EndChild();
-    ImGui::BeginDisabled(draft.primary.bands.empty() || (draft.hasSecond && draft.secondary.bands.empty()) || LiveOverlays::Busy());
-    if(ImGui::Button("Apply overlays"))try {
+    ImGui::BeginDisabled(draft.primary.bands.empty() || (draft.hasSecond && draft.secondary.bands.empty()) || busy);
+    if(ImGui::Button(!liveSecond && draft.hasSecond?"Preview primary and keep both":"Apply overlays"))try {
         auto document=OverlayEditor::CapturePalette(c);
         document.overlay=draft.primary;
         if(draft.hasSecond)document.secondOverlay=draft.secondary;
         else document.secondOverlay.reset();
-        if(document.secondOverlay) {
-            ApplyDualOverlay(c,std::move(document),[](const std::string& error) {
-                Status=error.empty()?"Both overlays applied.":"Apply failed: "+error;
-            });
-            Status="Preparing both overlays.";
-        } else {
-            OverlayEditor::ApplyPalette(c,document);
-            Status="Overlay applied.";
-        }
+        apply(std::move(document));
     }catch(const std::exception& e){Status=e.what();}
     ImGui::EndDisabled();
     ImGui::SameLine();

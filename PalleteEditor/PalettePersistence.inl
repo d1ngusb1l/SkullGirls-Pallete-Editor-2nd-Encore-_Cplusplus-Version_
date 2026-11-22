@@ -43,7 +43,11 @@ inline TransformSettings DocumentTransformation(const Character& c,const Appeara
     ValidateTransformation(c,data,settings); return settings;
 }
 inline void ValidatePalette(const Character& c,const PaletteData::Document& document,bool allowTwo=false) {
-    if(document.secondOverlay && !allowTwo)throw std::runtime_error("This editor build cannot yet apply two overlay textures.");
+    if(document.secondOverlay) {
+        if(!allowTwo || !document.overlay)throw std::runtime_error("The second overlay requires a primary overlay.");
+        if(document.overlay->texture==document.secondOverlay->texture)throw std::runtime_error("Choose two distinct textures.");
+        if(document.overlay->lighting!=document.secondOverlay->lighting)throw std::runtime_error("Use the same lighting setting for both textures.");
+    }
     auto data=AppearanceData(c);
     if(document.character!=c.Char_Name) throw std::runtime_error("Palette file belongs to a different character.");
     if(document.colors.size()!=(size_t)data.colorCount) throw std::runtime_error("Palette file color count does not match this character.");
@@ -55,8 +59,14 @@ inline void ValidatePalette(const Character& c,const PaletteData::Document& docu
     for(const auto* effect:{&document.overlay,&document.secondOverlay}) {
         if(!*effect)continue;
         const auto& overlay=**effect;
-        Catalog();
-        if(!templates.count(overlay.texture))throw std::runtime_error("Could not load overlay texture '"+overlay.texture+"': no supported preset metadata is available.");
+        bool needsNativePreset=true;
+#ifndef SGPE_DLL_HOST
+        needsNativePreset=effect==&document.overlay;
+#endif
+        if(needsNativePreset) {
+            Catalog();
+            if(!templates.count(overlay.texture))throw std::runtime_error("Could not load overlay texture '"+overlay.texture+"': no supported preset metadata is available.");
+        }
         for(int band:overlay.bands)CheckAppearanceBand(data,band);
         if(overlay.tintBand)CheckAppearanceBand(data,overlay.tintBand);
     }
@@ -65,7 +75,9 @@ inline void ValidatePalette(const Character& c,const PaletteData::Document& docu
     if(document.transformation) DocumentTransformation(c,data,*document.transformation);
     // All document validation precedes resource loading or palette mutation.
     if(document.overlay) ResolveOverlayTexture(document.overlay->texture);
+#ifdef SGPE_DLL_HOST
     if(document.secondOverlay) ResolveOverlayTexture(document.secondOverlay->texture);
+#endif
 }
 inline void ApplyPalette(Character& c,const PaletteData::Document& document,bool allowTwo=false,bool keepOverlays=false) {
     ValidatePalette(c,document,allowTwo); auto data=AppearanceData(c);
