@@ -4,6 +4,7 @@
 #include "ProcessManager.h"
 #include "AutoLoadPalette.h"
 #include "Files/Config.h"
+#include "UI/SpriteViewer.h"
 #include <set>
 #include <map>
 #include <array>
@@ -158,6 +159,7 @@ void ApplyDualOverlay(Character c,PaletteData::Document document,OverlayCompleti
 }
 using namespace OverlayControls;
 void ForgetMatch() {
+    SpriteViewer::ForgetMatch();
 #ifdef SGPE_DLL_VALIDATION
     CancelOverlayDrawPreview();
 #endif
@@ -279,6 +281,8 @@ void Tick() {
         }
     } catch(const std::exception& e) {Status=e.what();}
 }
+std::vector<int> PreviewLayout() { return OverlayEditor::CapturePalette(Current()).groupSizes; }
+std::set<int> PreviewBands(const ColorGroup& group) { return GroupBands(OverlayEditor::AppearanceData(Current()),group); }
 bool Busy() { return LiveOverlays::Busy(); }
 namespace {
 PaletteData::Document PendingDocument() {

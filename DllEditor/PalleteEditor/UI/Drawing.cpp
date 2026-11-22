@@ -16,6 +16,7 @@
 #include "ImGuiCustom.h"
 #include "UI/Eyedropper/Eyedropper.h"
 #include "UI/ColorWheel.h"
+#include "SpriteViewer.h"
 #include "UI/LoggerWidget.hpp"
 
 
@@ -415,7 +416,7 @@ void Drawing::DrawCharacterColors() {
             ImGui::Separator();ImGui::PopID();
         }
         ImGui::EndChild();ImGui::SameLine();
-        ImGui::BeginChild("Group inspector",ImVec2(0,0),true);
+        ImGui::BeginChild("Group inspector",ImVec2(440,0),true);
         if(!groups.empty()) {
             const auto& group=groups[selected];
             ImGui::SeparatorText(group.groupName.c_str());
@@ -443,7 +444,19 @@ void Drawing::DrawCharacterColors() {
             if(ImGui::Button("Color wheel"))wheelOpenMap[wheelKey]=!wheelOpenMap[wheelKey];
             if(wheelOpenMap[wheelKey])ColorWheel::Draw(group,wheelOpenMap[wheelKey]);
             AdvancedPalette::DrawGroup(group);
+
             if(AdvancedPalette::OpenAdvanced){openAdvanced=true;AdvancedPalette::OpenAdvanced=false;}
+        }
+        ImGui::EndChild();ImGui::SameLine();
+        ImGui::BeginChild("Sprite pane",ImVec2(0,0),true);
+        if(!groups.empty()) {
+            const auto& group=groups[selected];
+            try {
+                auto layout=AdvancedPalette::PreviewLayout();
+                std::set<int> bands;
+                int first=0;for(int band=0;band<layout.size();++band){if(first<group.startIndex+group.count && first+layout[band]>group.startIndex)bands.insert(band);first+=layout[band];}
+                SpriteViewer::Draw(PlayableCharactersManager::GetCurrentCharacterIndex(),Curent_Char.Current_Palette_Num,Curent_Char.Char_Name,colors,layout,group,bands);
+            }catch(const std::exception& e){ImGui::TextWrapped("Preview unavailable: %s",e.what());}
         }
         ImGui::EndChild();
 	}
