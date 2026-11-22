@@ -49,6 +49,7 @@ struct Original { DWORD actor, palette, address; int slot; Bytes header; };
 inline std::map<DWORD, Original> originals;
 inline std::map<DWORD,nlohmann::json> overlayAssignments,rainbowAssignments;
 inline std::map<std::string, Bytes> templates;
+inline std::set<std::string> resolvedOverlayTextures;
 inline std::set<int> selected;
 inline std::string texture;
 inline int lighting = 0, tint = 0;
@@ -106,7 +107,7 @@ inline void Shutdown() {
         if(!originals.empty()) { Refresh(); Sleep(350); }
         if(refreshUntil) { Branch(0x84); refreshUntil=0; }
     } catch (...) { try { if(refreshUntil) Branch(0x84); } catch (...) {} }
-    refreshUntil=0;
+    refreshUntil=0; resolvedOverlayTextures.clear();
     ClearColorAssignments(); originals.clear(); overlayAssignments.clear(); rainbowAssignments.clear(); templates.clear(); process=nullptr;
 }
 inline void ForgetMatch() { ClearColorAssignments(); originals.clear(); overlayAssignments.clear(); rainbowAssignments.clear(); templates.clear(); selectionKey.clear(); }
@@ -149,8 +150,11 @@ inline DWORD Allocate(size_t count) {
     return result;
 #endif
 }
+#include "OverlayTextureResources.inl"
+#include "BundledOverlayTemplates.inl"
 inline void Catalog() {
     templates.clear(); DWORD root=Word(base+0x85ea4c);
+    BundledOverlayTemplates();
     // Fixed-build preset metadata contains inline names and stable resource keys;
     // all container pointers are replaced before attaching a new record.
     try {
@@ -180,7 +184,8 @@ inline void Catalog() {
 inline Bytes BuildOverlayRecord(const PaletteData::Overlay& assignment) {
     if(assignment.bands.empty())throw std::runtime_error("Select one or more groups.");
     auto preset=templates.find(assignment.texture);
-    if(preset==templates.end()) throw std::runtime_error("This texture must be loaded by a character in the match.");
+    if(preset==templates.end()) throw std::runtime_error("Could not load overlay texture '"+assignment.texture+"': no supported preset metadata is available.");
+    ResolveOverlayTexture(assignment.texture);
     Bytes bands;
     for(int band:assignment.bands) {
         if(band<1 || band>255)throw std::runtime_error("Invalid overlay band.");

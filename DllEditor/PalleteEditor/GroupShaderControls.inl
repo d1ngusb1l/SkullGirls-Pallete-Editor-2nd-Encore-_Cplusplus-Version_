@@ -70,6 +70,7 @@ void DrawGroup(const ColorGroup& group) {
                 if(shared)ImGui::TextDisabled("Rainbow timing is shared. Change it in Advanced.");
             }
             ImGui::SeparatorText("Borrow colors");
+            ImGui::TextWrapped("Apply colors to: %s",group.groupName.c_str());
             for(int source:bands) {
                 ImGui::PushID(source);
                 int normal=d.colorLinks && d.colorLinks->links.count(source)?d.colorLinks->links.at(source):0;
@@ -84,7 +85,7 @@ void DrawGroup(const ColorGroup& group) {
                     ImGui::EndCombo();
                 }
                 int transformed=d.transformation && d.transformation->links.count(source)?d.transformation->links.at(source):0;
-                if(ImGui::BeginCombo(("When triggered##"+std::to_string(source)).c_str(),transformed?data.groups[transformed].label.c_str():"No transformation")) {
+                if(ImGui::BeginCombo(("Copy colors from (when triggered)##"+std::to_string(source)).c_str(),transformed?data.groups[transformed].label.c_str():"No transformation")) {
                     if(ImGui::Selectable("No transformation",transformed==0)) {
                         if(d.transformation){d.transformation->links.erase(source);if(d.transformation->links.empty())d.transformation.reset();}apply();
                     }

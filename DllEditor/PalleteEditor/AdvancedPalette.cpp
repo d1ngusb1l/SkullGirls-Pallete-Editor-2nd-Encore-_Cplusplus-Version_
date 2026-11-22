@@ -118,6 +118,18 @@ void Tick() {
         auto now=GetTickCount64();if(now<nextCheck)return;nextCheck=now+250;
 #ifdef SGPE_DLL_VALIDATION
         if(TickOverlayProbe())return;
+        if(std::filesystem::exists("dll-texture-resources.request")) {
+            std::filesystem::remove("dll-texture-resources.request");
+            nlohmann::json results=nlohmann::json::object();
+            OverlayEditor::Catalog();
+            for(auto& entry:OverlayEditor::templates) {
+                try {OverlayEditor::ResolveOverlayTexture(entry.first); results[entry.first]="Loaded";}
+                catch(const std::exception& e) {results[entry.first]=e.what();}
+            }
+            try {OverlayEditor::ResolveOverlayTexture("MissingTexture");results["missingResource"]="Unexpected success";}
+            catch(const std::exception& e) {results["missingResource"]=e.what();}
+            PaletteData::AtomicWriteText("dll-texture-resources-result.json",results.dump(2));
+        }
         if(std::filesystem::exists("dll-smoke.request")) {
             std::filesystem::remove("dll-smoke.request");RunDllSmoke();
         }

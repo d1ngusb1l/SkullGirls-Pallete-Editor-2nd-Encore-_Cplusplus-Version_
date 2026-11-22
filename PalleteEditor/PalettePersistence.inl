@@ -49,13 +49,15 @@ inline void ValidatePalette(const Character& c,const PaletteData::Document& docu
         if(document.groupSizes!=sizes) throw std::runtime_error("Palette file group layout does not match this game build.");
     }
     if(document.overlay) {
-        Catalog(); if(!templates.count(document.overlay->texture)) throw std::runtime_error("Overlay texture is unavailable in this game session.");
+        Catalog(); if(!templates.count(document.overlay->texture)) throw std::runtime_error("Could not load overlay texture '"+document.overlay->texture+"': no supported preset metadata is available.");
         for(int band:document.overlay->bands) CheckAppearanceBand(data,band);
         if(document.overlay->tintBand) CheckAppearanceBand(data,document.overlay->tintBand);
     }
     if(document.rainbow) for(int band:document.rainbow->bands) CheckAppearanceBand(data,band);
     if(document.colorLinks) ValidateLinks(data,document.colorLinks->links,document.colorLinks->shadeMask);
     if(document.transformation) DocumentTransformation(c,data,*document.transformation);
+    // All document validation precedes resource loading or palette mutation.
+    if(document.overlay) ResolveOverlayTexture(document.overlay->texture);
 }
 inline void ApplyPalette(Character& c,const PaletteData::Document& document) {
     ValidatePalette(c,document); auto data=AppearanceData(c);
