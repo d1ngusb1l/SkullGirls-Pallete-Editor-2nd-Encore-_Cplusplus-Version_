@@ -93,3 +93,5 @@ Live archive-backed validation passed on Player 1 Peacock Color 10. The user saw
 The validation native probe accepts a paletteFile field together with slot and seconds. With this field it reads the two assignments from a schema 2 .pal, checks character and group layout against the match, and attaches the overlay records without changing colors. The shader preview request can use the same paletteFile to supply the secondary texture name, tint band, and full band list. Use the existing capture-first step for the target draw. The ordinary single-overlay editor and the native probe share the record builder.
 
 The normal Load and Auto-load entry points still reject two-overlay files before modifying live state. This diagnostic path does not yet replace target draw identification or expose production editing controls.
+
+Live saved-assignment validation on Peacock Color 10 rendered Water on bands 1 and 2, and Ravenous Veins on bands 15 and 21. The user confirmed all four groups. The shader preview recorded 949 substituted draws and the native probe verified restoration.
