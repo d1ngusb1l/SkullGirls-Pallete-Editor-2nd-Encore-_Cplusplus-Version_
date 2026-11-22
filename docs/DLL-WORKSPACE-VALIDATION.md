@@ -59,7 +59,9 @@ inspector; repeated timeline entries remain separate manual frame positions.
 Numeric move IDs are the current stable selector fallback until authored names
 are available reliably from the local table.
 
-The local asset format is `SGPOSE2`. It has explicit limits of 128 MiB,
+The local asset format is `SGPOSE5`. It stores the local game's original RLE
+sprite channels and decodes only the selected sprite record. It has explicit
+limits of 128 MiB,
 4,096 sprite records, 1,000 animations, 65,535 timeline frames per animation,
 2,048 pixels per layer dimension and 16 MiB per layer. It stores variable-dimension
 body-layer 0/1 records from local art banks 4 (art-pt), 5 (main), and 6 (art-pt).
@@ -68,6 +70,11 @@ loadable for compatibility.
 
 Unsupported or malformed timeline frames are not guessed or substituted. The
 preparation JSON reports skipped unsupported animations by stable ID and reason.
+Timeline slot 1 is the authored Cerebella body pose. When it contains no new
+sprite record, the preview carries the prior authored pose forward (starting at
+the fixed fallback record); timeline positions and durations remain separate.
+The prior `SGPOSE2`/`SGPOSE3`/`SGPOSE4` files selected slot 0 or used an
+incompatible prepared layer format and are rejected as stale.
 It rejects unsupported art banks, invalid sprite references, zero/invalid durations,
 missing body layers, malformed RLE data, oversized dimensions and unsupported
 FOIT versions. Local layer slots 2-7 are not silently composited in this increment;
@@ -89,7 +96,7 @@ Put the generated `cerebella-pose.bin` and optional JSON beside the test DLL.
 Do not commit `cerebella-pose.bin`, FOIT, GFS, artwork or DDS data.
 The viewer reads `cerebella-pose.bin` from the runner's current working
 directory. A legacy `SGPOSE1` file provides the fixed-pose fallback only and
-therefore reports zero animations; use the newly generated `SGPOSE2` file and
+therefore reports zero animations; use the newly generated `SGPOSE5` file and
 restart the runner before expecting the timeline selectors to populate.
 
 ## Build checks
@@ -100,17 +107,19 @@ The isolated runner contains the test DLL, pose asset and new workspace Autoload
 
 ## Animation increment evidence
 
-- Unit: `tests/SpriteTimelinePreparationTests.py` passes 5 timeline mapping,
+- Unit: `tests/SpriteTimelinePreparationTests.py` passes 7 timeline mapping,
   repeated-frame, boundary, invalid-reference, invalid-duration and art-bank
   selection checks.
-- Local preparation: `prepare-dll-preview.py` prepared
-  `build/cerebella-pose.bin` (SGPOSE2) and provenance JSON from the local runtime
-  installation. The output contains 564 numeric fallback move IDs, 3,370 timeline
-  frames and 2 body-layer sprite records in the measured local set.
+- Local preparation: SGPOSE5 is 63,358,633 bytes and contains 1,282 sprite
+  records, 549 supported animation IDs, and 3,233 timeline frames. Fifteen
+  animations are explicitly marked unsupported due to bank/layer limits.
+  Decoding fallback sprite 2's two layers from the local RLE source matched the
+  prior prepared pixel layers byte-for-byte; this is a decoder consistency
+  check, not an in-game visual comparison. SGPOSE2/3/4 are stale.
 - Build: `scripts/build-dll.ps1 -Validation` completed and produced
   `build/dll/d3d9.dll`; network exclusion verification reported all four markers
   false. DLL SHA-256:
-  `3C87BBFB37A19B5B76A2F26AB548385E324D9E2E4A111737B6B8CE1088C8789E`.
+  `D93FA0BFB7748DBCD0AC13CC78B79EB89F8B64AA981AD8FF1BAE3282B3C32535`.
 - Existing format suite: 32/32 checks passed.
 - In-game work remains for the user: replace and restart only while the runner
   is stopped, prepare/inspect a group absent from idle, verify frame

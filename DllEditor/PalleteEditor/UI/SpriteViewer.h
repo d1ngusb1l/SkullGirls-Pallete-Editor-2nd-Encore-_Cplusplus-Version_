@@ -2,12 +2,16 @@
 #include <fstream>
 #include <set>
 #include <algorithm>
+#include <limits>
 #include "Tools/Colors.hpp"
 
 namespace SpriteViewer {
 struct PixelLayer {
     unsigned slot=0,offsetX=0,offsetY=0,width=0,height=0;
     int x=0,y=0;
+    unsigned flags=0;
+    std::vector<unsigned short> tiles;
+    std::array<std::vector<unsigned char>,3> channels;
     std::vector<unsigned char> pixels;
 };
 struct SpriteFrameAsset {
@@ -40,6 +44,8 @@ inline bool uploadedHighlight=false;
 inline unsigned uploadedSprite=0;
 inline std::vector<SpriteFrameAsset> frames;
 inline std::vector<AnimationAsset> animations;
+inline SpriteFrameAsset decodedFrame;
+inline unsigned decodedSprite=(std::numeric_limits<unsigned>::max)();
 inline int selectedAnimation=-1,frameIndex=0;
 inline char animationSearch[128]={};
 
@@ -47,7 +53,7 @@ inline void LostDevice() {if(texture){texture->Release();texture=nullptr;}}
 inline void ForgetMatch() {
     LostDevice();original.clear();edited.clear();sizes.clear();slot=palette=-1;
 }
-inline void Shutdown() {ForgetMatch();device=nullptr;pixels.clear();defaultRows.clear();frames.clear();animations.clear();attempted=false;}
+inline void Shutdown() {ForgetMatch();device=nullptr;pixels.clear();defaultRows.clear();frames.clear();animations.clear();decodedFrame={};decodedSprite=(std::numeric_limits<unsigned>::max)();attempted=false;}
 
 inline bool ReadExactly(std::ifstream& f,char* data,size_t size) {
     f.read(data,(std::streamsize)size);return f.good();
@@ -65,24 +71,32 @@ inline void Load() {
         f.seekg(0);char magic[8]={};unsigned paletteBytes=0,fallback=0,frameCount=0,animationCount=0;
         if(!ReadExactly(f,magic,8))throw std::runtime_error("Truncated preview asset.");
         f.read(reinterpret_cast<char*>(&paletteBytes),4);f.read(reinterpret_cast<char*>(&fallback),4);f.read(reinterpret_cast<char*>(&frameCount),4);f.read(reinterpret_cast<char*>(&animationCount),4);
-        if(memcmp(magic,"SGPOSE2\0",8)==0) {
-            if(paletteBytes<64 || paletteBytes>16384 || paletteBytes%64 || frameCount<1 || frameCount>4096 || animationCount>1000)throw std::runtime_error("Malformed SGPOSE2 preview asset.");
-            if(static_cast<unsigned>(length)<24+paletteBytes)throw std::runtime_error("Truncated SGPOSE2 palette.");
-            defaultRows.resize(paletteBytes);if(!ReadExactly(f,reinterpret_cast<char*>(defaultRows.data()),paletteBytes))throw std::runtime_error("Truncated SGPOSE2 palette.");
+        if(memcmp(magic,"SGPOSE2\0",8)==0 || memcmp(magic,"SGPOSE3\0",8)==0 || memcmp(magic,"SGPOSE4\0",8)==0)throw std::runtime_error("This preview asset uses an outdated sprite mapping or layer format. Regenerate it with the current scripts/prepare-dll-preview.py.");
+        if(memcmp(magic,"SGPOSE5\0",8)==0) {
+            if(paletteBytes<64 || paletteBytes>16384 || paletteBytes%64 || frameCount<1 || frameCount>4096 || animationCount>1000)throw std::runtime_error("Malformed SGPOSE5 preview asset.");
+            if(static_cast<unsigned>(length)<24+paletteBytes)throw std::runtime_error("Truncated SGPOSE5 palette.");
+            defaultRows.resize(paletteBytes);if(!ReadExactly(f,reinterpret_cast<char*>(defaultRows.data()),paletteBytes))throw std::runtime_error("Truncated SGPOSE5 palette.");
             bool fallbackFound=false;
             for(unsigned r=0;r<frameCount;++r) {
                 unsigned id=0,layerCount=0;int originX=0,originY=0;
                 f.read(reinterpret_cast<char*>(&id),4);f.read(reinterpret_cast<char*>(&originX),4);f.read(reinterpret_cast<char*>(&originY),4);f.read(reinterpret_cast<char*>(&layerCount),4);
-                if(!f || layerCount<1 || layerCount>8)throw std::runtime_error("Malformed SGPOSE2 sprite record.");
+                if(!f || layerCount<1 || layerCount>8)throw std::runtime_error("Malformed SGPOSE5 sprite record.");
                 SpriteFrameAsset frame;frame.id=id;frame.originX=(unsigned)std::max(originX,0);frame.originY=(unsigned)std::max(originY,0);
                 int minX=0,minY=0,maxX=0,maxY=0;bool haveBounds=false;
                 for(unsigned l=0;l<layerCount;++l) {
-                    unsigned slot=0,layerWidth=0,layerHeight=0,pixelBytes=0;int x=0,y=0;
-                    f.read(reinterpret_cast<char*>(&slot),4);f.read(reinterpret_cast<char*>(&x),4);f.read(reinterpret_cast<char*>(&y),4);f.read(reinterpret_cast<char*>(&layerWidth),4);f.read(reinterpret_cast<char*>(&layerHeight),4);f.read(reinterpret_cast<char*>(&pixelBytes),4);
-                    BoundDimension(layerWidth);BoundDimension(layerHeight);
-                    if(slot>7 || pixelBytes!=layerWidth*layerHeight*3 || pixelBytes>16*1024*1024)throw std::runtime_error("Malformed or oversized SGPOSE2 sprite layer.");
-                    PixelLayer layer;layer.slot=slot;layer.x=x;layer.y=y;layer.width=layerWidth;layer.height=layerHeight;layer.pixels.resize(pixelBytes);
-                    if(!ReadExactly(f,reinterpret_cast<char*>(layer.pixels.data()),pixelBytes))throw std::runtime_error("Truncated SGPOSE2 sprite layer.");
+                    unsigned slot=0,used=0;unsigned short columns=0,rows=0,flags=0;int x=0,y=0;unsigned channelBytes[3]={};
+                    f.read(reinterpret_cast<char*>(&slot),4);f.read(reinterpret_cast<char*>(&x),4);f.read(reinterpret_cast<char*>(&y),4);f.read(reinterpret_cast<char*>(&columns),2);f.read(reinterpret_cast<char*>(&rows),2);f.read(reinterpret_cast<char*>(&flags),2);f.read(reinterpret_cast<char*>(&used),2);f.read(reinterpret_cast<char*>(&channelBytes[0]),4);f.read(reinterpret_cast<char*>(&channelBytes[1]),4);f.read(reinterpret_cast<char*>(&channelBytes[2]),4);
+                    unsigned layerWidth=BoundDimension(columns*16),layerHeight=BoundDimension(rows*16);
+                    if(slot>7 || used==0 || used>columns*rows || (flags&~64u) || size_t(layerWidth)*layerHeight*3>16*1024*1024)throw std::runtime_error("Malformed or oversized SGPOSE5 sprite layer.");
+                    PixelLayer layer;layer.slot=slot;layer.x=x;layer.y=y;layer.width=layerWidth;layer.height=layerHeight;layer.flags=flags;layer.tiles.resize(used);
+                    if(!ReadExactly(f,reinterpret_cast<char*>(layer.tiles.data()),used*sizeof(unsigned short)))throw std::runtime_error("Truncated SGPOSE5 sprite tile list.");
+                    std::set<unsigned short> uniqueTiles;
+                    for(auto tile:layer.tiles)if(tile>=columns*rows || !uniqueTiles.insert(tile).second)throw std::runtime_error("Invalid SGPOSE5 tile position.");
+                    for(unsigned channel=0;channel<3;++channel) {
+                        if(channelBytes[channel]==0 || channelBytes[channel]>16*1024*1024)throw std::runtime_error("Malformed SGPOSE5 channel length.");
+                        layer.channels[channel].resize(channelBytes[channel]);
+                        if(!ReadExactly(f,reinterpret_cast<char*>(layer.channels[channel].data()),channelBytes[channel]))throw std::runtime_error("Truncated SGPOSE5 sprite channel.");
+                    }
                     if(!haveBounds){minX=x;minY=y;maxX=x+(int)layerWidth;maxY=y+(int)layerHeight;haveBounds=true;}else{
                         minX=(std::min)(minX,x);minY=(std::min)(minY,y);maxX=(std::max)(maxX,x+(int)layerWidth);maxY=(std::max)(maxY,y+(int)layerHeight);
                     }
@@ -92,23 +106,25 @@ inline void Load() {
                 for(auto& layer:frame.layers){layer.offsetX=(unsigned)(layer.x-minX);layer.offsetY=(unsigned)(layer.y-minY);}
                 frames.push_back(std::move(frame));if(id==fallback)fallbackFound=true;
             }
-            if(!fallbackFound)throw std::runtime_error("SGPOSE2 is missing the fixed-pose fallback sprite.");
+            if(!fallbackFound)throw std::runtime_error("SGPOSE5 is missing the fixed-pose fallback sprite.");
+            unsigned long long totalTimelineFrames=0;
             for(unsigned a=0;a<animationCount;++a) {
                 unsigned id=0,nameBytes=0,frameCount=0;f.read(reinterpret_cast<char*>(&id),4);f.read(reinterpret_cast<char*>(&nameBytes),4);
-                if(nameBytes<1 || nameBytes>1024)throw std::runtime_error("Malformed SGPOSE2 animation name.");
-                std::string name(nameBytes,'\0');if(!ReadExactly(f,name.data(),nameBytes))throw std::runtime_error("Truncated SGPOSE2 animation name.");
-                f.read(reinterpret_cast<char*>(&frameCount),4);if(!f || frameCount<1 || frameCount>65535)throw std::runtime_error("Malformed SGPOSE2 timeline.");
+                if(nameBytes<1 || nameBytes>1024)throw std::runtime_error("Malformed SGPOSE5 animation name.");
+                std::string name(nameBytes,'\0');if(!ReadExactly(f,name.data(),nameBytes))throw std::runtime_error("Truncated SGPOSE5 animation name.");
+                f.read(reinterpret_cast<char*>(&frameCount),4);if(!f || frameCount<1 || frameCount>65535 || totalTimelineFrames+frameCount>100000)throw std::runtime_error("Malformed or oversized SGPOSE5 timeline.");
+                totalTimelineFrames+=frameCount;
                 AnimationAsset animation;animation.id=id;animation.name=name;
                 for(unsigned t=0;t<frameCount;++t) {
                     unsigned short sprite=0,sprite1=0,sprite2=0,duration=0;
                     f.read(reinterpret_cast<char*>(&sprite),2);f.read(reinterpret_cast<char*>(&sprite1),2);f.read(reinterpret_cast<char*>(&sprite2),2);f.read(reinterpret_cast<char*>(&duration),2);
-                    if(!f || duration<1 || duration>65535)throw std::runtime_error("Malformed SGPOSE2 timeline frame.");
+                    if(!f || duration<1 || duration>65535)throw std::runtime_error("Malformed SGPOSE5 timeline frame.");
                     bool known=false;for(const auto& frame:frames)if(frame.id==sprite){known=true;break;}if(!known)throw std::runtime_error("Animation timeline references an invalid sprite record.");
                     animation.frames.push_back({sprite,duration,sprite1,sprite2});
                 }
                 animations.push_back(std::move(animation));
             }
-            if(f.tellg()!=length)throw std::runtime_error("Trailing or malformed SGPOSE2 preview data.");
+            if(f.tellg()!=length)throw std::runtime_error("Trailing or malformed SGPOSE5 preview data.");
         } else if(memcmp(magic,"SGPOSE1\0",8)==0) {
             legacyFixedOnly=true;
             unsigned count=paletteBytes;
@@ -136,17 +152,73 @@ inline ImU32 Sample(int band,int shade,const std::vector<ImU32>& colors) {
     for(int ch=0;ch<4;++ch){float a=(colors[start+low]>>(8*ch))&255,b=(colors[start+high]>>(8*ch))&255;float v=a+(b-a)*t;v=ch==3?(std::max)(v,black*255):v*(1-black);result|=static_cast<ImU32>(v)<<(8*ch);}
     return result;
 }
+inline std::vector<unsigned char> DecodeArtChannel(const std::vector<unsigned char>& input,unsigned expected) {
+    if(expected>16*1024*1024 || input.empty())throw std::runtime_error("Sprite channel exceeds decode bounds.");
+    std::vector<unsigned char> output;output.reserve(expected);size_t pos=0;
+    while(pos<input.size()) {
+        unsigned flag=input[pos++],code=flag&127,length=code<125?code+1:0;
+        if(code>=125) {
+            unsigned bytes=code-124;
+            if(bytes>input.size()-pos)throw std::runtime_error("Truncated sprite RLE length.");
+            for(unsigned i=0;i<bytes;++i)length=(length<<8)|input[pos++];
+            if(!length)length=1;
+        }
+        if(length>expected-output.size())throw std::runtime_error("Oversized sprite RLE run.");
+        if(flag&128) {
+            if(pos>=input.size())throw std::runtime_error("Truncated repeated sprite RLE run.");
+            output.insert(output.end(),length,input[pos++]);
+        } else {
+            if(length>input.size()-pos)throw std::runtime_error("Truncated literal sprite RLE run.");
+            output.insert(output.end(),input.begin()+pos,input.begin()+pos+length);pos+=length;
+        }
+    }
+    if(output.size()!=expected)throw std::runtime_error("Decoded sprite channel size mismatch.");
+    return output;
+}
+inline void DecodePixelLayer(PixelLayer& layer) {
+    const unsigned stride=(unsigned)layer.tiles.size()*16,expected=stride*16;
+    if(!stride || expected>16*1024*1024)throw std::runtime_error("Sprite tile data exceeds decode bounds.");
+    std::array<std::vector<unsigned char>,3> channels;
+    for(unsigned ch=0;ch<3;++ch)channels[ch]=DecodeArtChannel(layer.channels[ch],expected);
+    for(unsigned y=2;y<16;y+=2)for(unsigned x=0;x<stride;++x)channels[0][y*stride+x]=(channels[0][y*stride+x]+channels[0][(y-2)*stride+x])&255;
+    for(unsigned x=0;x<stride;++x)channels[0][15*stride+x]=(channels[0][15*stride+x]+channels[0][14*stride+x])&255;
+    for(unsigned y=1;y<15;y+=2)for(unsigned x=0;x<stride;++x) {
+        unsigned a=channels[0][(y-1)*stride+x],b=channels[0][(y+1)*stride+x];
+        channels[0][y*stride+x]=(((a>>4)+(b>>4))/2*16+((a&15)+(b&15))/2);
+        if(layer.flags&64)channels[1][y*stride+x]=(channels[1][y*stride+x]&224)|(((channels[1][(y-1)*stride+x]&31)+(channels[1][(y+1)*stride+x]&31))/2);
+    }
+    layer.pixels.assign(size_t(layer.width)*layer.height*3,0);
+    for(size_t n=0;n<layer.tiles.size();++n) {
+        unsigned tile=layer.tiles[n],left=(tile%(layer.width/16))*16,top=(tile/(layer.width/16))*16;
+        for(unsigned y=0;y<16;++y)for(unsigned x=0;x<16;++x) {
+            size_t source=y*stride+n*16+x;
+            size_t target=((top+y)*layer.width+left+x)*3;
+            for(unsigned ch=0;ch<3;++ch)layer.pixels[target+ch]=channels[ch][source];
+        }
+    }
+}
 inline const SpriteFrameAsset* ActiveFrame() {
+    const SpriteFrameAsset* source=nullptr;
     if(selectedAnimation>=0 && selectedAnimation<(int)animations.size()) {
         auto& animation=animations[selectedAnimation];
         if(frameIndex>=0 && frameIndex<(int)animation.frames.size()) {
             unsigned id=animation.frames[frameIndex].sprite;
-            for(const auto& frame:frames)if(frame.id==id)return &frame;
+            for(const auto& frame:frames)if(frame.id==id){source=&frame;break;}
         }
     }
-    unsigned fallback=2;for(const auto& frame:frames)if(frame.id==fallback)return &frame;
-    if(!frames.empty())return &frames.front();
-    return nullptr;
+    if(!source){unsigned fallback=2;for(const auto& frame:frames)if(frame.id==fallback){source=&frame;break;}}
+    if(!source && !frames.empty())source=&frames.front();
+    if(!source)return nullptr;
+    if(decodedSprite!=source->id) {
+        decodedFrame=*source;
+        for(auto& layer:decodedFrame.layers)if(!layer.channels[0].empty()) {
+            DecodePixelLayer(layer);
+            for(auto& channel:layer.channels){channel.clear();channel.shrink_to_fit();}
+            layer.tiles.clear();layer.tiles.shrink_to_fit();
+        }
+        decodedSprite=source->id;
+    }
+    return &decodedFrame;
 }
 inline void Upload(const std::set<int>& selected) {
     if(!device || original.empty())return;

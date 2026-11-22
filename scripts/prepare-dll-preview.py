@@ -1,10 +1,10 @@
 """Prepare a Cerebella animation preview from a user's installed archives.
 Usage: python scripts/prepare-dll-preview.py GAME_DIRECTORY OUTPUT_DIRECTORY
-The output contains decoded metadata and sprite records only. No game artwork is
-copied into or committed to this repository.
+The output contains timeline metadata and the game's own compressed sprite layer
+payloads. It is generated locally and must not be committed.
 
-Supported: version-9 Cerebella FOIT frame tables, art banks 5 (main) and 6
-(art-pt), normal body layers 0-7, root authored animation timelines, and repeated
+Supported: version-9 Cerebella FOIT frame tables, art banks 4/6 (art-pt) and 5
+(main), normal body layers 0/1, root authored animation timelines, and repeated
 timeline frames. Unsupported timeline payloads and malformed/invalid references
 are rejected instead of substituted.
 """
@@ -188,26 +188,6 @@ def unpack(data,expected):
     if c.pos!=len(data):raise ValueError('Trailing RLE')
     return out
 
-def pixels(info,art):
-    cols,rows,tiles,flags,offset,sizes=info
-    width,height=cols*16,rows*16
-    result=bytearray(width*height*3);stride=len(tiles)*16
-    for ch,size in enumerate(sizes):
-        plane=unpack(art[offset:offset+size],stride*16);offset+=size
-        if ch==0:
-            for y in list(range(2,16,2))+[15]:
-                prev=y-2 if y!=15 else 14
-                for x in range(stride):plane[y*stride+x]=(plane[y*stride+x]+plane[prev*stride+x])&255
-        if ch==0 or (ch==1 and flags&64):
-            for y in range(1,15,2):
-                for x in range(stride):
-                    a,b=plane[(y-1)*stride+x],plane[(y+1)*stride+x]
-                    plane[y*stride+x]=(((a>>4)+(b>>4))//2*16+((a&15)+(b&15))//2) if ch==0 else (plane[y*stride+x]&224)|(((a&31)+(b&31))//2)
-        for n,tile in enumerate(tiles):
-            for y in range(16):
-                for x in range(16):result[(((tile//cols)*16+y)*width+(tile%cols)*16+x)*3+ch]=plane[y*stride+n*16+x]
-    return width,height,result
-
 def first_asset(folder,candidates,name):
     for archive in candidates:
         path=folder/archive
@@ -228,12 +208,34 @@ def validate_timeline_frame(frame,records):
     for sprite in frame['sprites']:
         if not isinstance(sprite,int) or sprite<0 or sprite>=len(records):
             raise ValueError('Invalid FOIT sprite reference')
-    sprite=frame['sprites'][0]
+    sprite=frame.get('body_sprite',frame['sprites'][1])
     record=records[sprite]
     if record['bank'] not in (4,5,6):
         raise ValueError('Unsupported Cerebella art bank '+str(record['bank']))
     if not frame.get('duration',0)>=1:
         raise ValueError('Invalid authored frame duration')
+
+def map_body_timeline(animation,fallback_sprite=2):
+    pose=fallback_sprite
+    result=[]
+    for frame in animation:
+        body_sprite=frame['sprites'][1]
+        if body_sprite>1:
+            pose=body_sprite
+        mapped=dict(frame)
+        mapped['body_sprite']=pose
+        result.append(mapped)
+    return result
+
+def stored_layer(info,art):
+    cols,rows,tiles,flags,offset,sizes=info
+    if not tiles:return None
+    if offset<0 or offset>len(art):raise ValueError('Sprite layer art offset is outside its bank')
+    channels=[]
+    for size in sizes:
+        if size<=0 or size>len(art)-offset:raise ValueError('Sprite layer channel is outside its art bank')
+        channels.append(art[offset:offset+size]);offset+=size
+    return cols,rows,flags&64,tiles,channels
 
 def main():
     if len(sys.argv)!=3:
@@ -258,25 +260,30 @@ def main():
     animations,names=read_move_table(Cursor(foit,cursor),len(foit),len(records))
     if len(names)!=len(animations):raise ValueError('Malformed animation names')
     used=set();supported_animations=[];unsupported_animations=[]
-    for animation_id,animation in enumerate(animations):
+    for animation_id,raw_animation in enumerate(animations):
+        animation=map_body_timeline(raw_animation)
         supported=True
         for frame in animation:
-            sprite=frame['sprites'][0]
+            sprite=frame['body_sprite']
             if sprite>=len(records):
-                raise ValueError('Invalid FOIT sprite reference '+str(sprite)+' in animation '+str(animation_id))
+                raise ValueError('Invalid FOIT body sprite reference '+str(sprite)+' in animation '+str(animation_id))
             record=records[sprite]
             if record['bank'] not in (4,5,6):
                 supported=False
+            has_body_layer=False
             for slot in (0,1):
                 info=record['layers'][slot]
                 if info is not None and info[2]:
-                    break
-            else:
+                    if info[0]>128 or info[1]>128:
+                        supported=False
+                    else:
+                        has_body_layer=True
+            if not has_body_layer:
                 supported=False
         if supported:
-            supported_animations.append(animation)
+            supported_animations.append((animation_id,names[animation_id],animation))
             for frame in animation:
-                used.add(frame['sprites'][0])
+                used.add(frame['body_sprite'])
         else:
             unsupported_animations.append({'id':animation_id,'name':names[animation_id],'reason':'unsupported art bank or missing normal body layer 0/1'})
     animations=supported_animations
@@ -293,38 +300,40 @@ def main():
         for slot,info in enumerate(record['layers']):
             if info is None:continue
             if slot not in (0,1):continue
-            try:
-                lw,lh,pixel_bytes=pixels(info,art)
-            except ValueError as error:
-                raise ValueError('Cannot decode sprite '+str(sprite_id)+' bank '+str(bank)+' layer '+str(slot)+': '+str(error))
+            stored=stored_layer(info,art)
+            if stored is None:continue
+            cols,rows,flags,tiles,channels=stored
+            lw,lh=cols*16,rows*16
             if lw>2048 or lh>2048 or lw*lh*3>16*1024*1024:raise ValueError('Oversized sprite layer')
             offset=record['offsets'][slot] if record['offsets'][slot] is not None else (0,0)
-            layers.append((slot,offset[0],offset[1],lw,lh,pixel_bytes))
+            layers.append((slot,offset[0],offset[1],cols,rows,flags,tiles,channels))
         if not layers:raise ValueError('Sprite '+str(sprite_id)+' has no body layers')
         decoded.append((sprite_id,record['origin'][0],record['origin'][1],layers))
 
     fallback_record_id=sorted(used).index(2)
-    parts=[bytearray(struct.pack('<8s4I',b'SGPOSE2\0',len(palette),2,len(decoded),len(animations))),bytearray(palette)]
+    parts=[bytearray(struct.pack('<8s4I',b'SGPOSE5\0',len(palette),2,len(decoded),len(animations))),bytearray(palette)]
     for sprite_id,ox,oy,layers in decoded:
         parts.append(struct.pack('<IiiI',sprite_id,ox,oy,len(layers)))
-        for slot,x,y,w,h,data in layers:
-            parts.append(struct.pack('<IiiIII',slot,x,y,w,h,len(data))+data)
-    for animation_id,animation in enumerate(animations):
-        name=names[animation_id].encode('utf-8','replace')
+        for slot,x,y,cols,rows,flags,tiles,channels in layers:
+            parts.append(struct.pack('<IiiHHHHIII',slot,x,y,cols,rows,flags,len(tiles),*(len(data) for data in channels)))
+            parts.append(struct.pack('<'+'H'*len(tiles),*tiles))
+            parts.extend(channels)
+    for animation_id,name_value,animation in animations:
+        name=name_value.encode('utf-8','replace')
         if len(name)>1024:raise ValueError('Animation name exceeds supported size')
         parts.append(struct.pack('<II',animation_id,len(name))+name+struct.pack('<I',len(animation)))
         for frame in animation:
             if frame['duration']<1 or frame['duration']>65535:raise ValueError('Invalid authored frame duration')
-            parts.append(struct.pack('<HHH H',frame['sprites'][0],frame['sprites'][1],frame['sprites'][2],frame['duration']))
+            parts.append(struct.pack('<HHH H',frame['body_sprite'],frame['sprites'][1],frame['sprites'][2],frame['duration']))
     payload=b''.join(parts)
     if len(payload)>128*1024*1024:raise ValueError('Prepared preview exceeds 128 MiB explicit bound')
     out.mkdir(parents=True,exist_ok=True)
     (out/'cerebella-pose.bin').write_bytes(payload)
-    meta={'format':'SGPOSE2','frame':2,'bankFallback':5,'fallbackSprite':2,'fallbackRecord':fallback_record_id,
-          'spriteRecords':len(decoded),'animations':len(animations),'timelineFrames':sum(len(a) for a in animations),
+    meta={'format':'SGPOSE5','frame':2,'bankFallback':5,'fallbackSprite':2,'fallbackRecord':fallback_record_id,
+          'spriteRecords':len(decoded),'animations':len(animations),'timelineFrames':sum(len(a[2]) for a in animations),
           'paletteBytes':len(palette),'sha256':hashlib.sha256(payload).hexdigest(),'foitSha256':hashlib.sha256(foit).hexdigest(),
           'supportedBanks':[4,5,6],'supportedLayers':[0,1],'unsupportedAnimations':unsupported_animations,
-          'unsupportedEffects':'overlays, lighting, rainbow, redirects, transformations and super visuals','unsupportedOtherLayers':'2-7'}
+          'payload':'original FOIT RLE channels, decoded on selected frame','unsupportedEffects':'overlays, lighting, rainbow, redirects, transformations and super visuals','unsupportedOtherLayers':'2-7'}
     (out/'cerebella-pose.json').write_text(json.dumps(meta,indent=2))
     print(out/'cerebella-pose.json')
 if __name__=='__main__':main()
