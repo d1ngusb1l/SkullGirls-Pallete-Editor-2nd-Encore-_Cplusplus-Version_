@@ -24,6 +24,18 @@ These two tests reused the installed hardcoded probe by temporarily aliasing its
 
 Both timed probes reported successful restoration of the original overlay header. The restored catalog hash matched the source catalog. The configurable validation DLL rebuilt successfully with the online-networking exclusion checks still passing. Production packages were not changed by these experiments.
 
+The native Fire/Water probe was repeated on November 21, 2026 with Fire on
+Peacock hat main (band 1) and Water on dress main (band 15). The live result
+showed the same texture on both groups, confirming that the character draw's
+single Chowder texture binding is shared rather than independently selected per
+overlay record.
+
+## Shader and texture tracing
+
+The validation D3D9 proxy can optically capture the pixel shader and texture bindings used during live draws. Create `renderer-trace.request` in the game runner working directory, then continue for two presented frames. It writes `renderer-trace/capture.json` and up to 32 unique pixel-shader binaries in `renderer-trace/`.
+
+The capture is read-only: it does not modify shaders, textures, constants, or draw calls. It records draw kind, primitive count, shader identity and constants, bound textures and texture dimensions, and pixel constants used by named shader constants. The request, output and tracer code are validation-only and excluded from production builds.
+
 ## Implementation after visual confirmation
 
 1. Represent overlay assignments as a bounded list with independent texture, bands, lighting, and tint settings. Define overlap behavior explicitly; initially reject overlapping groups.

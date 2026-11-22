@@ -1,5 +1,9 @@
 #include "pch.h"
 
+#ifdef SGPE_DLL_VALIDATION
+#include "RendererTrace.h"
+#endif
+
 IDirect3DDevice9Proxy *IDirect3DDevice9Proxy::lastDevice = NULL;
 
 void* IDirect3DDevice9Proxy::callbacks[D3D9_DEVICE_FUNC_COUNT] = {NULL};
@@ -134,6 +138,9 @@ HRESULT IDirect3DDevice9Proxy::Reset(D3DPRESENT_PARAMETERS* pPresentationParamet
 HRESULT IDirect3DDevice9Proxy::Present(CONST RECT* pSourceRect, CONST RECT* pDestRect, HWND hDestWindowOverride, CONST RGNDATA* pDirtyRegion){
 
 	HRESULT res = (origIDirect3DDevice9->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion));
+#ifdef SGPE_DLL_VALIDATION
+	RendererTrace::EndFrame();
+#endif
 	if (callbacks[POSTPRESENT])
 		((D3D9DevicePostPresentFunc)callbacks[POSTPRESENT])(this, res);
 	return res;
@@ -411,22 +418,38 @@ float   IDirect3DDevice9Proxy::GetNPatchMode(void)
 
 HRESULT IDirect3DDevice9Proxy::DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType,UINT StartVertex,UINT PrimitiveCount)
 {
-	return(origIDirect3DDevice9->DrawPrimitive(PrimitiveType,StartVertex,PrimitiveCount));
+	HRESULT result=origIDirect3DDevice9->DrawPrimitive(PrimitiveType,StartVertex,PrimitiveCount);
+#ifdef SGPE_DLL_VALIDATION
+	if(SUCCEEDED(result))RendererTrace::Draw(this,"DrawPrimitive",PrimitiveCount);
+#endif
+	return result;
 }
 
 HRESULT IDirect3DDevice9Proxy::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType,INT BaseVertexIndex,UINT MinVertexIndex,UINT NumVertices,UINT startIndex,UINT primCount)
 {
-	return(origIDirect3DDevice9->DrawIndexedPrimitive(PrimitiveType,BaseVertexIndex,MinVertexIndex,NumVertices,startIndex,primCount));
+	HRESULT result=origIDirect3DDevice9->DrawIndexedPrimitive(PrimitiveType,BaseVertexIndex,MinVertexIndex,NumVertices,startIndex,primCount);
+#ifdef SGPE_DLL_VALIDATION
+	if(SUCCEEDED(result))RendererTrace::Draw(this,"DrawIndexedPrimitive",primCount,BaseVertexIndex,MinVertexIndex,NumVertices,startIndex);
+#endif
+	return result;
 }
 
 HRESULT IDirect3DDevice9Proxy::DrawPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType,UINT PrimitiveCount,CONST void* pVertexStreamZeroData,UINT VertexStreamZeroStride)
 {
-	return(origIDirect3DDevice9->DrawPrimitiveUP(PrimitiveType,PrimitiveCount,pVertexStreamZeroData,VertexStreamZeroStride));
+	HRESULT result=origIDirect3DDevice9->DrawPrimitiveUP(PrimitiveType,PrimitiveCount,pVertexStreamZeroData,VertexStreamZeroStride);
+#ifdef SGPE_DLL_VALIDATION
+	if(SUCCEEDED(result))RendererTrace::Draw(this,"DrawPrimitiveUP",PrimitiveCount);
+#endif
+	return result;
 }
 
 HRESULT IDirect3DDevice9Proxy::DrawIndexedPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType,UINT MinVertexIndex,UINT NumVertices,UINT PrimitiveCount,CONST void* pIndexData,D3DFORMAT IndexDataFormat,CONST void* pVertexStreamZeroData,UINT VertexStreamZeroStride)
 {
-	return(origIDirect3DDevice9->DrawIndexedPrimitiveUP(PrimitiveType,MinVertexIndex,NumVertices,PrimitiveCount, pIndexData, IndexDataFormat, pVertexStreamZeroData,VertexStreamZeroStride));
+	HRESULT result=origIDirect3DDevice9->DrawIndexedPrimitiveUP(PrimitiveType,MinVertexIndex,NumVertices,PrimitiveCount,pIndexData,IndexDataFormat,pVertexStreamZeroData,VertexStreamZeroStride);
+#ifdef SGPE_DLL_VALIDATION
+	if(SUCCEEDED(result))RendererTrace::Draw(this,"DrawIndexedPrimitiveUP",PrimitiveCount);
+#endif
+	return result;
 }
 
 HRESULT IDirect3DDevice9Proxy::ProcessVertices(UINT SrcStartIndex,UINT DestIndex,UINT VertexCount,IDirect3DVertexBuffer9* pDestBuffer,IDirect3DVertexDeclaration9* pVertexDecl,DWORD Flags)
