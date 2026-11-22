@@ -185,8 +185,10 @@ inline void Draw(int targetSlot,int targetPalette,const char* character,const st
     if(slot!=targetSlot || palette!=targetPalette || sizes!=layout) {
         ForgetMatch();slot=targetSlot;palette=targetPalette;sizes=layout;original=edited=liveColors;
     }
-    ImGui::Separator();ImGui::TextUnformatted("Animation");
-    ImGui::InputTextWithHint("##AnimationSearch","Search authored animation name or ID",animationSearch,sizeof(animationSearch));
+    ImGui::Separator();
+    ImGui::TextColored(ImVec4(0.4f,0.85f,1.0f,1.0f),"Animation / frame selection");
+    ImGui::TextDisabled("%zu animations loaded | select an animation to reveal its frame controls",animations.size());
+    ImGui::InputTextWithHint("##AnimationSearch","Search authored name or numeric move ID",animationSearch,sizeof(animationSearch));
     ImGui::BeginChild("Animation list",ImVec2(220,140),true);
     std::string query=animationSearch;std::transform(query.begin(),query.end(),query.begin(),::tolower);
     for(int i=0;i<(int)animations.size();++i){
@@ -198,6 +200,7 @@ inline void Draw(int targetSlot,int targetPalette,const char* character,const st
     }
     ImGui::EndChild();ImGui::SameLine();
     ImGui::BeginGroup();
+    ImGui::TextUnformatted("Selected frame");
     if(ImGui::Button("Fixed pose fallback")){selectedAnimation=-1;frameIndex=0;}
     if(selectedAnimation>=0 && selectedAnimation<(int)animations.size()) {
         auto& animation=animations[selectedAnimation];
