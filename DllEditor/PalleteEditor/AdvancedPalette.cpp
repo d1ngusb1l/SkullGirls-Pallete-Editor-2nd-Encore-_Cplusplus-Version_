@@ -68,6 +68,7 @@ void ForgetMatch() {
     CancelOverlayDrawPreview();
     overlayDrafts.clear();
     pendingDraftFile.reset();
+    revealDraft.reset();
 #endif
     OverlayEditor::ForgetMatch();identity.clear();attempted.clear();nextCheck=0;
 }
@@ -82,6 +83,12 @@ void PaletteChanged() {
 bool Load(const std::string& path) {
     try {
         auto c=Current();auto d=PaletteData::ReadFile(PaletteData::PathFromText(path));
+#ifdef SGPE_DLL_VALIDATION
+        if(d.secondOverlay) {
+            LoadDualOverlayDraft(c,d);
+            return true;
+        }
+#endif
         OverlayEditor::ApplyPalette(c,d);Sync();
         Status=d.legacy?"Legacy colors loaded; existing advanced assignments preserved.":"Colors and applied shader settings loaded.";
         return true;

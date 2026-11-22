@@ -6,8 +6,21 @@ struct DualOverlayDraft {
 };
 std::map<std::pair<int,int>,DualOverlayDraft> overlayDrafts;
 std::optional<std::pair<int,int>> pendingDraftFile;
+std::optional<std::pair<int,int>> revealDraft;
 
 std::pair<int,int> DraftKey(const Character& c) {return {c.ID,c.Current_Pallete_Num};}
+
+void LoadDualOverlayDraft(const Character& c,const PaletteData::Document& document) {
+    const auto data=OverlayEditor::AppearanceData(c);
+    std::vector<int> sizes;
+    for(const auto& group:data.groups)sizes.push_back(group.count);
+    if(document.character!=c.Char_Name || document.groupSizes!=sizes || !document.overlay || !document.secondOverlay)
+        throw std::runtime_error("Choose a two-texture file for the current character and group layout.");
+    const auto key=DraftKey(c);
+    overlayDrafts[key]={*document.overlay,*document.secondOverlay};
+    revealDraft=key;
+    Status="Both overlay assignments loaded into Advanced > Two-texture draft. The timed preview runs separately.";
+}
 
 DualOverlayDraft& Draft(const Character& c) {
     auto key=DraftKey(c);
@@ -71,6 +84,10 @@ void DrawDraftOverlay(PaletteData::Overlay& assignment,const OverlayEditor::Appe
 }
 
 void DrawDualOverlayControls(const Character& c) {
+    if(revealDraft==DraftKey(c)) {
+        ImGui::SetNextItemOpen(true,ImGuiCond_Always);
+        revealDraft.reset();
+    }
     if(!ImGui::CollapsingHeader("Two-texture draft"))return;
     auto data=OverlayEditor::AppearanceData(c);
     auto& draft=Draft(c);
@@ -124,12 +141,7 @@ void DrawDualOverlayDialogs() {
                 PaletteData::AtomicWrite(path,PaletteData::EncodePal(d));
                 Status="Two-texture draft saved.";
             } else {
-                auto d=PaletteData::ReadFile(path);
-                auto live=OverlayEditor::CapturePalette(c);
-                if(d.character!=live.character || d.groupSizes!=live.groupSizes || !d.overlay || !d.secondOverlay)
-                    throw std::runtime_error("Choose a two-texture file for the current character and group layout.");
-                overlayDrafts[DraftKey(c)]={*d.overlay,*d.secondOverlay};
-                Status="Two-texture draft loaded.";
+                LoadDualOverlayDraft(c,PaletteData::ReadFile(path));
             }
         }catch(const std::exception& e){Status=e.what();}
         pendingDraftFile.reset();
