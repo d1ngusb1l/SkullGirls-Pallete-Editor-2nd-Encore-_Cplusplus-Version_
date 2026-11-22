@@ -181,30 +181,59 @@ inline void Catalog() {
     }
     if(texture.empty() && !templates.empty()) texture=templates.begin()->first;
 }
-inline void Apply(const Character& c) {
-    if(selected.empty()) throw std::runtime_error("Select one or more groups.");
-    Catalog(); auto preset=templates.find(texture);
-    if(preset==templates.end()) throw std::runtime_error("Could not load overlay texture '"+texture+"': no supported preset metadata is available.");
-    ResolveOverlayTexture(texture);
+inline Bytes BuildOverlayRecord(const PaletteData::Overlay& assignment) {
+    if(assignment.bands.empty())throw std::runtime_error("Select one or more groups.");
+    auto preset=templates.find(assignment.texture);
+    if(preset==templates.end()) throw std::runtime_error("Could not load overlay texture '"+assignment.texture+"': no supported preset metadata is available.");
+    ResolveOverlayTexture(assignment.texture);
+    Bytes bands;
+    for(int band:assignment.bands) {
+        if(band<1 || band>255)throw std::runtime_error("Invalid overlay band.");
+        bands.push_back(static_cast<unsigned char>(band));
+    }
+    const DWORD bandMemory=Allocate(bands.size());
+    Write(bandMemory,bands);
+    Bytes record=preset->second;
+    record[0]=record[1]=0;
+    const DWORD bandEnd=bandMemory+static_cast<DWORD>(bands.size());
+    Put(record,32,bandMemory); Put(record,36,bandEnd); Put(record,40,bandEnd);
+    record[44]=static_cast<unsigned char>(assignment.lighting);
+    record[46]=255;
+    Put(record,48,assignment.tintBand); Put(record,88,0);
+    record[92]=0;
+    std::fill(record.begin()+96,record.end(),0); Put(record,116,15);
+    return record;
+}
+inline Bytes OverlayHeader(const PaletteData::Overlay& primary,const PaletteData::Overlay* secondary=nullptr) {
+    auto records=BuildOverlayRecord(primary);
+    if(secondary) {
+        auto record=BuildOverlayRecord(*secondary);
+        records.insert(records.end(),record.begin(),record.end());
+    }
+    DWORD memory=Allocate(records.size()); Write(memory,records);
+    DWORD end=memory+static_cast<DWORD>(records.size());
+    Bytes header(12); Put(header,0,memory); Put(header,4,end); Put(header,8,end);
+    return header;
+}
+inline void Apply(const Character& c,const PaletteData::Overlay* secondary=nullptr) {
+    Catalog();
+#ifdef SGPE_DLL_HOST
+    const auto header=OverlayHeader({texture,selected,lighting,tint},secondary);
+#else
+    // The standalone editor retains the second assignment in the .pal metadata.
+    const auto header=OverlayHeader({texture,selected,lighting,tint});
+#endif
     DWORD root=Word(base+0x85ea4c), actor=Word(root+0x5e8+4*c.ID), pal=Word(actor+0x328);
     DWORD address=Word(pal+0x14)+12*c.Current_Pallete_Num;
     Original original{actor,pal,address,c.ID,Read(address,12)};
     auto old=originals.find(address); if(old!=originals.end()) original=old->second;
-    Bytes bands; for(int band:selected) bands.push_back((unsigned char)band);
-    DWORD bandMemory=Allocate(bands.size()); Write(bandMemory,bands);
-    Bytes record=preset->second;
-    record[0]=record[1]=0; Put(record,32,bandMemory); Put(record,36,bandMemory+(DWORD)bands.size()); Put(record,40,bandMemory+(DWORD)bands.size());
-    record[44]=(unsigned char)lighting; record[46]=255; Put(record,48,tint); Put(record,88,0);
-    record[92]=0; std::fill(record.begin()+96,record.end(),0); Put(record,116,15);
-    DWORD memory=Allocate(120); Write(memory,record);
-    Bytes header(12); Put(header,0,memory); Put(header,4,memory+120); Put(header,8,memory+120);
-    // One overlay texture per draw: replace this palette's overlay definitions,
-    // retaining the original vector for an explicit reset or normal editor exit.
     EffectUpdateGuard updateGuard(process);
     try { if(!Valid(original)) throw std::runtime_error("Match changed; retry in the new match."); originals[address]=original; Write(address,header); }
     catch(...) { throw; }
 
     overlayAssignments[address]={{"texture",texture},{"bands",selected},{"lighting",lighting},{"tintBand",tint}};
+    if(secondary)overlayAssignments[address]["secondOverlay"]={
+        {"texture",secondary->texture},{"bands",secondary->bands},{"lighting",secondary->lighting},{"tintBand",secondary->tintBand}};
     Refresh(); status="Overlay applied. Reset restores the original overlay.";
 }
 #include "RainbowControls.inl"
@@ -227,48 +256,7 @@ inline void Draw(HANDLE h,DWORD b,Character& c) {
         DrawTransformation(c);
         DrawAppearance(c);
         DrawRainbow(c);
-        if(!ImGui::CollapsingHeader("Overlay textures")) return;
-        if(templates.empty()) Catalog();
-        if(ImGui::Button("Refresh available textures")) Catalog();
-        ImGui::TextWrapped("Bundled textures plus presets loaded in this match. One overlay per palette. Apply replaces its native overlay until Reset or editor exit.");
-        if(ImGui::BeginCombo("Texture",texture.c_str())) {
-            for(auto& entry:templates) if(ImGui::Selectable(entry.first.c_str(),texture==entry.first)) texture=entry.first;
-            ImGui::EndCombo();
-        }
-        ImGui::Combo("Lighting",&lighting,"Original\0Unlit\0Lit\0");
-        DWORD root=Word(base+0x85ea4c), actor=Word(root+0x5e8+4*c.ID), pal=Word(actor+0x328);
-        DWORD begin=Word(pal+0x5c), end=Word(pal+0x60); int count=(end-begin)/4;
-        ImGui::SliderInt("Texture tint band (0 = texture RGB)",&tint,0,count-1);
-        ImGui::TextUnformatted("Target groups:");
-        ImGui::BeginChild("Overlay group selection",ImVec2(0,200),true);
-        int color=0;
-        auto groups=GroupColorGroup::characterGroups.find(c.Char_Name);
-        for(int band=0;band<count && band<256;band++) {
-            int n=Read(begin+4*band,1)[0];
-            if(band) {
-                std::string label="Band "+std::to_string(band);
-                if(groups!=GroupColorGroup::characterGroups.end()) for(auto& g:groups->second) if(g.startIndex==color && g.count==n) { label=g.groupName; break; }
-                label+="##overlay"+std::to_string(band);
-                bool enabled=selected.count(band)!=0;
-                if(ImGui::Checkbox(label.c_str(),&enabled)) { if(enabled) selected.insert(band); else selected.erase(band); }
-            }
-            color+=n;
-        }
-        ImGui::EndChild();
-        if(ImGui::Button("Apply overlay")) Apply(c);
-        ImGui::SameLine(); if(ImGui::Button("Reset overlay")) { Remove(Word(pal+0x14)+12*c.Current_Pallete_Num); status="Original overlay restored."; }
-        if(ImGui::Button("Save overlay preset")) {
-            nlohmann::json j={{"version",1},{"character",c.Char_Name},{"texture",texture},{"bands",selected},{"lighting",lighting},{"tintBand",tint}};
-            std::ofstream out("overlay-preset.json"); out<<j.dump(2); if(!out) throw std::runtime_error("Could not save overlay-preset.json."); status="Saved overlay-preset.json beside the executable.";
-        }
-        ImGui::SameLine(); if(ImGui::Button("Load overlay preset")) {
-            nlohmann::json j; std::ifstream in("overlay-preset.json"); in>>j;
-            if(j.at("version")!=1 || j.at("character")!=c.Char_Name) throw std::runtime_error("Preset version or character does not match.");
-            auto bands=j.at("bands").get<std::set<int>>(); for(int v:bands) if(v<1 || v>=count) throw std::runtime_error("Preset has an invalid band.");
-            int l=j.at("lighting"),t=j.at("tintBand"); if(l<0||l>2||t<0||t>=count) throw std::runtime_error("Preset settings out of range.");
-            selected=bands; texture=j.at("texture");lighting=l;tint=t;status="Preset loaded. Click Apply overlay to preview.";
-        }
-        ImGui::TextWrapped("%s",status.c_str());
+        if(!status.empty())ImGui::TextWrapped("%s",status.c_str());
     } catch(const std::exception& e) { status=e.what(); ImGui::TextWrapped("Overlay: %s",status.c_str()); }
 }
 }

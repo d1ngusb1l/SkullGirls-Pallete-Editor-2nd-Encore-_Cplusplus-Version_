@@ -16,7 +16,11 @@ inline PaletteData::Document CapturePalette(const Character& c) {
     auto overlay=overlayAssignments.find(Word(data.palette+0x14)+12*c.Current_Pallete_Num);
     if(overlay!=overlayAssignments.end()) {
         auto& e=overlay->second;
-        d.overlay=PaletteData::Overlay{e.at("texture"),e.at("bands").get<std::set<int>>(),e.at("lighting"),e.at("tintBand")};
+        auto readOverlay=[](const nlohmann::json& value) {
+            return PaletteData::Overlay{value.at("texture"),value.at("bands").get<std::set<int>>(),value.at("lighting"),value.at("tintBand")};
+        };
+        d.overlay=readOverlay(e);
+        if(e.contains("secondOverlay"))d.secondOverlay=readOverlay(e.at("secondOverlay"));
     }
     auto rainbow=rainbowAssignments.find(RainbowAddress(c));
     if(rainbow!=rainbowAssignments.end()) {
@@ -38,7 +42,12 @@ inline TransformSettings DocumentTransformation(const Character& c,const Appeara
     if(value.activationTag.empty() && value.legacyTrigger!=TransformTrigger(c)) throw std::runtime_error("Legacy transformation trigger does not match this character/palette.");
     ValidateTransformation(c,data,settings); return settings;
 }
-inline void ValidatePalette(const Character& c,const PaletteData::Document& document) {
+inline void ValidatePalette(const Character& c,const PaletteData::Document& document,bool allowTwo=false) {
+    if(document.secondOverlay) {
+        if(!allowTwo || !document.overlay)throw std::runtime_error("The second overlay requires a primary overlay.");
+        if(document.overlay->texture==document.secondOverlay->texture)throw std::runtime_error("Choose two distinct textures.");
+        if(document.overlay->lighting!=document.secondOverlay->lighting)throw std::runtime_error("Use the same lighting setting for both textures.");
+    }
     auto data=AppearanceData(c);
     if(document.character!=c.Char_Name) throw std::runtime_error("Palette file belongs to a different character.");
     if(document.colors.size()!=(size_t)data.colorCount) throw std::runtime_error("Palette file color count does not match this character.");
@@ -47,19 +56,31 @@ inline void ValidatePalette(const Character& c,const PaletteData::Document& docu
         std::vector<int> sizes; for(auto& group:data.groups) sizes.push_back(group.count);
         if(document.groupSizes!=sizes) throw std::runtime_error("Palette file group layout does not match this game build.");
     }
-    if(document.overlay) {
-        Catalog(); if(!templates.count(document.overlay->texture)) throw std::runtime_error("Could not load overlay texture '"+document.overlay->texture+"': no supported preset metadata is available.");
-        for(int band:document.overlay->bands) CheckAppearanceBand(data,band);
-        if(document.overlay->tintBand) CheckAppearanceBand(data,document.overlay->tintBand);
+    for(const auto* effect:{&document.overlay,&document.secondOverlay}) {
+        if(!*effect)continue;
+        const auto& overlay=**effect;
+        bool needsNativePreset=true;
+#ifndef SGPE_DLL_HOST
+        needsNativePreset=effect==&document.overlay;
+#endif
+        if(needsNativePreset) {
+            Catalog();
+            if(!templates.count(overlay.texture))throw std::runtime_error("Could not load overlay texture '"+overlay.texture+"': no supported preset metadata is available.");
+        }
+        for(int band:overlay.bands)CheckAppearanceBand(data,band);
+        if(overlay.tintBand)CheckAppearanceBand(data,overlay.tintBand);
     }
     if(document.rainbow) for(int band:document.rainbow->bands) CheckAppearanceBand(data,band);
     if(document.colorLinks) ValidateLinks(data,document.colorLinks->links,document.colorLinks->shadeMask);
     if(document.transformation) DocumentTransformation(c,data,*document.transformation);
     // All document validation precedes resource loading or palette mutation.
     if(document.overlay) ResolveOverlayTexture(document.overlay->texture);
+#ifdef SGPE_DLL_HOST
+    if(document.secondOverlay) ResolveOverlayTexture(document.secondOverlay->texture);
+#endif
 }
-inline void ApplyPalette(Character& c,const PaletteData::Document& document) {
-    ValidatePalette(c,document); auto data=AppearanceData(c);
+inline void ApplyPalette(Character& c,const PaletteData::Document& document,bool allowTwo=false,bool keepOverlays=false) {
+    ValidatePalette(c,document,allowTwo); auto data=AppearanceData(c);
     DWORD line=Word(data.palette+0x38)+4*c.Current_Pallete_Num,shadow=Word(Word(data.palette+0xc)+4*c.Current_Pallete_Num);
     DWORD overlay=Word(data.palette+0x14)+12*c.Current_Pallete_Num,hue=RainbowAddress(c),links=ColorLinkAddress(c,data);
     std::map<DWORD,Bytes> rollback={{data.colors,Read(data.colors,4*data.colorCount)},{line,Read(line,4)},
@@ -85,8 +106,10 @@ inline void ApplyPalette(Character& c,const PaletteData::Document& document) {
             if(document.colorLinks) { assignment.staticLinks=document.colorLinks->links; assignment.staticMask=document.colorLinks->shadeMask; }
             if(document.transformation) { assignment.hasTransformation=true; assignment.transformation=DocumentTransformation(c,data,*document.transformation); }
             CommitColorAssignment(c,data,assignment);
-            if(document.overlay) { selected=document.overlay->bands; texture=document.overlay->texture; lighting=document.overlay->lighting; tint=document.overlay->tintBand; Apply(c); }
-            else Remove(overlay);
+            if(!keepOverlays) {
+                if(document.overlay) { selected=document.overlay->bands; texture=document.overlay->texture; lighting=document.overlay->lighting; tint=document.overlay->tintBand; Apply(c,document.secondOverlay?&*document.secondOverlay:nullptr); }
+                else Remove(overlay);
+            }
             if(document.rainbow) { rainbowBands=document.rainbow->bands; rainbowSpeed=document.rainbow->speed; rainbowInterval=document.rainbow->interval; ApplyRainbow(c); }
             else Remove(hue);
         } else if(document.legacyHueSpeed) {

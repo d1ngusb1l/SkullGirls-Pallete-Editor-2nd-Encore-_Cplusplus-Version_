@@ -20,9 +20,13 @@ inline nlohmann::json RunPalettePersistenceSmoke(Character& c) {
         }
         expected.lineColor=0xff102030; expected.shadow1=0xff405060; expected.shadow2=0xff708090;
         expected.overlay=PaletteData::Overlay{"Fire",{13},1,0}; expected.rainbow=PaletteData::Rainbow{{14},6,12};
+        expected.secondOverlay=PaletteData::Overlay{"Water",{14},1,0};
         expected.colorLinks=PaletteData::ColorLinks{{{3,4}},255};
         expected.transformation=PaletteData::Transformation{{{4,3}},0xa5,0,"SUPER",""};
-        ApplyPalette(c,expected);
+        ApplyPalette(c,expected,true);
+        const auto overlayAddress=Word(context.palette+0x14)+12*c.Current_Pallete_Num;
+        if(Word(overlayAddress+4)-Word(overlayAddress)!=120)
+            throw std::runtime_error("Standalone preview should attach exactly one native overlay.");
         if(PaletteData::Encode(CapturePalette(c))!=PaletteData::Encode(expected)) throw std::runtime_error("Applied palette capture differs from saved settings.");
         // Unapplied controls must not leak into a full palette save.
         selected={1}; texture="Water"; rainbowBands={1}; rainbowSpeed=99;
@@ -68,7 +72,7 @@ inline nlohmann::json RunPalettePersistenceSmoke(Character& c) {
         if(PaletteData::Encode(CapturePalette(c))!=PaletteData::Encode(baseline) || Read(Word(context.palette+0x20),beforeHeaders.size())!=beforeHeaders || Read(base+0x87dc4,1)[0]!=0x84)
             throw std::runtime_error("Persistence test did not restore its baseline.");
         return {{"passed",true},{"character",c.Char_Name},{"palette",c.Current_Pallete_Num+1},
-            {"fullEffectsRoundTrip",true},{"appliedSettingsOnly",true},{"legacyImportAndExport",true},
+            {"fullEffectsRoundTrip",true},{"secondOverlayRoundTrip",true},{"singleNativePreview",true},{"appliedSettingsOnly",true},{"legacyImportAndExport",true},
             {"invalidFilesLeaveGameUnchanged",true},{"autoLoadAppliesAllEffects",true},{"autoLoadPreservesManualEdits",true},
             {"sessionReapplication",true},{"assignmentPersistence",true},{"restored",true}};
     } catch(...) { try { restore(); } catch(...) {} throw; }

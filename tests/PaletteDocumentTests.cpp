@@ -24,6 +24,17 @@ int main() {
     try {
         using namespace PaletteData;
         auto d=Example(); auto json=Encode(d); auto extended=EncodePal(d);
+        auto dual=d;
+        dual.secondOverlay=Overlay{"Water",{2},0,1};
+        const auto dualBytes=EncodePal(dual);
+        Require(Encode(DecodePal(dualBytes))==Encode(dual),"Two overlays did not round-trip.");
+        Require(DecodeLegacyPrefix(dualBytes).colors==d.colors,"Two overlays changed the legacy prefix.");
+        auto overlap=dual;
+        overlap.secondOverlay->bands={1};
+        Reject([&]{EncodePal(overlap);},"Overlapping overlay groups accepted.");
+        auto missing=dual;
+        missing.overlay.reset();
+        Reject([&]{EncodePal(missing);},"Second overlay without a primary accepted.");
         Require(Encode(DecodePal(extended))==json,"Extended .pal did not round-trip all colors and effects.");
         auto oldReader=DecodeLegacyPrefix(extended);
         Require(oldReader.colors==d.colors && oldReader.lineColor==d.lineColor && oldReader.shadow1==d.shadow1 && oldReader.shadow2==d.shadow2,

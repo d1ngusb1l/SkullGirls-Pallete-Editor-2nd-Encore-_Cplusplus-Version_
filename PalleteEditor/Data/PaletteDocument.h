@@ -26,6 +26,7 @@ struct Document {
     uint32_t lineColor=0,shadow1=0,shadow2=0;
     std::vector<int> groupSizes;
     std::optional<Overlay> overlay;
+    std::optional<Overlay> secondOverlay;
     std::optional<Rainbow> rainbow;
     std::optional<ColorLinks> colorLinks;
     std::optional<Transformation> transformation;
@@ -68,8 +69,9 @@ inline bool SupportedTag(const std::string& tag) {
     return false;
 }
 inline Document Decode(const Json& j) {
-    if(!j.is_object() || j.at("format")!="skullgirls-palette" || Integer(j.at("version"),1,1,"palette version")!=1)
+    if(!j.is_object() || j.at("format")!="skullgirls-palette")
         throw std::runtime_error("Unsupported palette file format or version.");
+    const int version=Integer(j.at("version"),1,2,"palette version");
     Document d; d.character=j.at("character").get<std::string>();
     if(d.character.empty() || d.character.size()>32 || !std::all_of(d.character.begin(),d.character.end(),[](unsigned char c){return (c>='A'&&c<='Z')||(c>='a'&&c<='z')||(c>='0'&&c<='9');}))
         throw std::runtime_error("Invalid character identifier.");
@@ -85,12 +87,21 @@ inline Document Decode(const Json& j) {
     if(!shadows.is_array() || shadows.size()!=2) throw std::runtime_error("Expected two super-shadow colors.");
     d.shadow1=Color(shadows[0]); d.shadow2=Color(shadows[1]);
     const auto& effects=j.at("effects"); if(!effects.is_object()) throw std::runtime_error("Invalid effect settings.");
-    if(!effects.at("overlay").is_null()) {
-        auto& e=effects.at("overlay"); Overlay value; value.texture=e.at("texture").get<std::string>();
+    auto readOverlay=[](const Json& e) {
+        Overlay value; value.texture=e.at("texture").get<std::string>();
         if(value.texture.empty() || value.texture.size()>15 || !std::all_of(value.texture.begin(),value.texture.end(),[](unsigned char c){return (c>='A'&&c<='Z')||(c>='a'&&c<='z')||(c>='0'&&c<='9')||c=='_';}))
             throw std::runtime_error("Invalid overlay texture name.");
         value.bands=Bands(e.at("bands")); value.lighting=Integer(e.at("lighting"),0,2,"overlay lighting");
-        value.tintBand=Integer(e.at("tintBand"),0,255,"overlay tint group"); d.overlay=value;
+        value.tintBand=Integer(e.at("tintBand"),0,255,"overlay tint group"); return value;
+    };
+    if(!effects.at("overlay").is_null()) d.overlay=readOverlay(effects.at("overlay"));
+    if(version==2) {
+        if(!d.overlay)throw std::runtime_error("Two-texture palettes require a primary overlay.");
+        d.secondOverlay=readOverlay(effects.at("secondOverlay"));
+        for(int target:d.secondOverlay->bands)
+            if(d.overlay->bands.count(target))throw std::runtime_error("Overlay assignments cannot target the same group.");
+    } else if(effects.contains("secondOverlay")) {
+        throw std::runtime_error("Second overlay requires palette schema version 2.");
     }
     if(!effects.at("rainbow").is_null()) {
         auto& e=effects.at("rainbow"); Rainbow value; value.bands=Bands(e.at("bands"));
@@ -114,6 +125,7 @@ inline Document Decode(const Json& j) {
     }
     auto band=[&](int value) { if(value<1 || value>=(int)d.groupSizes.size() || !d.groupSizes[value]) throw std::runtime_error("Effect refers to an absent group."); };
     if(d.overlay) { for(int value:d.overlay->bands) band(value); if(d.overlay->tintBand) band(d.overlay->tintBand); }
+    if(d.secondOverlay) { for(int value:d.secondOverlay->bands) band(value); if(d.secondOverlay->tintBand) band(d.secondOverlay->tintBand); }
     if(d.rainbow) for(int value:d.rainbow->bands) band(value);
     if(d.colorLinks) for(auto& rule:d.colorLinks->links) { band(rule.first); band(rule.second); }
     if(d.transformation) for(auto& rule:d.transformation->links) { band(rule.first); band(rule.second); }
@@ -122,11 +134,15 @@ inline Document Decode(const Json& j) {
 inline Json Encode(const Document& d) {
     Json effects={{"overlay",nullptr},{"rainbow",nullptr},{"colorLinks",nullptr},{"transformation",nullptr}};
     if(d.overlay) effects["overlay"]={{"texture",d.overlay->texture},{"bands",d.overlay->bands},{"lighting",d.overlay->lighting},{"tintBand",d.overlay->tintBand}};
+    if(d.secondOverlay) {
+        const auto& second=*d.secondOverlay;
+        effects["secondOverlay"]={{"texture",second.texture},{"bands",second.bands},{"lighting",second.lighting},{"tintBand",second.tintBand}};
+    }
     if(d.rainbow) effects["rainbow"]={{"bands",d.rainbow->bands},{"speed",d.rainbow->speed},{"interval",d.rainbow->interval}};
     if(d.colorLinks) effects["colorLinks"]={{"links",d.colorLinks->links},{"shadeMask",d.colorLinks->shadeMask}};
     if(d.transformation) effects["transformation"]={{"links",d.transformation->links},{"shadeMask",d.transformation->shadeMask},
         {"previewMode",d.transformation->previewMode},{"activationTag",d.transformation->activationTag},{"legacyTrigger",d.transformation->legacyTrigger}};
-    Json j={{"format","skullgirls-palette"},{"version",1},{"character",d.character},{"groupSizes",d.groupSizes},
+    Json j={{"format","skullgirls-palette"},{"version",d.secondOverlay?2:1},{"character",d.character},{"groupSizes",d.groupSizes},
         {"colors",d.colors},{"lineColor",d.lineColor},{"superShadowColors",{d.shadow1,d.shadow2}},{"effects",effects}};
     Decode(j); return j;
 }

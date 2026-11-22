@@ -43,8 +43,8 @@ void AutoPallete::Tick(bool force) {
                 auto previous=attempted.find(key);
                 if(!force && previous!=attempted.end() && previous->second==fingerprint) continue;
                 attempted[key]=fingerprint;
-                if(PalleteFile::LoadPath(character,path)) entry.Status="Loaded colors and saved effects. Manual edits are retained until the next match, file update, or retry.";
-                else entry.Status=PalleteFile::Status;
+                PalleteFile::LoadPath(character,path);
+                entry.Status=PalleteFile::Status;
             } catch(const std::exception& error) { entry.Status=std::string("Auto-load failed: ")+error.what(); }
         }
         if(!found) entry.Status="Waiting for this character and palette number.";

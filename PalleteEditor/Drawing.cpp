@@ -7,6 +7,8 @@
 #include "ColorWheel.h"
 #include "Config.h"
 #include "Data/AtomicFile.h"
+#include "OverlayEditor.h"
+#include "OverlayControls.h"
 
 void Drawing::Active()
 {
@@ -266,6 +268,16 @@ void Drawing::Draw()
 								for (const auto& group : it->second) {
 									// Добавляем ImGuiTreeNodeFlags_DefaultOpen для открытого состояния по умолчанию
 									if (ImGui::CollapsingHeader(group.groupName.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
+										ImGui::PushID(group.startIndex);
+										if(ImGui::Button("Shader settings"))ImGui::OpenPopup("Group overlay settings");
+										if(ImGui::BeginPopup("Group overlay settings")) {
+											try {
+												const auto bands=OverlayControls::GroupBands(OverlayEditor::AppearanceData(currentChar),group);
+												OverlayControls::DrawDraftGroup(currentChar,bands,OverlayEditor::status);
+											}catch(const std::exception& error) {ImGui::TextWrapped("%s",error.what());}
+											ImGui::EndPopup();
+										}
+										ImGui::PopID();
 										// Используем стиль без отступов для более плотного расположения
 										ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 4));
 

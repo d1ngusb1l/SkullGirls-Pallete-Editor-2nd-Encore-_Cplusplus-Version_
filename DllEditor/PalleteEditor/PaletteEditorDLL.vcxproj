@@ -176,6 +176,7 @@
     <ClInclude Include="DirectXWrapper\DirectXWrapper.h" />
     <ClInclude Include="DirectXWrapper\IDirect3D9Proxy.h" />
     <ClInclude Include="DirectXWrapper\IDirect3DDevice9Proxy.h" />
+    <ClInclude Include="DirectXWrapper\RendererTrace.h" />
     <ClInclude Include="MainThread.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="ProcessManager.h" />
@@ -199,7 +200,9 @@
     </ClCompile>
     <ClCompile Include="DirectXWrapper\DirectXWrapper.cpp" />
     <ClCompile Include="DirectXWrapper\IDirect3D9Proxy.cpp" />
-    <ClCompile Include="DirectXWrapper\IDirect3DDevice9Proxy.cpp" />
+    <ClCompile Include="DirectXWrapper\IDirect3DDevice9Proxy.cpp">
+      <PreprocessorDefinitions Condition="'$(PaletteValidation)'=='True'">SGPE_DLL_VALIDATION;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
     <ClCompile Include="dllmain.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
