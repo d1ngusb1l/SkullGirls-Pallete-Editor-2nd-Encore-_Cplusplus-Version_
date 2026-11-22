@@ -87,6 +87,10 @@ Prepare only from a local game installation:
 
 Put the generated `cerebella-pose.bin` and optional JSON beside the test DLL.
 Do not commit `cerebella-pose.bin`, FOIT, GFS, artwork or DDS data.
+The viewer reads `cerebella-pose.bin` from the runner's current working
+directory. A legacy `SGPOSE1` file provides the fixed-pose fallback only and
+therefore reports zero animations; use the newly generated `SGPOSE2` file and
+restart the runner before expecting the timeline selectors to populate.
 
 ## Build checks
 

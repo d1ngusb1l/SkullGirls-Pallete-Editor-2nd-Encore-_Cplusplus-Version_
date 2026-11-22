@@ -32,6 +32,7 @@ inline unsigned width=0,height=0,layers=0;
 inline int slot=-1,palette=-1;
 inline float zoom=0.7f;
 inline bool showOriginal=false,highlight=true,attempted=false;
+inline bool legacyFixedOnly=false;
 inline std::string error;
 inline std::vector<ImU32> uploaded;
 inline std::set<int> uploadedBands;
@@ -109,6 +110,7 @@ inline void Load() {
             }
             if(f.tellg()!=length)throw std::runtime_error("Trailing or malformed SGPOSE2 preview data.");
         } else if(memcmp(magic,"SGPOSE1\0",8)==0) {
+            legacyFixedOnly=true;
             unsigned count=paletteBytes;
             f.seekg(0);
             char oldMagic[8]={};unsigned w=0,h=0,oldLayers=0,oldCount=0;
@@ -187,6 +189,7 @@ inline void Draw(int targetSlot,int targetPalette,const char* character,const st
     }
     ImGui::Separator();
     ImGui::TextColored(ImVec4(0.4f,0.85f,1.0f,1.0f),"Animation / frame selection");
+    if(legacyFixedOnly)ImGui::TextWrapped("This folder has a fixed-pose-only SGPOSE1 asset. Replace cerebella-pose.bin with the output of scripts/prepare-dll-preview.py, then restart the runner to load animations.");
     ImGui::TextDisabled("%zu animations loaded | select an animation to reveal its frame controls",animations.size());
     ImGui::InputTextWithHint("##AnimationSearch","Filter animation name or numeric move ID",animationSearch,sizeof(animationSearch));
     ImGui::BeginChild("Animation list",ImVec2(300,140),true);
