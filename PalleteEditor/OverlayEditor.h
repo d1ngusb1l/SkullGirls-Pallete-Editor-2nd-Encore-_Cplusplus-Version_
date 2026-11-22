@@ -49,6 +49,7 @@ struct Original { DWORD actor, palette, address; int slot; Bytes header; };
 inline std::map<DWORD, Original> originals;
 inline std::map<DWORD,nlohmann::json> overlayAssignments,rainbowAssignments;
 inline std::map<std::string, Bytes> templates;
+inline std::set<std::string> resolvedOverlayTextures;
 inline std::set<int> selected;
 inline std::string texture;
 inline int lighting = 0, tint = 0;
@@ -106,7 +107,7 @@ inline void Shutdown() {
         if(!originals.empty()) { Refresh(); Sleep(350); }
         if(refreshUntil) { Branch(0x84); refreshUntil=0; }
     } catch (...) { try { if(refreshUntil) Branch(0x84); } catch (...) {} }
-    refreshUntil=0;
+    refreshUntil=0; resolvedOverlayTextures.clear();
     ClearColorAssignments(); originals.clear(); overlayAssignments.clear(); rainbowAssignments.clear(); templates.clear(); process=nullptr;
 }
 inline void ForgetMatch() { ClearColorAssignments(); originals.clear(); overlayAssignments.clear(); rainbowAssignments.clear(); templates.clear(); selectionKey.clear(); }
@@ -149,8 +150,11 @@ inline DWORD Allocate(size_t count) {
     return result;
 #endif
 }
+#include "OverlayTextureResources.inl"
+#include "BundledOverlayTemplates.inl"
 inline void Catalog() {
     templates.clear(); DWORD root=Word(base+0x85ea4c);
+    BundledOverlayTemplates();
     // Fixed-build preset metadata contains inline names and stable resource keys;
     // all container pointers are replaced before attaching a new record.
     try {
@@ -180,7 +184,8 @@ inline void Catalog() {
 inline void Apply(const Character& c) {
     if(selected.empty()) throw std::runtime_error("Select one or more groups.");
     Catalog(); auto preset=templates.find(texture);
-    if(preset==templates.end()) throw std::runtime_error("This texture must be loaded by a character in the match.");
+    if(preset==templates.end()) throw std::runtime_error("Could not load overlay texture '"+texture+"': no supported preset metadata is available.");
+    ResolveOverlayTexture(texture);
     DWORD root=Word(base+0x85ea4c), actor=Word(root+0x5e8+4*c.ID), pal=Word(actor+0x328);
     DWORD address=Word(pal+0x14)+12*c.Current_Pallete_Num;
     Original original{actor,pal,address,c.ID,Read(address,12)};
