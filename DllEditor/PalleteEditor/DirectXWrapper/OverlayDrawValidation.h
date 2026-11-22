@@ -3,6 +3,8 @@
 #include <string_view>
 #include "../../../PalleteEditor/Data/PaletteDocument.h"
 
+namespace AdvancedPalette { void FinishOverlayPreview(); }
+
 namespace RendererTrace {
 namespace OverlayDrawValidation {
 using Microsoft::WRL::ComPtr;
@@ -22,6 +24,7 @@ inline unsigned tint[2]{};
 namespace RendererTrace::OverlayDrawValidation {
 
 inline void Reset() {
+    if(deadline)AdvancedPalette::FinishOverlayPreview();
     deadline=0;
     captureSlot=0;
     first.Reset(); second.Reset(); feature.Reset(); replacement.Reset(); bandMap.Reset();

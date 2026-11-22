@@ -4,12 +4,16 @@ namespace {
 struct OverlayProbe {
     OverlayEditor::Original owner;
     ULONGLONG deadline;
+    bool restoreWithPreview;
     nlohmann::json report;
 };
 std::optional<OverlayProbe> overlayProbe;
 void ReportOverlayProbe(nlohmann::json report) {
     PaletteData::AtomicWriteText("dll-overlay-probe-result.json",report.dump(2));
 }
+}
+void FinishOverlayPreview() {
+    if(overlayProbe && overlayProbe->restoreWithPreview)overlayProbe->deadline=0;
 }
 bool TickOverlayProbe() {
     using namespace OverlayEditor;
@@ -79,7 +83,7 @@ bool TickOverlayProbe() {
             {"firstBand",*first.bands.begin()},{"secondBand",*second.bands.begin()},
             {"firstBands",first.bands},{"secondBands",second.bands},
             {"seconds",seconds},{"nativeRecordCount",2},{"restored",false}};
-        overlayProbe=OverlayProbe{owner,GetTickCount64()+seconds*1000,report};ReportOverlayProbe(report);
+        overlayProbe=OverlayProbe{owner,GetTickCount64()+seconds*1000,request.value("restoreWithPreview",false),report};ReportOverlayProbe(report);
         return true;
     }catch(const std::exception& e) {
         bool restored=!rollback;

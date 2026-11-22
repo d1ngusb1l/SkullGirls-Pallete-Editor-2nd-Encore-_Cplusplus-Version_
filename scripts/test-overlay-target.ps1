@@ -96,7 +96,7 @@ if(!$target){throw 'No marker produced a unique overlay binding change.'}
 $target
 if($Preview){
     $old=Stamp $result
-    Request 'dll-overlay-probe.request.json' @{slot=$Slot;seconds=40;paletteFile=$palettePath}
+    Request 'dll-overlay-probe.request.json' @{slot=$Slot;seconds=40;paletteFile=$palettePath;restoreWithPreview=$true}
     $probe=Wait-NewFile $result $old
     if($probe.state -ne 'Active' -or $probe.palette -ne $target.palette){
         throw 'Target palette changed or the saved overlay probe failed.'
@@ -121,4 +121,7 @@ if($Preview){
         Start-Sleep -Milliseconds 200
     }
     if(!$current.restored){throw 'Saved overlay probe restoration was not verified.'}
+    $restoreDelay=((Stamp $result)-(Stamp $drawResult)).TotalMilliseconds
+    if($restoreDelay -gt 2000){throw "The original overlay was restored $restoreDelay ms after the preview ended."}
+    [pscustomobject]@{restored=$true;restoreDelayMs=$restoreDelay}
 }
