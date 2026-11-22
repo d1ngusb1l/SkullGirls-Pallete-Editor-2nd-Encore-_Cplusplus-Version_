@@ -87,3 +87,9 @@ The validation preview can resolve its second texture from the installed game ar
 The current probe still captures the first native overlay to identify the target feature texture. Production integration still needs a reliable mapping from character and palette to the draw resource, automatic tint and sampler settings, and the normal Apply and Load entry points.
 
 Live archive-backed validation passed on Player 1 Peacock Color 10. The user saw Water on the hat and Ravenous Veins on the dress. The preview recorded 940 substituted draws using Ravenous Veins loaded directly from sprites.gfs, without the second capture pass.
+
+## Saved assignment preview
+
+The validation native probe accepts a paletteFile field together with slot and seconds. With this field it reads the two assignments from a schema 2 .pal, checks character and group layout against the match, and attaches the overlay records without changing colors. The shader preview request can use the same paletteFile to supply the secondary texture name, tint band, and full band list. Use the existing capture-first step for the target draw. The ordinary single-overlay editor and the native probe share the record builder.
+
+The normal Load and Auto-load entry points still reject two-overlay files before modifying live state. This diagnostic path does not yet replace target draw identification or expose production editing controls.

@@ -35,23 +35,38 @@ bool TickOverlayProbe() {
         if(std::filesystem::file_size(path)>4096)throw std::runtime_error("Probe request too large.");
         nlohmann::json request;std::ifstream(path)>>request;std::filesystem::remove(path);
         int slot=PaletteData::Integer(request.at("slot"),0,5,"slot");
-        int first=PaletteData::Integer(request.at("firstBand"),1,255,"first band");
-        int second=PaletteData::Integer(request.at("secondBand"),1,255,"second band");
         int seconds=PaletteData::Integer(request.value("seconds",20),5,45,"probe duration");
-        auto firstTexture=request.value("firstTexture",std::string("Fire"));
-        auto secondTexture=request.value("secondTexture",std::string("Water"));
-        if(first==second)throw std::runtime_error("Probe groups must be distinct.");
         auto c=Model(slot);auto data=AppearanceData(c);
-        CheckAppearanceBand(data,first);CheckAppearanceBand(data,second);Catalog();
-        if(!templates.count(firstTexture) || !templates.count(secondTexture))throw std::runtime_error("Requested texture templates are unavailable.");
+        PaletteData::Overlay first,second;
+        if(request.contains("paletteFile")) {
+            const auto path=PaletteData::PathFromText(request.at("paletteFile").get<std::string>());
+            if(path.extension()!=L".pal")throw std::runtime_error("Expected a .pal probe file.");
+            const auto document=PaletteData::ReadFile(path);
+            std::vector<int> sizes;
+            for(const auto& group:data.groups)sizes.push_back(group.count);
+            if(document.character!=c.Char_Name || document.groupSizes!=sizes || !document.overlay || !document.secondOverlay)
+                throw std::runtime_error("Probe file must contain two overlays for this character and group layout.");
+            first=*document.overlay;
+            second=*document.secondOverlay;
+        } else {
+            first={request.value("firstTexture",std::string("Fire")),
+                {PaletteData::Integer(request.at("firstBand"),1,255,"first band")},1,0};
+            second={request.value("secondTexture",std::string("Water")),
+                {PaletteData::Integer(request.at("secondBand"),1,255,"second band")},1,0};
+        }
+        for(int band:first.bands)CheckAppearanceBand(data,band);
+        for(int band:second.bands) {
+            CheckAppearanceBand(data,band);
+            if(first.bands.count(band))throw std::runtime_error("Probe groups must be distinct.");
+        }
+        Catalog();
+        if(!templates.count(first.texture) || !templates.count(second.texture))
+            throw std::runtime_error("Requested texture templates are unavailable.");
         DWORD address=Word(data.palette+0x14)+12*c.Current_Pallete_Num;
         Original owner{data.actor,data.palette,address,slot,Read(address,12)};
         Bytes records;
-        for(auto entry:{std::pair{firstTexture,first},std::pair{secondTexture,second}}) {
-            auto record=templates.at(entry.first);DWORD bands=Allocate(1);Write(bands,Bytes{(unsigned char)entry.second});
-            record[0]=record[1]=0;Put(record,32,bands);Put(record,36,bands+1);Put(record,40,bands+1);
-            record[44]=1;record[46]=255;Put(record,48,0);Put(record,88,0);record[92]=0;
-            std::fill(record.begin()+96,record.end(),0);Put(record,116,15);
+        for(const auto* assignment:{&first,&second}) {
+            auto record=BuildOverlayRecord(*assignment);
             records.insert(records.end(),record.begin(),record.end());
         }
         DWORD memory=Allocate(records.size());Write(memory,records);
@@ -59,9 +74,11 @@ bool TickOverlayProbe() {
         rollback=owner;
         AppearanceTransaction(owner,[&]{Write(address,header);});Refresh();
         nlohmann::json report={{"state","Active"},{"character",c.Char_Name},{"palette",c.Current_Pallete_Num+1},
-            {"firstTexture",firstTexture},{"firstGroup",data.groups[first].label},
-            {"secondTexture",secondTexture},{"secondGroup",data.groups[second].label},
-            {"firstBand",first},{"secondBand",second},{"seconds",seconds},{"nativeRecordCount",2},{"restored",false}};
+            {"firstTexture",first.texture},{"firstGroup",data.groups[*first.bands.begin()].label},
+            {"secondTexture",second.texture},{"secondGroup",data.groups[*second.bands.begin()].label},
+            {"firstBand",*first.bands.begin()},{"secondBand",*second.bands.begin()},
+            {"firstBands",first.bands},{"secondBands",second.bands},
+            {"seconds",seconds},{"nativeRecordCount",2},{"restored",false}};
         overlayProbe=OverlayProbe{owner,GetTickCount64()+seconds*1000,report};ReportOverlayProbe(report);
         return true;
     }catch(const std::exception& e) {

@@ -177,20 +177,35 @@ inline void Catalog() {
     }
     if(texture.empty() && !templates.empty()) texture=templates.begin()->first;
 }
-inline void Apply(const Character& c) {
-    if(selected.empty()) throw std::runtime_error("Select one or more groups.");
-    Catalog(); auto preset=templates.find(texture);
+inline Bytes BuildOverlayRecord(const PaletteData::Overlay& assignment) {
+    if(assignment.bands.empty())throw std::runtime_error("Select one or more groups.");
+    auto preset=templates.find(assignment.texture);
     if(preset==templates.end()) throw std::runtime_error("This texture must be loaded by a character in the match.");
+    Bytes bands;
+    for(int band:assignment.bands) {
+        if(band<1 || band>255)throw std::runtime_error("Invalid overlay band.");
+        bands.push_back(static_cast<unsigned char>(band));
+    }
+    const DWORD bandMemory=Allocate(bands.size());
+    Write(bandMemory,bands);
+    Bytes record=preset->second;
+    record[0]=record[1]=0;
+    const DWORD bandEnd=bandMemory+static_cast<DWORD>(bands.size());
+    Put(record,32,bandMemory); Put(record,36,bandEnd); Put(record,40,bandEnd);
+    record[44]=static_cast<unsigned char>(assignment.lighting);
+    record[46]=255;
+    Put(record,48,assignment.tintBand); Put(record,88,0);
+    record[92]=0;
+    std::fill(record.begin()+96,record.end(),0); Put(record,116,15);
+    return record;
+}
+inline void Apply(const Character& c) {
+    Catalog();
+    auto record=BuildOverlayRecord({texture,selected,lighting,tint});
     DWORD root=Word(base+0x85ea4c), actor=Word(root+0x5e8+4*c.ID), pal=Word(actor+0x328);
     DWORD address=Word(pal+0x14)+12*c.Current_Pallete_Num;
     Original original{actor,pal,address,c.ID,Read(address,12)};
     auto old=originals.find(address); if(old!=originals.end()) original=old->second;
-    Bytes bands; for(int band:selected) bands.push_back((unsigned char)band);
-    DWORD bandMemory=Allocate(bands.size()); Write(bandMemory,bands);
-    Bytes record=preset->second;
-    record[0]=record[1]=0; Put(record,32,bandMemory); Put(record,36,bandMemory+(DWORD)bands.size()); Put(record,40,bandMemory+(DWORD)bands.size());
-    record[44]=(unsigned char)lighting; record[46]=255; Put(record,48,tint); Put(record,88,0);
-    record[92]=0; std::fill(record.begin()+96,record.end(),0); Put(record,116,15);
     DWORD memory=Allocate(120); Write(memory,record);
     Bytes header(12); Put(header,0,memory); Put(header,4,memory+120); Put(header,8,memory+120);
     // One overlay texture per draw: replace this palette's overlay definitions,

@@ -1,6 +1,7 @@
 #pragma once
 #include <wrl/client.h>
 #include <string_view>
+#include "../../../PalleteEditor/Data/PaletteDocument.h"
 
 namespace RendererTrace {
 namespace OverlayDrawValidation {
@@ -48,15 +49,27 @@ inline void Tick(IDirect3DDevice9* device) {
         }
         if(action!="preview" || deadline || !first || !feature)
             throw std::runtime_error("Capture the target draw before starting the preview.");
-        if(data.contains("secondTexture")) {
+        std::set<int> bands;
+        if(data.contains("paletteFile")) {
+            const auto path=PaletteData::PathFromText(data.at("paletteFile").get<std::string>());
+            if(path.extension()!=L".pal")throw std::runtime_error("Expected a .pal preview file.");
+            const auto document=PaletteData::ReadFile(path);
+            if(!document.secondOverlay)throw std::runtime_error("Preview file requires two overlays.");
+            const auto& assignment=*document.secondOverlay;
+            second=LoadOverlayTexture(device,assignment.texture);
+            tint[1]=static_cast<unsigned>(assignment.tintBand);
+            bands=assignment.bands;
+        } else if(data.contains("secondTexture")) {
             const int index=data.value("secondTintBand",0);
             if(index<0 || index>255)throw std::runtime_error("Invalid second overlay tint band.");
             second=LoadOverlayTexture(device,data.at("secondTexture").get<std::string>());
             tint[1]=static_cast<unsigned>(index);
         }
         if(!second || first.Get()==second.Get())throw std::runtime_error("Two distinct texture resources are required.");
-        const int band=data.at("secondBand").get<int>();
-        if(band<1 || band>255)throw std::runtime_error("Invalid overlay band.");
+        if(bands.empty()) {
+            if(data.contains("secondBands"))bands=PaletteData::Bands(data.at("secondBands"));
+            else bands.insert(PaletteData::Integer(data.at("secondBand"),1,255,"overlay band"));
+        }
         std::ifstream shader("overlay-shader/prototype.bin",std::ios::binary|std::ios::ate);
         const auto size=shader.tellg();
         if(size<8 || size>65536 || static_cast<size_t>(size)%4)throw std::runtime_error("Invalid prototype file.");
@@ -70,7 +83,7 @@ inline void Tick(IDirect3DDevice9* device) {
         D3DLOCKED_RECT lock{};
         if(FAILED(bandMap->LockRect(0,&lock,nullptr,0)))throw std::runtime_error("Could not write the band selector.");
         for(int row=0;row<256;row++) {
-            const bool alternate=row==band;
+            const bool alternate=bands.count(row)!=0;
             const DWORD value=0xff000000 | (alternate?0x00ff0000:0) | (tint[alternate?1:0]<<8);
             memcpy(static_cast<unsigned char*>(lock.pBits)+row*lock.Pitch,&value,sizeof(value));
         }
