@@ -17,6 +17,7 @@
 #include "UI/Eyedropper/Eyedropper.h"
 #include "UI/ColorWheel.h"
 #include "SpriteViewer.h"
+#include "PalettePasteHistory.h"
 #include "UI/LoggerWidget.hpp"
 
 #include <filesystem>
@@ -33,7 +34,7 @@ static bool& PreviewWindowOpen() {
 static int requestedSlot=-1, requestedPalette=-1;
 static bool openAdvanced=false, switchAfterApply=false;
 static std::string spritePreparationOutput;
-struct PasteUndo { int slot, palette, start; std::vector<ImU32> before, after; };
+using PasteUndo=PalettePasteHistory::Entry;
 static std::vector<PasteUndo> pasteUndo;
 
 static bool FindPreparationScript(std::filesystem::path& script) {
@@ -177,6 +178,12 @@ void Drawing::Draw()
     if(!MainThread::Ready)return;
     MainLoop();
     AdvancedPalette::Tick();
+    static unsigned long long editGeneration=0;
+    if(editGeneration!=AdvancedPalette::MatchGeneration) {
+        pasteUndo.clear();ColorWheel::Close();
+        requestedSlot=requestedPalette=-1;switchAfterApply=false;
+        editGeneration=AdvancedPalette::MatchGeneration;
+    }
     if(!MainThread::Match_Readed)ColorWheel::Close();
 	if ((GetAsyncKeyState(VK_INSERT) & 1) || (GetAsyncKeyState(VK_F1) & 1)) {
 		bDrawAll = !bDrawAll;
@@ -518,8 +525,7 @@ void Drawing::DrawCharacterColors() {
             ImGui::BeginDisabled(pasteUndo.empty());
             if(ImGui::Button("Undo paste") && !pasteUndo.empty()) {
                 auto undo=pasteUndo.back();pasteUndo.pop_back();
-                bool same=undo.slot==PlayableCharactersManager::GetCurrentCharacterIndex() && undo.palette==Curent_Char.Current_Palette_Num;
-                for(int i=0;same && i<undo.after.size();++i)same=colors[undo.start+i]==undo.after[i];
+                const bool same=undo.CanUndo(PlayableCharactersManager::GetCurrentCharacterIndex(),Curent_Char.Current_Palette_Num,AdvancedPalette::MatchGeneration,colors);
                 if(same)for(int i=0;i<undo.before.size();++i)PlayableCharactersManager::ChangePaletteColor(undo.start+i,undo.before[i]);
                 else AdvancedPalette::Status="Undo skipped: palette changed since paste.";
             }
@@ -1049,6 +1055,7 @@ void Drawing::PasteGroupColors(const ColorGroup& group) {
 
     PasteUndo undo{PlayableCharactersManager::GetCurrentCharacterIndex(),PlayableCharactersManager::GetCurrentCharacter().Current_Palette_Num,group.startIndex,{},{}};
     for(int i=0;i<pasteCount && group.startIndex+i<colors.size();++i){undo.before.push_back(colors[group.startIndex+i]);undo.after.push_back(s_ClipboardColors[i]);}
+    undo.generation=AdvancedPalette::MatchGeneration;
     if(!undo.before.empty())pasteUndo.push_back(undo);
 	for (int i = 0; i < pasteCount; i++) {
 		int colorIndex = group.startIndex + i;

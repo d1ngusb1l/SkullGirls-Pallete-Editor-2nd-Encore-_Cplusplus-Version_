@@ -180,6 +180,7 @@ void ApplyDualOverlay(Character c,PaletteData::Document document,OverlayCompleti
 }
 using namespace OverlayControls;
 void ForgetMatch() {
+    ++MatchGeneration;
     SpriteViewer::ForgetMatch();
 #ifdef SGPE_DLL_VALIDATION
     CancelOverlayDrawPreview();

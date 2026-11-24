@@ -5,6 +5,7 @@
 #include "Files/GroupJSONFiles.h"
 namespace AdvancedPalette {
     extern std::string Status;
+    inline unsigned long long MatchGeneration=0;
     inline bool OpenAdvanced=false;
     inline bool RevealNativeBands=false;
     std::vector<int> PreviewLayout();
