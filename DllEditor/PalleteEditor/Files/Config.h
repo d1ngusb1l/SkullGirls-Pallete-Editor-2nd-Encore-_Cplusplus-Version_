@@ -9,7 +9,9 @@ private:
     inline static json data;
     inline static fs::path config_path;
     inline static bool loaded = false;
+    inline static bool writable = true;
 public:
+    inline static std::string Status;
     static void init();
     static std::string get_string(const std::string& key, const std::string& default_val = "");
     static void set_string(const std::string& key, const std::string& value);

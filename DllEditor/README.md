@@ -22,11 +22,13 @@ Run `scripts/build-dll.ps1` from the repository root with Visual Studio 2022's C
 
 `-Validation` enables an opt-in render-thread probe. In the isolated Training runner, create `dll-smoke.request` in the game working directory. The probe writes `dll-smoke-result.json`, verifies combined effect save/load and legacy compatibility, and restores the baseline. Validation builds cannot be packaged. See [remaining work](../docs/DLL-NEXT-STEPS.md) for the test inventory.
 
-### Color editing layouts
+### Grouped color editing
 
-Palette defaults to a classic scrolling group list: all swatches are directly editable, with Copy and Paste beside each group. Unequal sizes explicitly offer **Paste matching swatches**. The copied group/count and one-step Undo paste remain above the list. Effects opens the existing overlay controls; palette-wide settings remain in Advanced.
+Palette uses one grouped-color layout. Bundled `groups.json` loads automatically from beside the DLL; an optional saved custom JSON is used when available. There is no Group Character Parts activation step or workspace toggle. If labels are unavailable, Palette offers a file picker and ungrouped swatches as a fallback.
 
-Check **Use workspace layout** to use the group inspector layout instead. Its list also offers direct Copy/Paste. **Sprite preview window** opens a separate movable/resizable ImGui window in either layout. The editor supports a narrow side-panel width: classic groups stack their controls, and workspace stacks its list above the inspector when needed. Layout and preview visibility are saved in PaletteEditorDLLConfig.json. Switching layout retains the target, clipboard, selected group, and pending assignments.
+Each group has Studio/Effects controls on the left and dedicated Copy/Paste columns on the right. Copy/Paste never share their horizontal positions with Studio/Effects. Unequal sizes explicitly offer **Paste matching** (matching swatches). The clipboard summary and one-step Undo paste remain above the list. Line and both shadow colors are on Palette. The slider label sits above a full-width slider.
+
+**Sprite preview window** opens the independent movable/resizable frame viewer. It follows the selected group and keeps its local colors and animation/frame state separate from the editor. The editor supports narrow side panels, with a minimum width of 420 pixels. Palette-wide shader settings remain in Advanced; assignment management remains in Auto-load.
 
 ### Color Studio
 
@@ -34,8 +36,14 @@ Group rows use fixed columns and fixed-size actions, including unequal-size Past
 
 Open **Color Studio** from a group. Before/After strips show the native swatch order; select a swatch in After or on the hue/saturation wheel. **Link whole group** rotates all hues and adjusts saturation together when dragging the wheel. Each color retains its own brightness and alpha. Whole-group Hue, Saturation, and Brightness sliders also work on the staged ramp. Brightness and saturation approach their endpoints proportionally rather than clipping additive offsets; hue-only adjustments preserve the existing shading values. The ramp is not sorted or automatically assigned highlight/shadow roles.
 
-The selected-swatch panel always shows RGBA values and an editable hex field immediately underneath and a saturation/value picker. Wheel linkage applies to wheel dragging; numeric/picker editing intentionally changes only the selected swatch. Reset draft restores Before. Apply group writes the whole ramp to the match; Undo apply restores that application while the live group still matches it. Saving a .pal remains a separate action. Until Apply, edits change only the Before/After swatches and wheel, not the match or the sprite pane. Cancel / close discards the staged draft.
+The selected-swatch panel always shows RGBA values and an editable hex field immediately underneath and a saturation/value picker. Wheel linkage applies to wheel dragging; numeric/picker editing intentionally changes only the selected swatch. Reset draft restores Before. Apply group writes the whole ramp to the match; Undo apply restores that application while the live group still matches it. Saving a .pal remains a separate action. Until Apply, edits change only the Before/After swatches and wheel, not the match or the sprite pane. Cancel / close or the title-bar X discards the staged draft.
 
 If live colors change elsewhere, Apply is blocked until Reload match. A staged group remains tied to its original target when changing targets; return to it or cancel. Finish/cancel the current draft before opening another group. Match teardown clears the studio. Undo apply is available for the current open group session and is blocked while a new draft is pending.
 
 The detached sprite preview follows the selected target/group across editor tabs and keeps its animation/frame and local-color state independent of the editor layout. Highlighting preserves selected sprite pixels exactly and dims other sprite regions, leaving the neutral background unchanged. No highlight tint is added.
+
+### Original-mod Autoload compatibility
+
+The original DLL stored `AutoLoadPals` in `Documents/Skullgirls/PalEditConfig.json`. The DLL now imports those assignments automatically, including on an existing installation of this fork. It also recognizes a local `PaletteEditorConfig.json`. Legacy `CharName`, zero-based `PalNumber`, and `PathToPal` are preserved; absent `Enabled` means enabled. Current DLL assignments, including disabled entries, win character/palette conflicts. Existing relative palette files beside a legacy JSON are resolved there.
+
+Legacy sources are never rewritten. The existing DLL settings are backed up as `PaletteEditorDLLConfig.json.before-legacy-import.bak` before a migration save. Successful source imports are marked in the DLL settings so deleting an imported assignment does not resurrect it later. Malformed legacy rows are skipped and remain eligible after repair. An unreadable current DLL settings file is left untouched and saves are disabled for that session. Import status appears in Auto-load.

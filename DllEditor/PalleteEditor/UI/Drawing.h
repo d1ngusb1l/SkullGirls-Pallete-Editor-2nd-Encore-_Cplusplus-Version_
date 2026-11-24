@@ -12,7 +12,6 @@ private:
 	inline static ImGuiWindowFlags WindowFlags = ImGuiWindowFlags_MenuBar;
 	inline static bool bDrawAll = true;
 	inline static bool bDrawAboutWindow = false;
-	inline static bool bDrawColorGroup = true;
 	inline static bool bDrawSimpleColorEdit = false;
 #ifdef _DEBUG
 	inline static bool bDrawDevWindow = true;

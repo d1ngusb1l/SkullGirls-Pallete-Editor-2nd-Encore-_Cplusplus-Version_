@@ -114,7 +114,8 @@ void ColorWheel::Draw() {
     ImGui::SetNextWindowBgAlpha(1.f);
     ImGui::SetNextWindowSizeConstraints(ImVec2(800,740),ImVec2(FLT_MAX,FLT_MAX));
     // Stable identity and title, independent of changing group and status text.
-    if(!ImGui::Begin("Color Studio###ColorStudioRamp",nullptr,ImGuiWindowFlags_NoCollapse)){ImGui::End();return;}
+    bool windowOpen=true;
+    if(!ImGui::Begin("Color Studio###ColorStudioRamp",&windowOpen,ImGuiWindowFlags_NoCollapse)){ImGui::End();if(!windowOpen)Close();return;}
     ImGui::Text("Team %d | %s | Palette %d | %s",studio.slot/3+1,studio.character.c_str(),studio.palette+1,studio.group.groupName.c_str());
     ImGui::TextWrapped("Staged colors. Apply changes the match; saving remains a separate action.");
     if(!SameTarget())ImGui::TextWrapped("Return to this target to apply, or Cancel to discard the staged colors.");
@@ -177,4 +178,5 @@ void ColorWheel::Draw() {
     if(ImGui::Button("Cancel / close",ImVec2(140,0)))Close();
     ImGui::TextWrapped("%s",studio.status.c_str());
     ImGui::End();
+    if(!windowOpen)Close();
 }

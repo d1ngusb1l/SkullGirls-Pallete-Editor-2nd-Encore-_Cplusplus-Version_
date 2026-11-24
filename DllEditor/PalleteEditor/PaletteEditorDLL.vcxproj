@@ -110,6 +110,7 @@
     <ClInclude Include="AddressesTable.h" />
     <ClInclude Include="AutoLoadPalette.h" />
     <ClInclude Include="Files\Config.h" />
+    <ClInclude Include="Files\LegacyConfigMigration.h" />
     <ClInclude Include="Files\GroupJSONFiles.h" />
     <ClInclude Include="Files\PaletteFiles.h" />
     <ClInclude Include="Include\ImGuiFileDialog\dirent\dirent.h" />

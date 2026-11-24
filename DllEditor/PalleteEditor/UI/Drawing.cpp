@@ -185,7 +185,7 @@ void Drawing::Draw()
 	if (bDrawAll)
 	{
 		ImGui::SetNextWindowSize(vWindowSize, ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSizeConstraints(ImVec2(360,500),ImVec2(FLT_MAX,FLT_MAX));
+        ImGui::SetNextWindowSizeConstraints(ImVec2(420,500),ImVec2(FLT_MAX,FLT_MAX));
 		ImGui::SetNextWindowBgAlpha(1.0f);
 
 		ImGui::Begin(lpWindowName, &bDrawAll, WindowFlags);
@@ -245,7 +245,6 @@ void Drawing::Draw()
                         if (PlayableCharactersManager::GetCurrentCharacterIndex() != -1) {
                             ImGui::Separator();
                             DrawCharacterOptions();
-                            DrawPaletteWideColors();
                             AdvancedPalette::Draw();
                         }
                     }
@@ -392,6 +391,7 @@ void Drawing::DrawPaletteTabItem() {
 
 	ImGui::Separator();
 
+    DrawPaletteWideColors();
 	DrawCharacterColors();
 
 }
@@ -455,12 +455,6 @@ void Drawing::DrawPlayableCharactersComboBox() {
 
 void Drawing::DrawCharacterOptions() {
 	ImGui::Text("Options: ");
-	if (GroupColorManager::GetInstance().HasData()) {
-		ImGui::Checkbox("Group Character Parts", &bDrawColorGroup);
-	}
-	else {
-		bDrawColorGroup = false;
-	}
 	ImGui::Checkbox("Single Color Picker", &bUseColorPickerMode);
 
 	if (bUseColorPickerMode) {
@@ -482,8 +476,9 @@ void Drawing::DrawCharacterPaletteNumSlider() {
     if(changed && displayValue>=1 && displayValue<=Curent_Char.Max_Palette_Num && displayValue-1!=Curent_Char.Current_Palette_Num)RequestTarget(-1,displayValue-1);
     ImGui::SameLine();ImGui::Text("of %d",Curent_Char.Max_Palette_Num);
     int sliderValue=Curent_Char.Current_Palette_Num+1;
-    ImGui::SetNextItemWidth(std::max(100.f,ImGui::GetContentRegionAvail().x-110));
-    if(ImGui::SliderInt("Palette slider",&sliderValue,1,Curent_Char.Max_Palette_Num) && sliderValue-1!=Curent_Char.Current_Palette_Num)RequestTarget(-1,sliderValue-1);
+    ImGui::TextUnformatted("Palette slider");
+    ImGui::SetNextItemWidth(-1);
+    if(ImGui::SliderInt("##Palette slider",&sliderValue,1,Curent_Char.Max_Palette_Num) && sliderValue-1!=Curent_Char.Current_Palette_Num)RequestTarget(-1,sliderValue-1);
     ImGui::EndDisabled();
 }
 
@@ -492,24 +487,8 @@ void Drawing::DrawCharacterColors() {
     auto& Curent_Char = PlayableCharactersManager::GetCurrentCharacter();
 	ImGui::Text("Colors Palette: %d", Curent_Char.Num_Of_Color);
 	auto& colors = Curent_Char.Character_Colors;
-	bool hasGroups = false;
-	const std::vector<ColorGroup>* groupsPtr = nullptr;
-
-	if (bDrawColorGroup) {
-		groupsPtr = GroupColorManager::GetInstance().GetGroupsForCharacter(Curent_Char.Char_Name);
-		hasGroups = (groupsPtr != nullptr);
-
-		if (!hasGroups) {
-			LOG_LOCAL_ERROR(DrawingLogger, "Can't find JSON for Character");
-		}
-	}
-
-
-
-
-	// Обработка цветов в зависимости от режима
-	if (hasGroups && bDrawColorGroup) {
-		// Группированный режим
+    const auto* groupsPtr=GroupColorManager::GetInstance().GetGroupsForCharacter(Curent_Char.Char_Name);
+    if(groupsPtr && !groupsPtr->empty()) {
 		const auto& groups = *groupsPtr;
 		static char searchBuffer[256] = "";
 
@@ -534,8 +513,6 @@ void Drawing::DrawCharacterColors() {
         static std::string character;
         if(character!=Curent_Char.Char_Name){selected=0;character=Curent_Char.Char_Name;}
         if(selected>=groups.size())selected=0;
-        static bool workspaceLayout=config::get_bool("dll_workspace_layout",false);
-        if(ImGui::Checkbox("Use workspace layout",&workspaceLayout))config::set_bool("dll_workspace_layout",workspaceLayout);
         if(ImGui::Checkbox("Sprite preview window",&PreviewWindowOpen()))config::set_bool("dll_preview_window",PreviewWindowOpen());
         ImGui::Text("Copied: %s (%u swatches)",copiedGroup.empty()?"Nothing yet":copiedGroup.c_str(),unsigned(s_ClipboardColors.size()));
             ImGui::BeginDisabled(pasteUndo.empty());
@@ -547,89 +524,51 @@ void Drawing::DrawCharacterColors() {
                 else AdvancedPalette::Status="Undo skipped: palette changed since paste.";
             }
             ImGui::EndDisabled();
-        auto drawGroupActions=[&](const ColorGroup& group) {
-            if(ImGui::Button("Copy",ImVec2(60,0)))CopyGroupColors(group);
-            ImGui::SameLine();ImGui::BeginDisabled(s_ClipboardColors.empty());
-            const bool matching=s_ClipboardColors.size()==group.count;
-            if(ImGui::Button(matching?"Paste###PasteGroup":"Paste matching swatches###PasteGroup",ImVec2(220,0)))PasteGroupColors(group);
-            ImGui::EndDisabled();
-        };
-        if(!workspaceLayout) {
-            const bool narrow=ImGui::GetContentRegionAvail().x<800;
-            ImGui::BeginChild("Classic groups",ImVec2(0,0),true);
-            const bool table=!narrow && ImGui::BeginTable("Color groups",3,ImGuiTableFlags_SizingStretchProp|ImGuiTableFlags_BordersInnerH|ImGuiTableFlags_RowBg);
-            if(table) {
-                ImGui::TableSetupColumn("Group",ImGuiTableColumnFlags_WidthFixed,170);
-                ImGui::TableSetupColumn("Colors",ImGuiTableColumnFlags_WidthStretch);
-                ImGui::TableSetupColumn("Actions",ImGuiTableColumnFlags_WidthFixed,296);
-                ImGui::TableHeadersRow();
-            }
-            if(narrow || table)for(int n=0;n<groups.size();++n) {
+        ImGui::BeginChild("Color groups",ImVec2(0,0),true);
+        if(ImGui::BeginTable("Grouped palette",2,ImGuiTableFlags_SizingStretchProp|ImGuiTableFlags_BordersInnerH|ImGuiTableFlags_RowBg)) {
+            ImGui::TableSetupColumn("Group / colors",ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn("Copy / Paste",ImGuiTableColumnFlags_WidthFixed,192);
+            ImGui::TableHeadersRow();
+            for(int n=0;n<int(groups.size());++n) {
                 const auto& group=groups[n];if(!groupMatchesSearch(group))continue;
-                ImGui::PushID(n);
-                if(table){ImGui::TableNextRow();ImGui::TableSetColumnIndex(0);}
+                ImGui::PushID(n);ImGui::TableNextRow();ImGui::TableSetColumnIndex(0);
                 if(ImGui::Selectable(group.groupName.c_str(),selected==n))selected=n;
-                if(table)ImGui::TableSetColumnIndex(1);
-                const int perRow=std::max(1,int(ImGui::GetContentRegionAvail().x/(ImGui::GetFrameHeight()+ImGui::GetStyle().ItemSpacing.x)));
-                for(int i=group.startIndex;i<group.startIndex+group.count && i<colors.size();++i) {
-                    DrawColorButton(i,colors[i]);if(ImGui::IsItemActivated())selected=n;
-                    if(i+1<group.startIndex+group.count && i+1<colors.size() && (i-group.startIndex+1)%perRow)ImGui::SameLine();
-                }
-                if(table)ImGui::TableSetColumnIndex(2);
-                drawGroupActions(group);
-                if(ImGui::Button("Color Studio",ImVec2(140,0))){selected=n;ColorWheel::Open(group);}
-                ImGui::SameLine();
-                if(ImGui::Button("Effects",ImVec2(140,0))){selected=n;ImGui::OpenPopup("Group tools");}
+                if(ImGui::IsItemHovered())ImGui::SetTooltip("%s (%d swatches)",group.groupName.c_str(),group.count);
+                if(ImGui::Button("Studio",ImVec2(70,0))){selected=n;ColorWheel::Open(group);}
+                if(ImGui::GetContentRegionAvail().x>=148)ImGui::SameLine();
+                if(ImGui::Button("Effects",ImVec2(70,0))){selected=n;ImGui::OpenPopup("Group tools");}
                 if(ImGui::BeginPopup("Group tools")) {
                     ImGui::TextUnformatted(group.groupName.c_str());AdvancedPalette::DrawGroup(group);
                     if(AdvancedPalette::OpenAdvanced){openAdvanced=true;AdvancedPalette::OpenAdvanced=false;}
                     ImGui::EndPopup();
                 }
-                if(!table)ImGui::Separator();ImGui::PopID();
+                const int perRow=std::max(1,int(ImGui::GetContentRegionAvail().x/(ImGui::GetFrameHeight()+ImGui::GetStyle().ItemSpacing.x)));
+                for(int i=group.startIndex;i<group.startIndex+group.count && i<int(colors.size());++i) {
+                    DrawColorButton(i,colors[i]);if(ImGui::IsItemActivated())selected=n;
+                    if(i+1<group.startIndex+group.count && i+1<int(colors.size()) && (i-group.startIndex+1)%perRow)ImGui::SameLine();
+                }
+                const auto effects=AdvancedPalette::GroupEffects(group);
+                if(effects!="No applied effects")ImGui::TextWrapped("%s",effects.c_str());
+                ImGui::TableSetColumnIndex(1);
+                ImGui::Dummy(ImVec2(0,ImGui::GetTextLineHeightWithSpacing()-ImGui::GetStyle().ItemSpacing.y));
+                if(ImGui::Button("Copy",ImVec2(52,0)))CopyGroupColors(group);
+                ImGui::SameLine();ImGui::BeginDisabled(s_ClipboardColors.empty());
+                const bool matches=s_ClipboardColors.size()==group.count;
+                if(ImGui::Button(matches?"Paste###PasteGroup":"Paste matching###PasteGroup",ImVec2(128,0)))PasteGroupColors(group);
+                if(!matches && ImGui::IsItemHovered())ImGui::SetTooltip("Paste matching swatches: %u of %d",unsigned(std::min(s_ClipboardColors.size(),size_t(group.count))),group.count);
+                ImGui::EndDisabled();ImGui::PopID();
             }
-            if(table)ImGui::EndTable();
-            ImGui::EndChild();return;
-        }
-        const bool stacked=ImGui::GetContentRegionAvail().x<760;
-        const float listHeight=stacked?std::max(120.f,ImGui::GetContentRegionAvail().y*0.40f):0;
-        ImGui::BeginChild("Group list",ImVec2(stacked?0:210,listHeight),true);
-        for(int n=0;n<groups.size();++n) {
-            const auto& group=groups[n];if(!groupMatchesSearch(group))continue;
-            ImGui::PushID(n);
-            if(ImGui::Selectable(group.groupName.c_str(),selected==n))selected=n;
-            for(int i=group.startIndex;i<group.startIndex+group.count && i<colors.size();++i) {
-                if(i!=group.startIndex && (i-group.startIndex)%10)ImGui::SameLine(0,2);
-                ImGui::ColorButton(("##swatch"+std::to_string(i)).c_str(),ColorsTools::ImU32BGRAtoImVec4RGBA(colors[i]),ImGuiColorEditFlags_NoTooltip,ImVec2(14,14));
-            }
-            if(ImGui::SmallButton("Copy"))CopyGroupColors(group);
-            ImGui::SameLine();ImGui::BeginDisabled(s_ClipboardColors.empty());
-            const bool matches=s_ClipboardColors.size()==group.count;
-            if(ImGui::Button(matches?"Paste###PasteGroup":"Paste matching###PasteGroup",ImVec2(128,ImGui::GetTextLineHeight()+ImGui::GetStyle().FramePadding.y*2)))PasteGroupColors(group);
-            if(!matches && ImGui::IsItemHovered())ImGui::SetTooltip("Paste matching swatches: %u of %d",unsigned(std::min(s_ClipboardColors.size(),size_t(group.count))),group.count);
-            ImGui::EndDisabled();
-            const auto effects=AdvancedPalette::GroupEffects(group);
-            if(effects!="No applied effects")ImGui::TextWrapped("%s",effects.c_str());
-            ImGui::Separator();ImGui::PopID();
-        }
-        ImGui::EndChild();if(!stacked)ImGui::SameLine();
-        ImGui::BeginChild("Group inspector",ImVec2(0,0),true);
-        if(!groups.empty()) {
-            const auto& group=groups[selected];
-            ImGui::SeparatorText(group.groupName.c_str());
-            ImGui::Text("%d swatches",group.count);
-            for(int i=group.startIndex;i<group.startIndex+group.count && i<colors.size();++i) {
-                DrawColorButton(i,colors[i]);
-                if((i-group.startIndex+1)%6 && i+1<group.startIndex+group.count)ImGui::SameLine();
-            }
-            drawGroupActions(group);
-            if(ImGui::Button("Color Studio",ImVec2(140,0)))ColorWheel::Open(group);
-            AdvancedPalette::DrawGroup(group);
-
-            if(AdvancedPalette::OpenAdvanced){openAdvanced=true;AdvancedPalette::OpenAdvanced=false;}
+            ImGui::EndTable();
         }
         ImGui::EndChild();
+
 	}
 	else {
+        ImGui::TextWrapped("Group labels are unavailable for this fighter. Bundled groups.json is loaded automatically; you can choose a custom file below.");
+        if(ImGui::Button("Choose group labels")) {
+            IGFD::FileDialogConfig cfg;cfg.path=".";
+            ImGuiFileDialog::Instance()->OpenDialog("LoadJSON","Choose character group labels",".json",cfg);
+        }
 		// Автоматический расчет столбцов для негруппированного режима
 		float availableWidth = ImGui::GetContentRegionAvail().x;
 		float colorButtonSize = ImGui::GetFrameHeight();
@@ -764,6 +703,7 @@ void Drawing::ProcessColorChange(int index, const ImVec4& colorVec) {
 }
 
 void Drawing::DrawAutoLoadPaletteTabItem() {
+    if(!config::Status.empty())ImGui::TextWrapped("%s",config::Status.c_str());
     if(ImGuiFileDialog::Instance()->IsOpened()) {ImGui::TextUnformatted("Finish the file dialog to edit assignments.");return;}
     ImGui::TextWrapped("Load colors and applied shader settings once per palette, and again in each new match.");
     if(ImGui::Button("Add assignment")){AutoPalette::Auto_Pals.push_back({"Filia",0,""});AutoPalette::save();}
@@ -1147,65 +1087,19 @@ void Drawing::Developer::DrawDevWindow() {
 }
 
 void Drawing::DrawPaletteWideColors() {
-	ImGui::Text("Additional colors: ");
-	ImGui::Spacing();
-	auto& Curent_Char = PlayableCharactersManager::GetCurrentCharacter();
-	//First of all, we change BGRA to RGBA
-
-	ImVec4 colorLineColorVec = ColorsTools::ImU32BGRAtoImVec4RGBA(Curent_Char.LineColor);
-	//Then, we do the same for ShadowColor1
-	ImVec4 colorShadowColor1Vec = ColorsTools::ImU32BGRAtoImVec4RGBA(Curent_Char.SuperShadowColor1);
-	//And ShadowColor2
-	ImVec4 colorShadowColor2Vec = ColorsTools::ImU32BGRAtoImVec4RGBA(Curent_Char.SuperShadowColor2);
-
-	//Be careful - We will ColorEdit3, instead of ColorEdit4, becouse Alpha Channel don't change anything
-	if (ImGui::ColorEdit3("Line Color", &colorLineColorVec.x, ImGuiColorEditFlags_NoInputs)) {
-		LOG_LOCAL_DEBUG(DrawingLogger, "Change Line color: ");
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorLineColorVec.x);
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorLineColorVec.y);
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorLineColorVec.z);
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorLineColorVec.w);
-		LOG_LOCAL_DEBUG(DrawingLogger, "Red, Green, Blue, Alpha");
-		//First, we change from float ImVec4 to ImU32 (__int32)
-
-		//Then, we change BGRA to RGBA
-		ImU32 ColorToWrite = ColorsTools::ImVec4RGBAtoImU32BGRA(colorLineColorVec);
-
-		PlayableCharactersManager::ChangeOptionPaletteColor(ColorToWrite, ColorOptionFlag::FLAG_LINE_COLOR);
-	}
-
-	ImGui::SameLine();
-
-	if (ImGui::ColorEdit3("Shadow Color 1", &colorShadowColor1Vec.x, ImGuiColorEditFlags_NoInputs)) {
-		LOG_LOCAL_DEBUG(DrawingLogger, "Change Shadow Color: ");
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorShadowColor1Vec.x);
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorShadowColor1Vec.y);
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorShadowColor1Vec.z);
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorShadowColor1Vec.w);
-		LOG_LOCAL_DEBUG(DrawingLogger, "Red, Green, Blue, Alpha");
-		//First, we change from float ImVec4 to ImU32 (__int32)
-		ImU32 ColorToWrite = ColorsTools::ImVec4RGBAtoImU32BGRA(colorShadowColor1Vec);
-
-		PlayableCharactersManager::ChangeOptionPaletteColor(ColorToWrite, ColorOptionFlag::FLAG_SUPER_SHADOW_1);
-	}
-
-	ImGui::SameLine();
-
-	if (ImGui::ColorEdit3("Shadow Color 2", &colorShadowColor2Vec.x, ImGuiColorEditFlags_NoInputs)) {
-		LOG_LOCAL_DEBUG(DrawingLogger, "Change Line color: ");
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorShadowColor2Vec.x);
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorShadowColor2Vec.y);
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorShadowColor2Vec.z);
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorShadowColor2Vec.w);
-		LOG_LOCAL_DEBUG(DrawingLogger, "Red, Green, Blue, Alpha");
-		//First, we change from float ImVec4 to ImU32 (__int32)
-		ImU32 ColorToWrite = ColorsTools::ImVec4RGBAtoImU32BGRA(colorShadowColor2Vec);
-
-		PlayableCharactersManager::ChangeOptionPaletteColor(ColorToWrite, ColorOptionFlag::FLAG_SUPER_SHADOW_2);
-	}
-
-	ImGui::Spacing();
-
-
+    auto& target=PlayableCharactersManager::GetCurrentCharacter();
+    if(ImGui::BeginTable("Line and shadow colors",3,ImGuiTableFlags_SizingStretchSame)) {
+        ImGui::TableNextRow();
+        ImU32* values[]={&target.LineColor,&target.SuperShadowColor1,&target.SuperShadowColor2};
+        const char* labels[]={"Line","Shadow 1","Shadow 2"};
+        const ColorOptionFlag flags[]={FLAG_LINE_COLOR,FLAG_SUPER_SHADOW_1,FLAG_SUPER_SHADOW_2};
+        for(int i=0;i<3;++i) {
+            ImGui::TableSetColumnIndex(i);auto color=ColorsTools::ImU32BGRAtoImVec4RGBA(*values[i]);
+            if(ImGui::ColorEdit3(labels[i],&color.x,ImGuiColorEditFlags_NoInputs)) {
+                auto value=ColorsTools::ImVec4RGBAtoImU32BGRA(color);
+                PlayableCharactersManager::ChangeOptionPaletteColor(value,flags[i]);
+            }
+        }
+        ImGui::EndTable();
+    }
 }
-

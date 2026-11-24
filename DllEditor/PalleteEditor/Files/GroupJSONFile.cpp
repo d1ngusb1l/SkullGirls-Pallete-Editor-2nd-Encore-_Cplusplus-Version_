@@ -14,7 +14,7 @@ bool GroupColorManager::LoadFromFile(const std::string& filePath) {
         return false;
     }
 
-    std::ifstream file(filePath);
+    std::ifstream file(std::filesystem::path(std::u8string(filePath.begin(),filePath.end())));
     if (!file.is_open()) {
         std::cerr << "Failed to open file: " << filePath << std::endl;
         return false;
@@ -24,15 +24,18 @@ bool GroupColorManager::LoadFromFile(const std::string& filePath) {
         ordered_json j;
         file >> j;
 
+        if(!j.is_object() || j.empty())return false;
         // Используем swap для очистки с освобождением памяти
         std::unordered_map<std::string, std::vector<ColorGroup>> newGroups;
 
         for (auto& [charName, groups] : j.items()) {
+            if(!groups.is_object() || groups.empty())return false;
             std::vector<ColorGroup> charGroups;
             charGroups.reserve(groups.size()); // Резервируем память заранее
 
             int currentIndex = 1;
             for (auto& [groupName, count] : groups.items()) {
+                if(!count.is_number_integer() || count.get<int>()<1 || count.get<int>()>255 || currentIndex+count.get<int>()>4096)return false;
                 charGroups.emplace_back(ColorGroup{
                     groupName,
                     currentIndex,
