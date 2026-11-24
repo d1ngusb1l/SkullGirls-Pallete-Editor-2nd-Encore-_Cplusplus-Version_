@@ -110,6 +110,7 @@
     <ClInclude Include="AddressesTable.h" />
     <ClInclude Include="AutoLoadPalette.h" />
     <ClInclude Include="Files\Config.h" />
+    <ClInclude Include="Files\LegacyConfigMigration.h" />
     <ClInclude Include="Files\GroupJSONFiles.h" />
     <ClInclude Include="Files\PaletteFiles.h" />
     <ClInclude Include="Include\ImGuiFileDialog\dirent\dirent.h" />
@@ -186,6 +187,9 @@
     <ClInclude Include="Tools\MemoryWorker.hpp" />
     <ClInclude Include="Tools\StringFormating.hpp" />
     <ClInclude Include="UI\ColorWheel.h" />
+    <ClInclude Include="UI\PaletteRamp.h" />
+    <ClInclude Include="UI\PalettePasteHistory.h" />
+    <ClInclude Include="UI\SpritePreviewPixel.h" />
     <ClInclude Include="UI\Drawing.h" />
     <ClInclude Include="UI\Eyedropper\Eyedropper.h" />
     <ClInclude Include="UI\ImGuiCustom.h" />

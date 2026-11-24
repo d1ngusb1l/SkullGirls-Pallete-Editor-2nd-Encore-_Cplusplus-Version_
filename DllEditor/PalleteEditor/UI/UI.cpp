@@ -1,7 +1,8 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "UI.h"
 #include "DirectXWrapper/common.h"
 #include "Drawing.h"
+#include "SpriteViewer.h"
 #include "SetStyleImGui.h"
 #include "DreamOrphans.cpp"
 #include "PixelCode.cpp"
@@ -20,6 +21,7 @@ extern "C" UINT WINAPI D3D9DeviceFuncHook(UINT funcId, void* funcRef); //For cal
 auto UILogger = LOGGER::createLocal("UI", LogLevel::DEBUG_LOG);
 
 void UI::ResizePreReset() {
+    SpriteViewer::LostDevice();
     LOG_LOCAL_DEBUG(UILogger, "ResizePreReset is called!");
     if (UI::IsInitialized())
         ImGui_ImplDX9_InvalidateDeviceObjects();
@@ -58,6 +60,7 @@ bool UI::Initialize(HWND hwnd, IDirect3DDevice9* device)
 
     s_hwnd = hwnd;
     s_device = device;
+    SpriteViewer::device=device;
 
     // Initialize ImGui
     IMGUI_CHECKVERSION();
@@ -109,6 +112,7 @@ bool UI::Initialize(HWND hwnd, IDirect3DDevice9* device)
 
 void UI::Shutdown()
 {
+    SpriteViewer::Shutdown();
     if (!s_initialized)
         return;
 

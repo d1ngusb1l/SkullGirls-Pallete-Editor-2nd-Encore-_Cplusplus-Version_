@@ -1,4 +1,5 @@
 #include "AutoLoadPalette.h"
+#include "Files/LegacyConfigMigration.h"
 #include "AdvancedPalette.h"
 #include "pch.h"
 #include "Files/Config.h"
@@ -20,21 +21,11 @@ void AutoPalette::load() {
 
     if (autoPalsJson.is_array()) {
         for (const auto& item : autoPalsJson) {
+            if(!LegacyConfigMigration::ValidAssignment(item))continue;
             Auto_Pal pal;
-
-
-            if (item.contains("CharName") && item["CharName"].is_string()) {
-                pal.CharName = item["CharName"];
-            }
-
-            if (item.contains("PalNumber") && item["PalNumber"].is_number()) {
-                pal.PalNum = item["PalNumber"];
-            }
-
-            if (item.contains("PathToPal") && item["PathToPal"].is_string()) {
-                pal.PalPath = item["PathToPal"];
-            }
-
+            pal.CharName=item.at("CharName").get<std::string>();
+            pal.PalNum=item.at("PalNumber").get<int>();
+            pal.PalPath=item.at("PathToPal").get<std::string>();
             pal.Enabled=item.value("Enabled",true);
             Auto_Pals.push_back(pal);
         }

@@ -5,7 +5,7 @@
 struct Auto_Pal
 {
 	std::string CharName;
-	int PalNum;
+	int PalNum=-1;
 	std::string PalPath;
     bool Enabled=true;
     std::string Status;

@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "Drawing.h"
 #include "../../../ReleaseVersion.h"
 #include "AdvancedPalette.h"
@@ -16,14 +16,160 @@
 #include "ImGuiCustom.h"
 #include "UI/Eyedropper/Eyedropper.h"
 #include "UI/ColorWheel.h"
+#include "SpriteViewer.h"
+#include "PalettePasteHistory.h"
 #include "UI/LoggerWidget.hpp"
 
-
+#include <filesystem>
 
 
 auto DrawingLogger = LOGGER::createLocal("Drawing", LogLevel::GENERAL_LOG);
-static std::unordered_map<std::string, bool> wheelOpenMap;
 static bool saveAndAssign=false,saveLegacy=false;
+static std::string copiedGroup;
+static int selectedColorGroup=0;
+static bool& PreviewWindowOpen() {
+    static bool open=config::get_bool("dll_preview_window",false);
+    return open;
+}
+static int requestedSlot=-1, requestedPalette=-1;
+static bool openAdvanced=false, switchAfterApply=false;
+static std::string spritePreparationOutput;
+using PasteUndo=PalettePasteHistory::Entry;
+static std::vector<PasteUndo> pasteUndo;
+
+static bool FindPreparationScript(std::filesystem::path& script) {
+    HMODULE module=nullptr;
+    if(!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS|GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+        reinterpret_cast<LPCWSTR>(&FindPreparationScript),&module))return false;
+    std::wstring modulePath(32768,L'\0');
+    DWORD length=GetModuleFileNameW(module,&modulePath[0],static_cast<DWORD>(modulePath.size()));
+    if(!length || length>=modulePath.size())return false;
+    modulePath.resize(length);
+    script=std::filesystem::path(modulePath).parent_path()/L"prepare-dll-preview.py";
+    std::error_code ec;
+    return std::filesystem::is_regular_file(script,ec) && !ec;
+}
+
+static void AppendPreparationOutput(const char* data,size_t length) {
+    spritePreparationOutput.append(data,length);
+    if(spritePreparationOutput.size()>8192)spritePreparationOutput.erase(0,spritePreparationOutput.size()-8192);
+}
+
+static void DrainPreparationOutput() {
+    if(!SpriteViewer::preparationPipe)return;
+    for(;;) {
+        DWORD available=0;
+        if(!PeekNamedPipe(SpriteViewer::preparationPipe,nullptr,0,nullptr,&available,nullptr)) {
+            if(GetLastError()!=ERROR_BROKEN_PIPE)SpriteViewer::preparationStatus="Could not read preview preparation output.";
+            break;
+        }
+        if(!available)break;
+        char buffer[2048];DWORD read=0;
+        if(!ReadFile(SpriteViewer::preparationPipe,buffer,(std::min)(available,DWORD(sizeof(buffer))),&read,nullptr) || !read)break;
+        AppendPreparationOutput(buffer,read);
+    }
+}
+
+static void StartSpritePreparation(const std::filesystem::path& archivePath) {
+    const auto dataFolder=archivePath.parent_path();
+    const auto fileName=archivePath.filename().wstring();
+    if(_wcsicmp(dataFolder.filename().c_str(),L"data01")!=0 ||
+        (_wcsicmp(fileName.c_str(),L"characters-foits.gfs")!=0 && _wcsicmp(fileName.c_str(),L"characters-foits-retail.gfs")!=0)) {
+        SpriteViewer::preparationStatus="Select characters-foits.gfs from the local game's data01 folder.";
+        return;
+    }
+    std::filesystem::path script;
+    if(!FindPreparationScript(script)) {
+        SpriteViewer::preparationStatus="The local prepare-dll-preview.py helper was not found beside the DLL.";
+        return;
+    }
+    std::wstring python=SpriteViewer::preparationPython.wstring();
+    if(python.empty()) {
+        python.resize(32768,L'\0');
+        DWORD pythonLength=SearchPathW(nullptr,L"python.exe",nullptr,static_cast<DWORD>(python.size()),&python[0],nullptr);
+        if(!pythonLength || pythonLength>=python.size()) {
+            SpriteViewer::preparationStatus="Python 3 was not found on PATH. Use Choose Python executable.";
+            return;
+        }
+        python.resize(pythonLength);
+    }
+    const auto gameDirectory=dataFolder.parent_path().wstring();
+    const auto outputDirectory=std::filesystem::current_path().wstring();
+    std::wstring command=L"\""+python+L"\" \""+script.wstring()+L"\" \""+gameDirectory+L"\" \""+outputDirectory+L"\"";
+    SECURITY_ATTRIBUTES security={sizeof(SECURITY_ATTRIBUTES),nullptr,TRUE};
+    HANDLE readPipe=nullptr,writePipe=nullptr;
+    if(!CreatePipe(&readPipe,&writePipe,&security,0)) {
+        SpriteViewer::preparationStatus="Could not create the preview preparation output pipe.";
+        return;
+    }
+    SetHandleInformation(readPipe,HANDLE_FLAG_INHERIT,0);
+    STARTUPINFOW startup={};startup.cb=sizeof(startup);startup.dwFlags=STARTF_USESTDHANDLES;
+    startup.hStdOutput=writePipe;startup.hStdError=writePipe;startup.hStdInput=GetStdHandle(STD_INPUT_HANDLE);
+    PROCESS_INFORMATION process={};
+    BOOL started=CreateProcessW(python.c_str(),&command[0],nullptr,nullptr,TRUE,CREATE_NO_WINDOW,nullptr,
+        gameDirectory.c_str(),&startup,&process);
+    DWORD createError=started?ERROR_SUCCESS:GetLastError();
+    CloseHandle(writePipe);
+    if(!started) {
+        CloseHandle(readPipe);
+        SpriteViewer::preparationStatus="Could not start Python preview preparation (Windows error "+std::to_string(createError)+").";
+        return;
+    }
+    CloseHandle(process.hThread);
+    SpriteViewer::preparationProcess=process.hProcess;
+    SpriteViewer::preparationPipe=readPipe;
+    spritePreparationOutput.clear();
+    SpriteViewer::preparationStatus="Generating the combined local preview asset. This can take several minutes.";
+}
+
+static void PollSpritePreparation() {
+    if(!SpriteViewer::preparationProcess)return;
+    DrainPreparationOutput();
+    DWORD wait=WaitForSingleObject(SpriteViewer::preparationProcess,0);
+    if(wait==WAIT_TIMEOUT)return;
+    if(wait!=WAIT_OBJECT_0) {
+        SpriteViewer::preparationStatus="Could not check the Python preview preparation process.";
+        CloseHandle(SpriteViewer::preparationProcess);SpriteViewer::preparationProcess=nullptr;
+        if(SpriteViewer::preparationPipe){CloseHandle(SpriteViewer::preparationPipe);SpriteViewer::preparationPipe=nullptr;}
+        return;
+    }
+    DrainPreparationOutput();
+    DWORD exitCode=1;
+    if(!GetExitCodeProcess(SpriteViewer::preparationProcess,&exitCode)) {
+        SpriteViewer::preparationStatus="Could not read the Python preview preparation exit code.";
+        CloseHandle(SpriteViewer::preparationProcess);SpriteViewer::preparationProcess=nullptr;
+        if(SpriteViewer::preparationPipe){CloseHandle(SpriteViewer::preparationPipe);SpriteViewer::preparationPipe=nullptr;}
+        return;
+    }
+    CloseHandle(SpriteViewer::preparationProcess);SpriteViewer::preparationProcess=nullptr;
+    CloseHandle(SpriteViewer::preparationPipe);SpriteViewer::preparationPipe=nullptr;
+    if(exitCode==0) {
+        SpriteViewer::ResetAsset();
+        SpriteViewer::preparationStatus="Combined local sprite asset prepared. "+spritePreparationOutput;
+    } else {
+        SpriteViewer::preparationStatus="Preview preparation failed (exit "+std::to_string(exitCode)+"). "+spritePreparationOutput;
+    }
+}
+
+static std::filesystem::path PathFromUtf8(const std::string& value) {
+    std::u8string encoded;
+    encoded.reserve(value.size());
+    for(unsigned char byte:value)encoded.push_back(static_cast<char8_t>(byte));
+    return std::filesystem::path(encoded);
+}
+
+static void RequestTarget(int slot,int palette) {
+    requestedSlot=slot; requestedPalette=palette;
+}
+static void CommitTarget() {
+    if(requestedSlot>=0) {
+        PlayableCharactersManager::instance().SetCurrentCharacterIndex(requestedSlot);
+        PlayableCharactersManager::LoadCharacter();
+    } else if(requestedPalette>=0) PlayableCharactersManager::ChangePaletteNumber(requestedPalette);
+    AdvancedPalette::PaletteChanged();
+    requestedSlot=requestedPalette=-1;
+    pasteUndo.clear();
+}
 
 
 
@@ -32,13 +178,21 @@ void Drawing::Draw()
     if(!MainThread::Ready)return;
     MainLoop();
     AdvancedPalette::Tick();
+    static unsigned long long editGeneration=0;
+    if(editGeneration!=AdvancedPalette::MatchGeneration) {
+        pasteUndo.clear();ColorWheel::Close();
+        requestedSlot=requestedPalette=-1;switchAfterApply=false;
+        editGeneration=AdvancedPalette::MatchGeneration;
+    }
+    if(!MainThread::Match_Readed)ColorWheel::Close();
 	if ((GetAsyncKeyState(VK_INSERT) & 1) || (GetAsyncKeyState(VK_F1) & 1)) {
 		bDrawAll = !bDrawAll;
 	}
 
 	if (bDrawAll)
 	{
-		ImGui::SetNextWindowSize(vWindowSize, ImGuiCond_Once);
+		ImGui::SetNextWindowSize(vWindowSize, ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSizeConstraints(ImVec2(420,500),ImVec2(FLT_MAX,FLT_MAX));
 		ImGui::SetNextWindowBgAlpha(1.0f);
 
 		ImGui::Begin(lpWindowName, &bDrawAll, WindowFlags);
@@ -52,20 +206,52 @@ void Drawing::Draw()
 
 			EyeDropper::getInstance().EyeDropperToolTip();
 
-			if (ImGui::BeginTabBar("##TabBar")) {
+			if(MainThread::Match_Readed) {
+                DrawPlayableCharactersComboBox();
+                if(PlayableCharactersManager::GetCurrentCharacterIndex()>=0) {
+                    DrawCharacterPaletteNumSlider();
+                    const auto& target=PlayableCharactersManager::GetCurrentCharacter();
+                    ImGui::TextWrapped("Team %d | %s | Palette %d",PlayableCharactersManager::GetCurrentCharacterIndex()/3+1,target.Char_Name,target.Current_Palette_Num+1);
+                    bool assigned=false;
+                    for(const auto& entry:AutoPalette::Auto_Pals)if(entry.Enabled && entry.CharName==target.Char_Name && entry.PalNum==target.Current_Palette_Num) {
+                        ImGui::TextWrapped("Autoload: %s (%s)",entry.PalPath.c_str(),entry.Status.c_str());assigned=true;break;
+                    }
+                    if(!assigned)ImGui::TextDisabled("Autoload: None");
+                }
+            } else pasteUndo.clear();
+            if(switchAfterApply && !AdvancedPalette::Busy()) {
+                switchAfterApply=false;
+                if(!AdvancedPalette::HasPending() && AdvancedPalette::Status=="Applied")CommitTarget();
+                else requestedSlot=requestedPalette=-1;
+            }
+            if((requestedSlot>=0 || requestedPalette>=0) && !switchAfterApply) {
+                if(AdvancedPalette::Busy()) { requestedSlot=requestedPalette=-1; }
+                else if(AdvancedPalette::HasPending())ImGui::OpenPopup("Pending edits");
+                else CommitTarget();
+            }
+            if(ImGui::BeginPopupModal("Pending edits",nullptr,ImGuiWindowFlags_AlwaysAutoResize)) {
+                ImGui::TextUnformatted("Apply or discard pending overlay assignments before changing target.");
+                if(ImGui::Button("Apply")) { AdvancedPalette::ApplyPending(); switchAfterApply=true; ImGui::CloseCurrentPopup(); }
+                ImGui::SameLine();
+                if(ImGui::Button("Discard")) { AdvancedPalette::DiscardPending(); CommitTarget(); ImGui::CloseCurrentPopup(); }
+                ImGui::SameLine();
+                if(ImGui::Button("Cancel")) { requestedSlot=requestedPalette=-1; ImGui::CloseCurrentPopup(); }
+                ImGui::EndPopup();
+            }
+            if (ImGui::BeginTabBar("##TabBar")) {
 
 				if (ImGui::BeginTabItem("Palette")) {
 					DrawPaletteTabItem();
 					ImGui::EndTabItem();
 				}
-                if (ImGui::BeginTabItem("Advanced")) {
+                if (ImGui::BeginTabItem("Advanced",nullptr,openAdvanced?ImGuiTabItemFlags_SetSelected:0)) {
+                    openAdvanced=false;
                     if (!MainThread::Match_Readed) {
                         ImGui::TextUnformatted("Start a match to use advanced settings.");
                     } else {
-                        DrawPlayableCharactersComboBox();
                         if (PlayableCharactersManager::GetCurrentCharacterIndex() != -1) {
-                            DrawCharacterPaletteNumSlider();
                             ImGui::Separator();
+                            DrawCharacterOptions();
                             AdvancedPalette::Draw();
                         }
                     }
@@ -84,6 +270,8 @@ void Drawing::Draw()
 			
 		}
 		ImGui::End();
+        ColorWheel::Draw();
+        DrawSpritePreviewWindow();
 
 	}
 }
@@ -198,21 +386,19 @@ void Drawing::DrawPaletteTabItem() {
 		ImGui::Text("Start a match to use the editor.");
 		return;
 	}
-	DrawPlayableCharactersComboBox();
 	if (charMgr.GetCurrentCharacterIndex() == -1) return;
 
 	ImGui::Spacing();
 
-	DrawCharacterPaletteNumSlider();
     if (!AdvancedPalette::Status.empty())
         ImGui::TextWrapped("%s", AdvancedPalette::Status.c_str());
 
 	ImGui::Separator();
 
-	DrawCharacterOptions();
 
 	ImGui::Separator();
 
+    DrawPaletteWideColors();
 	DrawCharacterColors();
 
 }
@@ -227,7 +413,8 @@ void Drawing::DrawPlayableCharactersComboBox() {
 	if (Curent_Index != -1) {
 		preview_text = allCharsNames[Curent_Index].value();
 	}
-	ImGui::Text("Select character:");
+	ImGui::Text("Target");
+    ImGui::BeginDisabled(AdvancedPalette::Busy());
 
 	if (ImGui::BeginCombo("##CharSelect", preview_text.c_str())) {
 
@@ -253,8 +440,7 @@ void Drawing::DrawPlayableCharactersComboBox() {
 				// Сохраняем ID выбранного персонажа
 				LOG_LOCAL_DEBUG(DrawingLogger, "Choose new Playable Character ", allCharsNames[i].value(), " at ", i);
 				m_ActiveColorIndex = 1;
-				charMgr.SetCurrentCharacterIndex(i);
-				charMgr.LoadCharacter();
+				RequestTarget(i,-1);
 				LOG_DEBUG("Loading character from slot: ", i);
 				LOG_DEBUG("Character name: ", Curent_Char.Char_Name);
 				LOG_DEBUG("Character count of palette: ", Curent_Char.Max_Palette_Num);
@@ -271,16 +457,11 @@ void Drawing::DrawPlayableCharactersComboBox() {
 		ImGui::EndCombo();
 	}
 
+    ImGui::EndDisabled();
 }
 
 void Drawing::DrawCharacterOptions() {
 	ImGui::Text("Options: ");
-	if (GroupColorManager::GetInstance().HasData()) {
-		ImGui::Checkbox("Group Character Parts", &bDrawColorGroup);
-	}
-	else {
-		bDrawColorGroup = false;
-	}
 	ImGui::Checkbox("Single Color Picker", &bUseColorPickerMode);
 
 	if (bUseColorPickerMode) {
@@ -293,103 +474,28 @@ void Drawing::DrawCharacterPaletteNumSlider() {
 	auto& Curent_Char = PlayableCharactersManager::GetCurrentCharacter();
 	int displayValue = Curent_Char.Current_Palette_Num + 1;
 
-	if (ImGui::SliderInt("Palette Number##", &displayValue, 1, Curent_Char.Max_Palette_Num)) {
-		// Вычитаем 1 для получения реального индекса (0-based)
-		int newPaletteIndex = displayValue - 1;
-
-		// Проверяем, действительно ли значение изменилось
-		if (newPaletteIndex != Curent_Char.Current_Palette_Num) {
-			PlayableCharactersManager::ChangePaletteNumber(newPaletteIndex);
-            AdvancedPalette::PaletteChanged();
-		}
-	}
-
-	// Можно добавить отображение текущего значения
-	ImGui::SameLine();
-	ImGui::Text("(%d/%d)", displayValue, Curent_Char.Max_Palette_Num);
+    ImGui::BeginDisabled(AdvancedPalette::Busy());
+    bool changed=false;
+    if(ImGui::Button("Previous")){--displayValue;changed=true;}
+    ImGui::SameLine();ImGui::SetNextItemWidth(100);
+    changed=ImGui::InputInt("##Palette number",&displayValue,0,0,ImGuiInputTextFlags_EnterReturnsTrue)||changed;
+    ImGui::SameLine();if(ImGui::Button("Next")){++displayValue;changed=true;}
+    if(changed && displayValue>=1 && displayValue<=Curent_Char.Max_Palette_Num && displayValue-1!=Curent_Char.Current_Palette_Num)RequestTarget(-1,displayValue-1);
+    ImGui::SameLine();ImGui::Text("of %d",Curent_Char.Max_Palette_Num);
+    int sliderValue=Curent_Char.Current_Palette_Num+1;
+    ImGui::TextUnformatted("Palette slider");
+    ImGui::SetNextItemWidth(-1);
+    if(ImGui::SliderInt("##Palette slider",&sliderValue,1,Curent_Char.Max_Palette_Num) && sliderValue-1!=Curent_Char.Current_Palette_Num)RequestTarget(-1,sliderValue-1);
+    ImGui::EndDisabled();
 }
 
 void Drawing::DrawCharacterColors() {
 
-	ImGui::Text("Additional colors: ");
-	ImGui::Spacing();
-	auto& Curent_Char = PlayableCharactersManager::GetCurrentCharacter();
-	//First of all, we change BGRA to RGBA
-
-	ImVec4 colorLineColorVec = ColorsTools::ImU32BGRAtoImVec4RGBA(Curent_Char.LineColor);
-	//Then, we do the same for ShadowColor1
-	ImVec4 colorShadowColor1Vec = ColorsTools::ImU32BGRAtoImVec4RGBA(Curent_Char.SuperShadowColor1);
-	//And ShadowColor2
-	ImVec4 colorShadowColor2Vec = ColorsTools::ImU32BGRAtoImVec4RGBA(Curent_Char.SuperShadowColor2);
-
-	//Be careful - We will ColorEdit3, instead of ColorEdit4, becouse Alpha Channel don't change anything
-	if (ImGui::ColorEdit3("Line Color", &colorLineColorVec.x, ImGuiColorEditFlags_NoInputs)) {
-		LOG_LOCAL_DEBUG(DrawingLogger, "Change Line color: ");
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorLineColorVec.x);
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorLineColorVec.y);
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorLineColorVec.z);
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorLineColorVec.w);
-		LOG_LOCAL_DEBUG(DrawingLogger, "Red, Green, Blue, Alpha");
-		//First, we change from float ImVec4 to ImU32 (__int32)
-
-		//Then, we change BGRA to RGBA
-		ImU32 ColorToWrite = ColorsTools::ImVec4RGBAtoImU32BGRA(colorLineColorVec);
-
-		PlayableCharactersManager::ChangeOptionPaletteColor(ColorToWrite, ColorOptionFlag::FLAG_LINE_COLOR);
-	}
-
-	ImGui::SameLine();
-
-	if (ImGui::ColorEdit3("Shadow Color 1", &colorShadowColor1Vec.x, ImGuiColorEditFlags_NoInputs)) {
-		LOG_LOCAL_DEBUG(DrawingLogger, "Change Shadow Color: ");
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorShadowColor1Vec.x);
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorShadowColor1Vec.y);
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorShadowColor1Vec.z);
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorShadowColor1Vec.w);
-		LOG_LOCAL_DEBUG(DrawingLogger, "Red, Green, Blue, Alpha");
-		//First, we change from float ImVec4 to ImU32 (__int32)
-		ImU32 ColorToWrite = ColorsTools::ImVec4RGBAtoImU32BGRA(colorShadowColor1Vec);
-
-		PlayableCharactersManager::ChangeOptionPaletteColor(ColorToWrite, ColorOptionFlag::FLAG_SUPER_SHADOW_1);
-	}
-
-	ImGui::SameLine();
-
-	if (ImGui::ColorEdit3("Shadow Color 2", &colorShadowColor2Vec.x, ImGuiColorEditFlags_NoInputs)) {
-		LOG_LOCAL_DEBUG(DrawingLogger, "Change Line color: ");
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorShadowColor2Vec.x);
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorShadowColor2Vec.y);
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorShadowColor2Vec.z);
-		LOG_LOCAL_VARIABLE(DrawingLogger, colorShadowColor2Vec.w);
-		LOG_LOCAL_DEBUG(DrawingLogger, "Red, Green, Blue, Alpha");
-		//First, we change from float ImVec4 to ImU32 (__int32)
-		ImU32 ColorToWrite = ColorsTools::ImVec4RGBAtoImU32BGRA(colorShadowColor2Vec);
-
-		PlayableCharactersManager::ChangeOptionPaletteColor(ColorToWrite, ColorOptionFlag::FLAG_SUPER_SHADOW_2);
-	}
-
-	ImGui::Spacing();
-
+    auto& Curent_Char = PlayableCharactersManager::GetCurrentCharacter();
 	ImGui::Text("Colors Palette: %d", Curent_Char.Num_Of_Color);
 	auto& colors = Curent_Char.Character_Colors;
-	bool hasGroups = false;
-	const std::vector<ColorGroup>* groupsPtr = nullptr;
-
-	if (bDrawColorGroup) {
-		groupsPtr = GroupColorManager::GetInstance().GetGroupsForCharacter(Curent_Char.Char_Name);
-		hasGroups = (groupsPtr != nullptr);
-
-		if (!hasGroups) {
-			LOG_LOCAL_ERROR(DrawingLogger, "Can't find JSON for Character");
-		}
-	}
-
-
-
-
-	// Обработка цветов в зависимости от режима
-	if (hasGroups && bDrawColorGroup) {
-		// Группированный режим
+    const auto* groupsPtr=GroupColorManager::GetInstance().GetGroupsForCharacter(Curent_Char.Char_Name);
+    if(groupsPtr && !groupsPtr->empty()) {
 		const auto& groups = *groupsPtr;
 		static char searchBuffer[256] = "";
 
@@ -407,101 +513,80 @@ void Drawing::DrawCharacterColors() {
 			std::transform(searchLower.begin(), searchLower.end(), searchLower.begin(), ::tolower);
 
 			//return groupNameLower.find(searchLower) != std::string::npos; //Mathes
-			return groupNameLower.rfind(searchLower, 0) == 0; //First latter
+			return groupNameLower.find(searchLower) != std::string::npos; //First latter
 			};
 
-		static bool collapseAll = false;
-		static bool expandAll = false;
+        int& selected=selectedColorGroup;
+        static std::string character;
+        if(character!=Curent_Char.Char_Name){selected=0;character=Curent_Char.Char_Name;}
+        if(selected>=groups.size())selected=0;
+        if(ImGui::Checkbox("Sprite preview window",&PreviewWindowOpen()))config::set_bool("dll_preview_window",PreviewWindowOpen());
+        ImGui::Text("Copied: %s (%u swatches)",copiedGroup.empty()?"Nothing yet":copiedGroup.c_str(),unsigned(s_ClipboardColors.size()));
+            ImGui::BeginDisabled(pasteUndo.empty());
+            if(ImGui::Button("Undo paste") && !pasteUndo.empty()) {
+                auto undo=pasteUndo.back();pasteUndo.pop_back();
+                const bool same=undo.CanUndo(PlayableCharactersManager::GetCurrentCharacterIndex(),Curent_Char.Current_Palette_Num,AdvancedPalette::MatchGeneration,colors);
+                if(same)for(int i=0;i<undo.before.size();++i)PlayableCharactersManager::ChangePaletteColor(undo.start+i,undo.before[i]);
+                else AdvancedPalette::Status="Undo skipped: palette changed since paste.";
+            }
+            ImGui::EndDisabled();
+        ImGui::BeginChild("Color groups",ImVec2(0,0),true);
+        const auto& style=ImGui::GetStyle();
+        auto buttonWidth=[&](const char* label){return std::ceil(ImGui::CalcTextSize(label).x+style.FramePadding.x*2+4);};
+        const float studioWidth=buttonWidth("Color Studio"),effectsWidth=buttonWidth("Effects");
+        const float copyWidth=buttonWidth("Copy"),pasteWidth=buttonWidth("Paste matching");
+        const float minimumWidth=studioWidth+effectsWidth+copyWidth+pasteWidth+style.CellPadding.x*10+ImGui::GetFrameHeight()*2;
+        const float tableWidth=std::max(minimumWidth,ImGui::GetContentRegionAvail().x-style.ScrollbarSize);
+        if(ImGui::BeginTable("Grouped palette rows",5,ImGuiTableFlags_SizingStretchProp|ImGuiTableFlags_ScrollX|ImGuiTableFlags_ScrollY,ImVec2(0,0),tableWidth)) {
+            ImGui::TableSetupColumn("Swatches",ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn("Color Studio",ImGuiTableColumnFlags_WidthFixed,studioWidth);
+            ImGui::TableSetupColumn("Effects",ImGuiTableColumnFlags_WidthFixed,effectsWidth);
+            ImGui::TableSetupColumn("Copy",ImGuiTableColumnFlags_WidthFixed,copyWidth);
+            ImGui::TableSetupColumn("Paste",ImGuiTableColumnFlags_WidthFixed,pasteWidth);
+            for(int n=0;n<int(groups.size());++n) {
+                const auto& group=groups[n];if(!groupMatchesSearch(group))continue;
+                ImGui::PushID(n);ImGui::TableNextRow();ImGui::TableSetColumnIndex(0);
+                if(ImGui::Selectable(group.groupName.c_str(),selected==n,ImGuiSelectableFlags_SpanAllColumns))selected=n;
+                if(ImGui::IsItemHovered())ImGui::SetTooltip("%s (%d swatches)",group.groupName.c_str(),group.count);
+                ImGui::TableNextRow();ImGui::TableSetColumnIndex(0);
+                const int perRow=std::max(1,int(ImGui::GetContentRegionAvail().x/(ImGui::GetFrameHeight()+style.ItemSpacing.x)));
+                for(int i=group.startIndex;i<group.startIndex+group.count && i<int(colors.size());++i) {
+                    DrawColorButton(i,colors[i]);if(ImGui::IsItemActivated())selected=n;
+                    if(i+1<group.startIndex+group.count && i+1<int(colors.size()) && (i-group.startIndex+1)%perRow)ImGui::SameLine();
+                }
+                ImGui::TableSetColumnIndex(1);
+                if(ImGui::Button("Color Studio",ImVec2(studioWidth,0))){selected=n;ColorWheel::Open(group);}
+                ImGui::TableSetColumnIndex(2);
+                if(ImGui::Button("Effects",ImVec2(effectsWidth,0))){selected=n;ImGui::OpenPopup("Group tools");}
+                if(ImGui::BeginPopup("Group tools")) {
+                    ImGui::TextUnformatted(group.groupName.c_str());AdvancedPalette::DrawGroup(group);
+                    if(AdvancedPalette::OpenAdvanced){openAdvanced=true;AdvancedPalette::OpenAdvanced=false;}
+                    ImGui::EndPopup();
+                }
+                ImGui::TableSetColumnIndex(3);
+                if(ImGui::Button("Copy",ImVec2(copyWidth,0)))CopyGroupColors(group);
+                ImGui::TableSetColumnIndex(4);ImGui::BeginDisabled(s_ClipboardColors.empty());
+                const bool matches=s_ClipboardColors.size()==group.count;
+                if(ImGui::Button(matches?"Paste###PasteGroup":"Paste matching###PasteGroup",ImVec2(pasteWidth,0)))PasteGroupColors(group);
+                if(!matches && ImGui::IsItemHovered())ImGui::SetTooltip("Paste matching swatches: %u of %d",unsigned(std::min(s_ClipboardColors.size(),size_t(group.count))),group.count);
+                ImGui::EndDisabled();
+                const auto effects=AdvancedPalette::GroupEffects(group);
+                if(effects!="No applied effects") {
+                    ImGui::TableNextRow();ImGui::TableSetColumnIndex(0);ImGui::TextWrapped("%s",effects.c_str());
+                }
+                ImGui::PopID();
+            }
+            ImGui::EndTable();
+        }
+        ImGui::EndChild();
 
-		if (ImGui::Button("Collapse All")) {
-			collapseAll = true;
-			expandAll = false;
-		}
-		ImGui::SameLine();
-		if (ImGui::Button("Expand All")) {
-			expandAll = true;
-			collapseAll = false;
-		}
-		for (const auto& group : groups) {
-			if (!groupMatchesSearch(group)) continue;
-
-			if (collapseAll) {
-				ImGui::SetNextItemOpen(false, ImGuiCond_Always);
-			}
-			else if (expandAll) {
-				ImGui::SetNextItemOpen(true, ImGuiCond_Always);
-			}
-
-			if (ImGui::CollapsingHeader(group.groupName.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
-				ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 4));
-
-				for (int i = group.startIndex;
-					i < group.startIndex + group.count && i < colors.size();
-					i++) {
-					DrawColorButton(i, colors[i]);
-
-					// Используем SameLine() с проверкой
-					bool isLastInGroup = (i == group.startIndex + group.count - 1);
-					bool isLastValidColor = (i == colors.size() - 1);
-
-					if (!isLastInGroup && !isLastValidColor) {
-						ImGui::SameLine();
-					}
-				}
-				ImGui::PopStyleVar();
-				ImGui::Separator();
-				std::string wheelKey = Curent_Char.Char_Name + std::string("|") + group.groupName;
-				std::string btn_id = std::string("wheelBtn_") + std::to_string(group.startIndex);
-				ImGui::PushID(btn_id.c_str());
-				if (ImGui::Button(("Open Wheel##" + btn_id).c_str())) {
-					wheelOpenMap[wheelKey] = !wheelOpenMap[wheelKey];
-				}
-				ImGui::PopID();
-
-				auto itOpen = wheelOpenMap.find(wheelKey);
-				if (itOpen != wheelOpenMap.end() && itOpen->second) {
-					bool& openRef = itOpen->second;
-					ColorWheel::Draw(group, openRef);
-				}
-				float available_width = ImGui::GetContentRegionAvail().x;
-				float button2_width = ImGui::CalcTextSize("Copy").x + ImGui::GetStyle().FramePadding.x * 2.0f;
-				float button3_width = ImGui::CalcTextSize("Paste").x + ImGui::GetStyle().FramePadding.x * 2.0f;
-				float spacing = ImGui::GetStyle().ItemSpacing.x;
-
-				ImGui::SameLine(available_width - (button2_width + button3_width + spacing));
-
-
-				// Кнопка Copy
-				if (ImGui::Button(("Copy##" + group.groupName).c_str())) {
-					CopyGroupColors(group);
-				}
-
-				// Подсказка для кнопки Copy
-				if (ImGui::IsItemHovered()) {
-					ImGui::SetTooltip("Copy all colors in this group to clipboard");
-				}
-
-				ImGui::SameLine();
-
-				// Кнопка Paste
-				if (ImGui::Button(("Paste##" + group.groupName).c_str())) {
-					PasteGroupColors(group);
-				}
-
-				// Подсказка для кнопки Paste
-				if (ImGui::IsItemHovered()) {
-					ImGui::SetTooltip("Paste colors from clipboard to this group");
-				}
-                AdvancedPalette::DrawGroup(group);
-				ImGui::Separator();
-				ImGui::Spacing();
-			}
-			ImGui::Spacing();
-		}
-		collapseAll = false;
-		expandAll = false;
 	}
 	else {
+        ImGui::TextWrapped("Group labels are unavailable for this fighter. Bundled groups.json is loaded automatically; you can choose a custom file below.");
+        if(ImGui::Button("Choose group labels")) {
+            IGFD::FileDialogConfig cfg;cfg.path=".";
+            ImGuiFileDialog::Instance()->OpenDialog("LoadJSON","Choose character group labels",".json",cfg);
+        }
 		// Автоматический расчет столбцов для негруппированного режима
 		float availableWidth = ImGui::GetContentRegionAvail().x;
 		float colorButtonSize = ImGui::GetFrameHeight();
@@ -525,6 +610,32 @@ void Drawing::DrawCharacterColors() {
 		}
 	}
 	
+}
+
+void Drawing::DrawSpritePreviewWindow() {
+    if(!PreviewWindowOpen())return;
+    ImGui::SetNextWindowSize(ImVec2(650,850),ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSizeConstraints(ImVec2(460,540),ImVec2(FLT_MAX,FLT_MAX));
+    ImGui::SetNextWindowBgAlpha(1.f);
+    if(ImGui::Begin("Sprite preview",&PreviewWindowOpen())) {
+        if(!MainThread::Match_Readed || PlayableCharactersManager::GetCurrentCharacterIndex()<0)ImGui::TextWrapped("Select a fighter in the palette editor.");
+        else {
+            auto& target=PlayableCharactersManager::GetCurrentCharacter();
+            const auto* groups=GroupColorManager::GetInstance().GetGroupsForCharacter(target.Char_Name);
+            if(groups && !groups->empty()) {
+                selectedColorGroup=std::clamp(selectedColorGroup,0,int(groups->size())-1);
+                const auto& group=(*groups)[selectedColorGroup];
+                ImGui::TextWrapped("%s | Palette %d | %s",target.Char_Name,target.Current_Palette_Num+1,group.groupName.c_str());
+                try {
+                    auto layout=AdvancedPalette::PreviewLayout();std::set<int> bands;
+                    int first=0;for(int band=0;band<layout.size();++band){if(first<group.startIndex+group.count && first+layout[band]>group.startIndex)bands.insert(band);first+=layout[band];}
+                    SpriteViewer::Draw(PlayableCharactersManager::GetCurrentCharacterIndex(),target.Current_Palette_Num,target.Char_Name,target.Character_Colors,layout,group,bands);
+                }catch(const std::exception& e){ImGui::TextWrapped("Preview unavailable: %s",e.what());}
+            }else ImGui::TextWrapped("No color groups available for this fighter.");
+        }
+    }
+    ImGui::End();
+    if(!PreviewWindowOpen())config::set_bool("dll_preview_window",false);
 }
 
 void Drawing::DrawColorButton(int index, ImU32 colorU32) {
@@ -610,6 +721,7 @@ void Drawing::ProcessColorChange(int index, const ImVec4& colorVec) {
 }
 
 void Drawing::DrawAutoLoadPaletteTabItem() {
+    if(!config::Status.empty())ImGui::TextWrapped("%s",config::Status.c_str());
     if(ImGuiFileDialog::Instance()->IsOpened()) {ImGui::TextUnformatted("Finish the file dialog to edit assignments.");return;}
     ImGui::TextWrapped("Load colors and applied shader settings once per palette, and again in each new match.");
     if(ImGui::Button("Add assignment")){AutoPalette::Auto_Pals.push_back({"Filia",0,""});AutoPalette::save();}
@@ -624,7 +736,7 @@ void Drawing::DrawAutoLoadPaletteTabItem() {
             ImGui::EndCombo();
         }
         int number=pal.PalNum+1;ImGui::SetNextItemWidth(180);
-        if(ImGui::InputInt("Palette number",&number)){pal.PalNum=std::clamp(number,1,256)-1;AutoPalette::save();}
+        if(ImGui::InputInt("##Palette number",&number)){pal.PalNum=std::clamp(number,1,256)-1;AutoPalette::save();}
         char path[32769]{};strncpy_s(path,pal.PalPath.c_str(),_TRUNCATE);
         ImGui::SetNextItemWidth(std::max(150.0f,ImGui::GetContentRegionAvail().x-95));
         if(ImGui::InputText("##path",path,sizeof(path)))pal.PalPath=path;
@@ -667,6 +779,20 @@ void Drawing::DrawOptionsTabItem()
 void Drawing::DrawFileDialog() {
 
 	ImGui::SetNextWindowSize(vFileDialogSize, ImGuiCond_Once);
+    PollSpritePreparation();
+
+    if(ImGuiFileDialog::Instance()->Display("ChoosePreviewPython")) {
+        if(ImGuiFileDialog::Instance()->IsOk())SpriteViewer::preparationPython=PathFromUtf8(ImGuiFileDialog::Instance()->GetFilePathName());
+        ImGuiFileDialog::Instance()->Close();
+    }
+
+    if(ImGuiFileDialog::Instance()->Display("PrepareSpritePreview")) {
+        if(ImGuiFileDialog::Instance()->IsOk()) {
+            const auto selected=PathFromUtf8(ImGuiFileDialog::Instance()->GetFilePathName());
+            StartSpritePreparation(selected);
+        }
+        ImGuiFileDialog::Instance()->Close();
+    }
 
 	if (ImGuiFileDialog::Instance()->Display("SavePaletteFile")) {
 
@@ -887,6 +1013,7 @@ void Drawing::CopyGroupColors(const ColorGroup& group) {
 
 	// Очищаем буфер обмена
 	s_ClipboardColors.clear();
+    copiedGroup=group.groupName;
 
 	// Копируем цвета группы в буфер обмена
 	for (int i = group.startIndex;
@@ -926,6 +1053,10 @@ void Drawing::PasteGroupColors(const ColorGroup& group) {
 	// Вставляем цвета из буфера обмена
 	int pasteCount = std::min((int)s_ClipboardColors.size(), group.count);
 
+    PasteUndo undo{PlayableCharactersManager::GetCurrentCharacterIndex(),PlayableCharactersManager::GetCurrentCharacter().Current_Palette_Num,group.startIndex,{},{}};
+    for(int i=0;i<pasteCount && group.startIndex+i<colors.size();++i){undo.before.push_back(colors[group.startIndex+i]);undo.after.push_back(s_ClipboardColors[i]);}
+    undo.generation=AdvancedPalette::MatchGeneration;
+    if(!undo.before.empty())pasteUndo.push_back(undo);
 	for (int i = 0; i < pasteCount; i++) {
 		int colorIndex = group.startIndex + i;
 		if (colorIndex >= colors.size()) break;
@@ -972,4 +1103,22 @@ void Drawing::Developer::DrawDevWindow() {
 
 
 	ImGui::End();
+}
+
+void Drawing::DrawPaletteWideColors() {
+    auto& target=PlayableCharactersManager::GetCurrentCharacter();
+    if(ImGui::BeginTable("Line and shadow colors",3,ImGuiTableFlags_SizingStretchSame)) {
+        ImGui::TableNextRow();
+        ImU32* values[]={&target.LineColor,&target.SuperShadowColor1,&target.SuperShadowColor2};
+        const char* labels[]={"Line","Shadow 1","Shadow 2"};
+        const ColorOptionFlag flags[]={FLAG_LINE_COLOR,FLAG_SUPER_SHADOW_1,FLAG_SUPER_SHADOW_2};
+        for(int i=0;i<3;++i) {
+            ImGui::TableSetColumnIndex(i);auto color=ColorsTools::ImU32BGRAtoImVec4RGBA(*values[i]);
+            if(ImGui::ColorEdit3(labels[i],&color.x,ImGuiColorEditFlags_NoInputs)) {
+                auto value=ColorsTools::ImVec4RGBAtoImU32BGRA(color);
+                PlayableCharactersManager::ChangeOptionPaletteColor(value,flags[i]);
+            }
+        }
+        ImGui::EndTable();
+    }
 }

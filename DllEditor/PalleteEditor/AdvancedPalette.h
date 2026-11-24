@@ -1,8 +1,20 @@
 #pragma once
 #include <string>
+#include <vector>
+#include <set>
 #include "Files/GroupJSONFiles.h"
 namespace AdvancedPalette {
     extern std::string Status;
+    inline unsigned long long MatchGeneration=0;
+    inline bool OpenAdvanced=false;
+    inline bool RevealNativeBands=false;
+    std::vector<int> PreviewLayout();
+    std::set<int> PreviewBands(const ColorGroup& group);
+    bool Busy();
+    bool HasPending();
+    void DiscardPending();
+    void ApplyPending();
+    std::string GroupEffects(const ColorGroup& group);
     void Tick();
     void Draw();
     void DrawGroup(const ColorGroup& group);
