@@ -50,12 +50,16 @@ int main(int argc,char** argv){try {
   const auto& rows=SpriteViewer::defaultRows;SpriteViewer::sizes.assign(rows.size()/64,16);SpriteViewer::original.assign(rows.size()/4,0);
   for(size_t band=0;band<SpriteViewer::sizes.size();++band)for(size_t i=0;i<16;++i){const auto off=band*64+(15-i)*4;uint32_t color=0;for(int ch=0;ch<4;++ch)color|=uint32_t(rows[off+ch])<<(8*ch);SpriteViewer::original[band*16+i]=color;}
   SpriteViewer::edited=SpriteViewer::original;SpriteViewer::snapshotCharacter="Cerebella";SpriteViewer::showOriginal=true;
-  auto move=std::find_if(SpriteViewer::animations.begin(),SpriteViewer::animations.end(),[](const auto& a){return a.id==21;});Check(move!=SpriteViewer::animations.end(),"Crouch timeline missing");SpriteViewer::selectedAnimation=int(move-SpriteViewer::animations.begin());
-  auto actual=SpriteViewer::CaptureAnimationExport(false,0);auto state=std::make_shared<SpriteViewer::AnimationProgress>();state->total=actual.animation.frames.size();
-  PaletteData::AtomicWrite(output/"Cerebella-crouch.apng",SpriteViewer::EncodeAnimation(actual,state));actual.gif=true;PaletteData::AtomicWrite(output/"Cerebella-crouch.gif",SpriteViewer::EncodeAnimation(actual,state));
-  nlohmann::json meta={{"frames",actual.animation.frames.size()},{"width",actual.bounds.right-actual.bounds.left},{"height",actual.bounds.bottom-actual.bounds.top},{"ticks",nlohmann::json::array()}};
-  for(const auto& entry:actual.animation.frames)meta["ticks"].push_back(entry.duration);PaletteData::AtomicWriteText(output/"Cerebella-crouch.json",meta.dump());
-  std::cout<<"Exported Cerebella Crouch [21]: "<<actual.animation.frames.size()<<" frames in both formats.\n";
+  for(const auto& selection:std::vector<std::pair<unsigned,std::string>>{{21,"crouch"},{20,"idle"},{103,"standing-heavy-punch"}}) {
+   auto move=std::find_if(SpriteViewer::animations.begin(),SpriteViewer::animations.end(),[&](const auto& a){return a.id==selection.first;});Check(move!=SpriteViewer::animations.end(),"Sample timeline missing");SpriteViewer::selectedAnimation=int(move-SpriteViewer::animations.begin());
+   auto actual=SpriteViewer::CaptureAnimationExport(false,0);auto state=std::make_shared<SpriteViewer::AnimationProgress>();state->total=actual.animation.frames.size();
+   const auto stem="Cerebella-"+selection.second;
+   PaletteData::AtomicWrite(output/(stem+".apng"),SpriteViewer::EncodeAnimation(actual,state));actual.gif=true;PaletteData::AtomicWrite(output/(stem+".gif"),SpriteViewer::EncodeAnimation(actual,state));
+   nlohmann::json meta={{"name",move->name},{"frames",actual.animation.frames.size()},{"width",actual.bounds.right-actual.bounds.left},{"height",actual.bounds.bottom-actual.bounds.top},{"ticks",nlohmann::json::array()},{"sprites",nlohmann::json::array()}};
+   for(const auto& entry:actual.animation.frames){meta["ticks"].push_back(entry.duration);meta["sprites"].push_back(entry.sprite);}
+   PaletteData::AtomicWriteText(output/(stem+".json"),meta.dump());
+   std::cout<<"Exported Cerebella "<<move->name<<" ["<<move->id<<"]: "<<actual.animation.frames.size()<<" frames in both formats.\n";
+  }
  }
  std::cout<<"Animation export fixtures passed: bounds, authored timing, snapshot isolation, background completion, cancellation, limits and quantization.\n";return 0;
 }catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}

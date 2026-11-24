@@ -65,11 +65,10 @@ with Image.open(root / 'snapshot.apng') as image:
         pixels = [image.convert('RGBA').getpixel((x, 0)) for x in range(3)]
         assert pixels[0 if i < 2 else 2] == (255, 0, 0, 128), 'Snapshot/origin moved or changed'
         assert sum(p[3] > 0 for p in pixels) == 1
-metadata = root / 'Cerebella-crouch.json'
-if metadata.exists():
+for metadata in root.glob('Cerebella-*.json'):
     data = json.loads(metadata.read_text())
     for ext in ('apng', 'gif'):
-        path = root / f'Cerebella-crouch.{ext}'
+        path = metadata.with_suffix('.'+ext)
         if ext == 'apng':
             check_chunks(path)
         with Image.open(path) as image:

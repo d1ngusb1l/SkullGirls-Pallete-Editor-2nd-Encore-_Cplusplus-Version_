@@ -238,3 +238,5 @@ Post-setup preservation check: every saved .pal hash and the full PaletteEditorD
 - Validation DLL builds with palette networking/lobby/Steam/protocol exclusions intact. The UI save-picker/progress/cancel controls still need direct in-game verification; native tests cover the same encoders and background job path.
 
 Animation-export test DLL installed while the isolated runner was closed, with its previous DLL backed up. SHA-256: 5E094F4584D73E92C40A299BA9DD80AAA3C3B1540F211A0F98E96EBA208E0812. Example sizes: Cerebella-crouch.gif 356,245 bytes; Cerebella-crouch.apng 1,337,548 bytes.
+
+Animation comparison follow-up: generated and independently decoded Cerebella Stand [20] (29 timeline entries, 107 ticks / 1.783 s, 15 distinct sprites) and s.HP [103] (25 entries, 53 ticks / 0.883 s, 13 distinct sprites) in GIF and APNG. Both passed frame count, canvas, transparency and timing checks. Crouch [21] has different first/last poses, so looping that transition can introduce a seam; this observation does not establish that all visible stutter is exporter-independent. No DLL behavior changed for these comparison samples.
