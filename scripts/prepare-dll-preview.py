@@ -116,12 +116,33 @@ def frame_table(foit,main_art_size):
             continue
     raise ValueError('No valid version-9 character frame table')
 
-def skip_expression(c):
+def read_expression(c):
+    expressions=[]
     while True:
-        a=c.num(1);b=c.num(1);d=c.num(1);flags=c.num(1)
-        c.take(1+(a&1)+((b&1))*3+(d&1)) if False else None
-        c.take(1+(4 if not (a&1) else 1)+(4 if not (b&1) else 1)+(4 if not (d&1) else 1))
-        if not (flags&2):return
+        a,b,d,flags=[c.num(1) for _ in range(4)]
+        opcode=c.num(1)
+        operands=[(kind,c.num(1 if kind&1 else 4)) for kind in (a,b,d)]
+        expressions.append({'opcode':opcode,'comparison':bool(flags&1),
+                            'left':operands[0],'right':operands[1],'destination':operands[2]})
+        if not flags&2:return expressions
+
+def skip_expression(c):
+    read_expression(c)
+
+def advances_immediately(expressions):
+    # Native variable 0x3a asks the move updater to advance within this tick.
+    # Only unconditional constant assignment is evaluated; do not guess live state.
+    if any(expression["comparison"] for expression in expressions):return False
+    result=False
+    for expression in expressions:
+        if expression['comparison'] or expression['destination']!=(1,0x3a):continue
+        kind,bits=expression['left']
+        if expression['opcode']==1 and kind in (0,0x24):
+            value=struct.unpack('<f',bits.to_bytes(4,'little'))[0]
+            result=value!=0
+        else:
+            result=False
+    return result
 
 def skip_condition(c):
     c.take(4)
@@ -140,13 +161,15 @@ def skip_hit(c):
         if flags&(1<<i):skip_expression(c)
     if flags&16:c.take(2)
 
-def read_animation_ticks(c):
+def read_animation_ticks(c,details=None):
     ticks=None
     while True:
         first=c.num(1);second=c.num(1);third=c.num(1)
-        if third&128:skip_expression(c)
+        expressions=read_expression(c) if third&128 else []
         duration=c.num(2) if first&1 else 1
-        if ticks is None:ticks=duration
+        if ticks is None:
+            ticks=duration
+            if details is not None:details["advance_immediately"]=advances_immediately(expressions)
         if third&64:c.take(1)
         payloads=c.num(1)
         if payloads&~7:raise ValueError('Invalid FOIT animation frame payload')
@@ -178,9 +201,10 @@ def read_move_table(c,file_size,sprite_count,read_children=False,validate_sprite
         animation=[]
         for _ in range(frames):
             sprites=[c.num(2) for _ in range(3)]
-            if validate_sprite_references and any(sprite>=sprite_count for sprite in sprites):raise ValueError('Invalid FOIT sprite reference')
-            ticks=read_animation_ticks(c)
-            animation.append({'sprites':sprites,'duration':ticks})
+            if validate_sprite_references and any(sprite>sprite_count for sprite in sprites):raise ValueError('Invalid FOIT sprite reference')
+            details={}
+            ticks=read_animation_ticks(c,details)
+            animation.append({'sprites':sprites,'duration':ticks,**details})
         if c.num(1):
             skip_condition(c);read_animation_ticks(c)
         if c.num(1):skip_expression(c)
@@ -246,24 +270,26 @@ def resolve_art_bank(bank,art_banks):
 
 def validate_timeline_frame(frame,records):
     for sprite in frame['sprites']:
-        if not isinstance(sprite,int) or sprite<0 or sprite>=len(records):
+        if not isinstance(sprite,int) or sprite<0 or sprite>len(records):
             raise ValueError('Invalid FOIT sprite reference')
-    sprite=frame.get('body_sprite',frame['sprites'][1])
+    sprite=frame.get('body_sprite',max(0,frame['sprites'][1]-1))
     record=records[sprite]
     if record['bank'] not in (4,5,6):
         raise ValueError('Unsupported character art bank '+str(record['bank']))
     if not frame.get('duration',0)>=1:
         raise ValueError('Invalid authored frame duration')
 
-def map_body_timeline(animation,fallback_sprite=2):
+def map_body_timeline(animation,fallback_sprite=1):
     pose=fallback_sprite
     result=[]
-    for frame in animation:
-        body_sprite=frame['sprites'][1]
-        if body_sprite>1:
-            pose=body_sprite
+    for index,frame in enumerate(animation):
+        reference=frame['sprites'][1]
+        if reference>0:
+            pose=reference-1  # FOIT references are one-based; zero retains the prior pose.
+        if frame.get('advance_immediately',False):continue
         mapped=dict(frame)
         mapped['body_sprite']=pose
+        mapped['source_record']=index
         result.append(mapped)
     return result
 
@@ -328,14 +354,14 @@ def build_character_section(folder,character,output_path):
     raw_animations,names=read_move_table(Cursor(foit,cursor),len(foit),len(records),True)
     if len(names)!=len(raw_animations):raise ValueError('Malformed animation names for '+character)
 
-    fallback=2 if character=='cerebella' and len(records)>2 and frame_support_reason(records[2],art_banks) is None else None
+    fallback=1 if character=='cerebella' and len(records)>1 and frame_support_reason(records[1],art_banks) is None else None
     preferred=sorted(range(len(raw_animations)),key=lambda i:(
         0 if any(word in names[i].lower() for word in ('idle','stand','wait')) else 1,i))
     if fallback is None:
         for animation_id in preferred:
             for frame in raw_animations[animation_id]:
-                sprite=frame['sprites'][1]
-                if 1<sprite<len(records) and frame_support_reason(records[sprite],art_banks) is None:
+                sprite=frame['sprites'][1]-1
+                if 0<=sprite<len(records) and frame_support_reason(records[sprite],art_banks) is None:
                     fallback=sprite
                     break
             if fallback is not None:break
@@ -349,6 +375,9 @@ def build_character_section(folder,character,output_path):
             unsupported.append({'id':animation_id,'name':names[animation_id],'reason':'empty timeline'})
             continue
         animation=map_body_timeline(raw_animation,fallback)
+        if not animation:
+            unsupported.append({"id":animation_id,"name":names[animation_id],"reason":"no timed records after same-tick commands"})
+            continue
         reason=None;extra_layer_frames={}
         for frame in animation:
             sprite=frame['body_sprite']
@@ -391,7 +420,7 @@ def build_character_section(folder,character,output_path):
         decoded.append((sprite_id,record['origin'][0],record['origin'][1],layers))
 
     with output_path.open('wb') as out:
-        write_section_bytes(out,struct.pack('<8s4I',b'SGPOSE5\0',len(palette),fallback,len(decoded),len(animations)))
+        write_section_bytes(out,struct.pack('<8s4I',b'SGPOSE6\0',len(palette),fallback,len(decoded),len(animations)))
         write_section_bytes(out,palette)
         for sprite_id,ox,oy,layers in decoded:
             write_section_bytes(out,struct.pack('<IiiI',sprite_id,ox,oy,len(layers)))
@@ -416,6 +445,8 @@ def build_character_section(folder,character,output_path):
         'paletteBytes':len(palette),'bytes':size,
         'sha256':sha256_file(output_path),
         'foitSha256':hashlib.sha256(foit).hexdigest(),
+        'timelineMapping':'one-based references; unconditional constant advance variable 0x3a consumes no tick',
+        'sameTickRecordsOmitted':sum(bool(frame.get('advance_immediately')) for animation in raw_animations for frame in animation),
         'unsupportedAnimations':unsupported,
         'animationsWithAdditionalUnpreviewedLayers':animations_with_extra_layers,
     }

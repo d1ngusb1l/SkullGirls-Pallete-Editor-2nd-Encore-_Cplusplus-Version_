@@ -162,40 +162,40 @@ inline void Load(const char* character) {
         } else if(!legacyFile) {
             if(_stricmp(character,"Cerebella")!=0)throw std::runtime_error("Unsupported combined preview asset format.");
             const bool knownPose=memcmp(magic,"SGPOSE1\0",8)==0 || memcmp(magic,"SGPOSE2\0",8)==0 ||
-                memcmp(magic,"SGPOSE3\0",8)==0 || memcmp(magic,"SGPOSE4\0",8)==0 || memcmp(magic,"SGPOSE5\0",8)==0;
+                memcmp(magic,"SGPOSE3\0",8)==0 || memcmp(magic,"SGPOSE4\0",8)==0 || memcmp(magic,"SGPOSE6\0",8)==0;
             if(!knownPose)throw std::runtime_error("Unsupported preview asset format.");
         }
         if(sectionLength<24 || sectionLength>128ull*1024*1024)throw std::runtime_error("Unsupported character preview section size.");
         unsigned paletteBytes=0,fallback=0,frameCount=0,animationCount=0;
         f.read(reinterpret_cast<char*>(&paletteBytes),4);f.read(reinterpret_cast<char*>(&fallback),4);f.read(reinterpret_cast<char*>(&frameCount),4);f.read(reinterpret_cast<char*>(&animationCount),4);
         fallbackSprite=fallback;
-        if(memcmp(magic,"SGPOSE2\0",8)==0 || memcmp(magic,"SGPOSE3\0",8)==0 || memcmp(magic,"SGPOSE4\0",8)==0)throw std::runtime_error("This preview asset uses an outdated sprite mapping or layer format. Regenerate it with the current scripts/prepare-dll-preview.py.");
-        if(memcmp(magic,"SGPOSE5\0",8)==0) {
-            if(paletteBytes<64 || paletteBytes>16384 || paletteBytes%64 || frameCount<1 || frameCount>4096 || animationCount>1000)throw std::runtime_error("Malformed SGPOSE5 preview asset.");
-            if(sectionLength<24+paletteBytes)throw std::runtime_error("Truncated SGPOSE5 palette.");
-            defaultRows.resize(paletteBytes);if(!ReadExactly(f,reinterpret_cast<char*>(defaultRows.data()),paletteBytes))throw std::runtime_error("Truncated SGPOSE5 palette.");
+        if(memcmp(magic,"SGPOSE2\0",8)==0 || memcmp(magic,"SGPOSE3\0",8)==0 || memcmp(magic,"SGPOSE4\0",8)==0 || memcmp(magic,"SGPOSE5\0",8)==0)throw std::runtime_error("This preview asset has outdated timeline indexing/timing. Use Prepare combined sprite asset to regenerate it.");
+        if(memcmp(magic,"SGPOSE6\0",8)==0) {
+            if(paletteBytes<64 || paletteBytes>16384 || paletteBytes%64 || frameCount<1 || frameCount>4096 || animationCount>1000)throw std::runtime_error("Malformed SGPOSE6 preview asset.");
+            if(sectionLength<24+paletteBytes)throw std::runtime_error("Truncated SGPOSE6 palette.");
+            defaultRows.resize(paletteBytes);if(!ReadExactly(f,reinterpret_cast<char*>(defaultRows.data()),paletteBytes))throw std::runtime_error("Truncated SGPOSE6 palette.");
             bool fallbackFound=false;
             for(unsigned r=0;r<frameCount;++r) {
                 unsigned id=0,layerCount=0;int originX=0,originY=0;
                 f.read(reinterpret_cast<char*>(&id),4);f.read(reinterpret_cast<char*>(&originX),4);f.read(reinterpret_cast<char*>(&originY),4);f.read(reinterpret_cast<char*>(&layerCount),4);
-                if(!f || layerCount<1 || layerCount>8)throw std::runtime_error("Malformed SGPOSE5 sprite record.");
+                if(!f || layerCount<1 || layerCount>8)throw std::runtime_error("Malformed SGPOSE6 sprite record.");
                 SpriteFrameAsset frame;frame.id=id;
                 SpritePreviewGeometry::Bounds bounds;
                 for(unsigned l=0;l<layerCount;++l) {
                     unsigned slot=0,used=0;unsigned short columns=0,rows=0,flags=0;int x=0,y=0;unsigned channelBytes[3]={};
                     f.read(reinterpret_cast<char*>(&slot),4);f.read(reinterpret_cast<char*>(&x),4);f.read(reinterpret_cast<char*>(&y),4);f.read(reinterpret_cast<char*>(&columns),2);f.read(reinterpret_cast<char*>(&rows),2);f.read(reinterpret_cast<char*>(&flags),2);f.read(reinterpret_cast<char*>(&used),2);f.read(reinterpret_cast<char*>(&channelBytes[0]),4);f.read(reinterpret_cast<char*>(&channelBytes[1]),4);f.read(reinterpret_cast<char*>(&channelBytes[2]),4);
                     unsigned layerWidth=BoundDimension(columns*16),layerHeight=BoundDimension(rows*16);
-                    if(slot>7 || used==0 || used>columns*rows || (flags&~64u) || size_t(layerWidth)*layerHeight*3>16*1024*1024)throw std::runtime_error("Malformed or oversized SGPOSE5 sprite layer.");
+                    if(slot>7 || used==0 || used>columns*rows || (flags&~64u) || size_t(layerWidth)*layerHeight*3>16*1024*1024)throw std::runtime_error("Malformed or oversized SGPOSE6 sprite layer.");
                     long long relativeX=static_cast<long long>(x)-originX,relativeY=static_cast<long long>(y)-originY;
                     if(relativeX<-8192 || relativeX>8192 || relativeY<-8192 || relativeY>8192)throw std::runtime_error("Sprite layer origin offset exceeds bounds.");
                     PixelLayer layer;layer.slot=slot;layer.x=static_cast<int>(relativeX);layer.y=static_cast<int>(relativeY);layer.width=layerWidth;layer.height=layerHeight;layer.flags=flags;layer.tiles.resize(used);
-                    if(!ReadExactly(f,reinterpret_cast<char*>(layer.tiles.data()),used*sizeof(unsigned short)))throw std::runtime_error("Truncated SGPOSE5 sprite tile list.");
+                    if(!ReadExactly(f,reinterpret_cast<char*>(layer.tiles.data()),used*sizeof(unsigned short)))throw std::runtime_error("Truncated SGPOSE6 sprite tile list.");
                     std::set<unsigned short> uniqueTiles;
-                    for(auto tile:layer.tiles)if(tile>=columns*rows || !uniqueTiles.insert(tile).second)throw std::runtime_error("Invalid SGPOSE5 tile position.");
+                    for(auto tile:layer.tiles)if(tile>=columns*rows || !uniqueTiles.insert(tile).second)throw std::runtime_error("Invalid SGPOSE6 tile position.");
                     for(unsigned channel=0;channel<3;++channel) {
-                        if(channelBytes[channel]==0 || channelBytes[channel]>16*1024*1024 || static_cast<unsigned long long>(f.tellg())>f.limit || channelBytes[channel]>f.limit-static_cast<unsigned long long>(f.tellg()))throw std::runtime_error("Malformed SGPOSE5 channel length.");
+                        if(channelBytes[channel]==0 || channelBytes[channel]>16*1024*1024 || static_cast<unsigned long long>(f.tellg())>f.limit || channelBytes[channel]>f.limit-static_cast<unsigned long long>(f.tellg()))throw std::runtime_error("Malformed SGPOSE6 channel length.");
                         layer.channels[channel].resize(channelBytes[channel]);
-                        if(!ReadExactly(f,reinterpret_cast<char*>(layer.channels[channel].data()),channelBytes[channel]))throw std::runtime_error("Truncated SGPOSE5 sprite channel.");
+                        if(!ReadExactly(f,reinterpret_cast<char*>(layer.channels[channel].data()),channelBytes[channel]))throw std::runtime_error("Truncated SGPOSE6 sprite channel.");
                     }
                     bounds.Add(layer.x,layer.y,layerWidth,layerHeight);
                     frame.layers.push_back(std::move(layer));
@@ -205,25 +205,25 @@ inline void Load(const char* character) {
                 for(auto& layer:frame.layers){layer.offsetX=bounds.OffsetX(layer.x);layer.offsetY=bounds.OffsetY(layer.y);}
                 frames.push_back(std::move(frame));if(id==fallback)fallbackFound=true;
             }
-            if(!fallbackFound)throw std::runtime_error("SGPOSE5 is missing the fixed-pose fallback sprite.");
+            if(!fallbackFound)throw std::runtime_error("SGPOSE6 is missing the fixed-pose fallback sprite.");
             unsigned long long totalTimelineFrames=0;
             for(unsigned a=0;a<animationCount;++a) {
                 unsigned id=0,nameBytes=0,frameCount=0;f.read(reinterpret_cast<char*>(&id),4);f.read(reinterpret_cast<char*>(&nameBytes),4);
-                if(nameBytes<1 || nameBytes>1024)throw std::runtime_error("Malformed SGPOSE5 animation name.");
-                std::string name(nameBytes,'\0');if(!ReadExactly(f,name.data(),nameBytes))throw std::runtime_error("Truncated SGPOSE5 animation name.");
-                f.read(reinterpret_cast<char*>(&frameCount),4);if(!f || frameCount<1 || frameCount>65535 || totalTimelineFrames+frameCount>100000)throw std::runtime_error("Malformed or oversized SGPOSE5 timeline.");
+                if(nameBytes<1 || nameBytes>1024)throw std::runtime_error("Malformed SGPOSE6 animation name.");
+                std::string name(nameBytes,'\0');if(!ReadExactly(f,name.data(),nameBytes))throw std::runtime_error("Truncated SGPOSE6 animation name.");
+                f.read(reinterpret_cast<char*>(&frameCount),4);if(!f || frameCount<1 || frameCount>65535 || totalTimelineFrames+frameCount>100000)throw std::runtime_error("Malformed or oversized SGPOSE6 timeline.");
                 totalTimelineFrames+=frameCount;
                 AnimationAsset animation;animation.id=id;animation.name=name;
                 for(unsigned t=0;t<frameCount;++t) {
                     unsigned short sprite=0,sprite1=0,sprite2=0,duration=0;
                     f.read(reinterpret_cast<char*>(&sprite),2);f.read(reinterpret_cast<char*>(&sprite1),2);f.read(reinterpret_cast<char*>(&sprite2),2);f.read(reinterpret_cast<char*>(&duration),2);
-                    if(!f || duration<1 || duration>65535)throw std::runtime_error("Malformed SGPOSE5 timeline frame.");
+                    if(!f || duration<1 || duration>65535)throw std::runtime_error("Malformed SGPOSE6 timeline frame.");
                     bool known=false;for(const auto& frame:frames)if(frame.id==sprite){known=true;break;}if(!known)throw std::runtime_error("Animation timeline references an invalid sprite record.");
                     animation.frames.push_back({sprite,duration,sprite1,sprite2});
                 }
                 animations.push_back(std::move(animation));
             }
-            if(static_cast<unsigned long long>(f.tellg())!=static_cast<unsigned long long>(sectionOffset)+sectionLength)throw std::runtime_error("Trailing or malformed SGPOSE5 preview data.");
+            if(static_cast<unsigned long long>(f.tellg())!=static_cast<unsigned long long>(sectionOffset)+sectionLength)throw std::runtime_error("Trailing or malformed SGPOSE6 preview data.");
         } else if(memcmp(magic,"SGPOSE1\0",8)==0) {
             legacyFixedOnly=true;
             unsigned count=paletteBytes;
