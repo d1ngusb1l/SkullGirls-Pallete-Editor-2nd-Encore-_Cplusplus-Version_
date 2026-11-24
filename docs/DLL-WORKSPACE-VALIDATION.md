@@ -160,3 +160,11 @@ Validation performed:
 - The in-game preparation button/Python picker, exact pose equivalence, all-character GPU coverage, device reset and the benched Autoload scenario were not independently retested in this continuation. Extra artwork layers and shader effects remain explicitly unpreviewed. Existing live rendering/Autoload implementation was not modified.
 
 Native tests: tests/SpritePreviewGeometryTests.vcxproj and tests/SpritePreviewAssetTests.vcxproj. Run the asset executable with the directory containing sprite-preview.bin as its argument. Generated images/assets remain ignored build/ artifacts.
+
+## Classic color workflow follow-up
+
+- Default layout now shows every matching group with directly editable swatches and per-group Copy/Paste; no group needs opening for these actions.
+- Use workspace layout restores the inspector; direct list Copy/Paste is available there too. Layout and optional classic preview preferences persist in the existing configuration file. The target and clipboard are shared between layouts.
+- Clipboard name/count and Undo paste are outside the scrolling panes. Existing PasteGroupColors and its single undo record are reused. Unequal-size paste remains explicitly labeled. Effects / wheel opens existing overlay controls with Apply/status; Advanced and Auto-load retain their roles.
+- Win32 validation build and networking-exclusion inspection passed. Installed while the runner was closed, with a backup of the prior DLL. SHA-256: 2907A3C2BDC2C57D23B242C16101BB1A289692A8C76BBA69DCBBC1F857209092.
+- In-game layout, switching, Copy/Paste/Undo and preference persistence checks are pending for this build. No new game-rendering or Autoload code was changed.

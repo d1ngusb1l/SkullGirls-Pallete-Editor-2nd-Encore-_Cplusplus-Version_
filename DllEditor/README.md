@@ -21,3 +21,9 @@ Settings are stored in **PaletteEditorDLLConfig.json** in the game working direc
 Run `scripts/build-dll.ps1` from the repository root with Visual Studio 2022's C++ tools installed. Output is `build/dll/d3d9.dll` plus its required JSON files. Before packaging, generate `build/overlay-shader/prototype.bin` using `scripts/build-overlay-preview.ps1` and the tested game shader source. `-Package` includes the generated shader and its hash in the DLL archive in `dist/`.
 
 `-Validation` enables an opt-in render-thread probe. In the isolated Training runner, create `dll-smoke.request` in the game working directory. The probe writes `dll-smoke-result.json`, verifies combined effect save/load and legacy compatibility, and restores the baseline. Validation builds cannot be packaged. See [remaining work](../docs/DLL-NEXT-STEPS.md) for the test inventory.
+
+### Color editing layouts
+
+Palette defaults to a classic scrolling group list: all swatches are directly editable, with Copy and Paste beside each group. Unequal sizes explicitly offer **Paste matching swatches**. The copied group/count and one-step Undo paste remain above the list. Effects / wheel opens the existing group controls; palette-wide settings remain in Advanced.
+
+Check **Use workspace layout** to use the group inspector layout instead. Its list also offers direct Copy/Paste. **Show sprite preview** optionally places the isolated viewer beside the classic list when the window is wide enough. Both layout preferences are saved in PaletteEditorDLLConfig.json. Switching layout retains the target, clipboard, selected group, and pending assignments.
