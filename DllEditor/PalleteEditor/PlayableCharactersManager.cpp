@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "UI/ColorWheel.h"
 #include "PlayableCharactersManager.h"
 #include "Tools/MemoryWorker.hpp"
 #include "ProcessManager.h"
@@ -51,6 +52,7 @@ bool PlayableCharactersManager::RefreshCharacterSlots() {
 }
 
 void PlayableCharactersManager::ClearCharacterData() {
+    ColorWheel::Close();
     for (int i = 0; i < MAX_PLAYABLE_CHARACTERS; i++) {
         instance().Character_Names[i] = std::nullopt;
     }

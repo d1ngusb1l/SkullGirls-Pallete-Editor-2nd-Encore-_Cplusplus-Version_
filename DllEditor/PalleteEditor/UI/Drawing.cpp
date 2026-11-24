@@ -23,7 +23,6 @@
 
 
 auto DrawingLogger = LOGGER::createLocal("Drawing", LogLevel::GENERAL_LOG);
-static std::unordered_map<std::string, bool> wheelOpenMap;
 static bool saveAndAssign=false,saveLegacy=false;
 static std::string copiedGroup;
 static int requestedSlot=-1, requestedPalette=-1;
@@ -173,6 +172,7 @@ void Drawing::Draw()
     if(!MainThread::Ready)return;
     MainLoop();
     AdvancedPalette::Tick();
+    if(!MainThread::Match_Readed)ColorWheel::Close();
 	if ((GetAsyncKeyState(VK_INSERT) & 1) || (GetAsyncKeyState(VK_F1) & 1)) {
 		bDrawAll = !bDrawAll;
 	}
@@ -258,6 +258,7 @@ void Drawing::Draw()
 			
 		}
 		ImGui::End();
+        ColorWheel::Draw();
 
 	}
 }
@@ -537,7 +538,7 @@ void Drawing::DrawCharacterColors() {
                 config::set_bool("dll_classic_preview",showClassicPreview);
             }
         }
-        if(!copiedGroup.empty())ImGui::TextWrapped("Copied: %s (%u swatches)",copiedGroup.c_str(),unsigned(s_ClipboardColors.size()));
+        ImGui::Text("Copied: %s (%u swatches)",copiedGroup.empty()?"Nothing yet":copiedGroup.c_str(),unsigned(s_ClipboardColors.size()));
             ImGui::BeginDisabled(pasteUndo.empty());
             if(ImGui::Button("Undo paste") && !pasteUndo.empty()) {
                 auto undo=pasteUndo.back();pasteUndo.pop_back();
@@ -548,10 +549,10 @@ void Drawing::DrawCharacterColors() {
             }
             ImGui::EndDisabled();
         auto drawGroupActions=[&](const ColorGroup& group) {
-            if(ImGui::SmallButton("Copy"))CopyGroupColors(group);
-            if(s_ClipboardColors.size()==group.count || ImGui::GetContentRegionAvail().x>260)ImGui::SameLine();
-            ImGui::BeginDisabled(s_ClipboardColors.empty());
-            if(ImGui::SmallButton(s_ClipboardColors.size()==group.count?"Paste":"Paste matching swatches"))PasteGroupColors(group);
+            if(ImGui::Button("Copy",ImVec2(60,0)))CopyGroupColors(group);
+            ImGui::SameLine();ImGui::BeginDisabled(s_ClipboardColors.empty());
+            const bool matching=s_ClipboardColors.size()==group.count;
+            if(ImGui::Button(matching?"Paste###PasteGroup":"Paste matching swatches###PasteGroup",ImVec2(220,0)))PasteGroupColors(group);
             ImGui::EndDisabled();
         };
         if(!workspaceLayout) {
@@ -559,30 +560,37 @@ void Drawing::DrawCharacterColors() {
             const bool preview=showClassicPreview && availableWidth>=750;
             if(showClassicPreview && !preview)ImGui::TextWrapped("Widen the editor to show the sprite preview beside the colors.");
             ImGui::BeginChild("Classic groups",ImVec2(preview?availableWidth*0.55f:0,0),true);
-            for(int n=0;n<groups.size();++n) {
-                const auto& group=groups[n];if(!groupMatchesSearch(group))continue;
-                ImGui::PushID(n);
-                if(ImGui::Selectable((group.groupName+" ("+std::to_string(group.count)+")").c_str(),selected==n))selected=n;
-                drawGroupActions(group);ImGui::SameLine();
-                if(ImGui::SmallButton("Effects / wheel")){selected=n;ImGui::OpenPopup("Group tools");}
-                if(ImGui::BeginPopup("Group tools")) {
-                    ImGui::TextUnformatted(group.groupName.c_str());
-                    std::string wheelKey=std::string(Curent_Char.Char_Name)+"|"+group.groupName;
-                    if(ImGui::Button("Color wheel"))wheelOpenMap[wheelKey]=!wheelOpenMap[wheelKey];
-                    if(wheelOpenMap[wheelKey])ColorWheel::Draw(group,wheelOpenMap[wheelKey]);
-                    AdvancedPalette::DrawGroup(group);
-                    if(AdvancedPalette::OpenAdvanced){openAdvanced=true;AdvancedPalette::OpenAdvanced=false;}
-                    ImGui::EndPopup();
+            if(ImGui::BeginTable("Color groups",3,ImGuiTableFlags_SizingStretchProp|ImGuiTableFlags_BordersInnerH|ImGuiTableFlags_RowBg)) {
+                ImGui::TableSetupColumn("Group",ImGuiTableColumnFlags_WidthFixed,170);
+                ImGui::TableSetupColumn("Colors",ImGuiTableColumnFlags_WidthStretch);
+                ImGui::TableSetupColumn("Actions",ImGuiTableColumnFlags_WidthFixed,296);
+                ImGui::TableHeadersRow();
+                for(int n=0;n<groups.size();++n) {
+                    const auto& group=groups[n];if(!groupMatchesSearch(group))continue;
+                    ImGui::PushID(n);ImGui::TableNextRow();ImGui::TableSetColumnIndex(0);
+                    if(ImGui::Selectable(group.groupName.c_str(),selected==n))selected=n;
+                    ImGui::TextDisabled("%d swatches",group.count);
+                    ImGui::TableSetColumnIndex(1);
+                    const int swatchesPerRow=std::max(1,int(ImGui::GetContentRegionAvail().x/(ImGui::GetFrameHeight()+ImGui::GetStyle().ItemSpacing.x)));
+                    for(int i=group.startIndex;i<group.startIndex+group.count && i<colors.size();++i) {
+                        DrawColorButton(i,colors[i]);
+                        if(ImGui::IsItemActivated())selected=n;
+                        if(i+1<group.startIndex+group.count && i+1<colors.size() && (i-group.startIndex+1)%swatchesPerRow)ImGui::SameLine();
+                    }
+                    const auto effects=AdvancedPalette::GroupEffects(group);
+                    ImGui::TextWrapped("%s",effects.c_str());
+                    ImGui::TableSetColumnIndex(2);drawGroupActions(group);
+                    if(ImGui::Button("Color Studio",ImVec2(140,0))){selected=n;ColorWheel::Open(group);}
+                    ImGui::SameLine();
+                    if(ImGui::Button("Effects",ImVec2(140,0))){selected=n;ImGui::OpenPopup("Group tools");}
+                    if(ImGui::BeginPopup("Group tools")) {
+                        ImGui::TextUnformatted(group.groupName.c_str());AdvancedPalette::DrawGroup(group);
+                        if(AdvancedPalette::OpenAdvanced){openAdvanced=true;AdvancedPalette::OpenAdvanced=false;}
+                        ImGui::EndPopup();
+                    }
+                    ImGui::PopID();
                 }
-                const int swatchesPerRow=std::max(1,int(ImGui::GetContentRegionAvail().x/(ImGui::GetFrameHeight()+ImGui::GetStyle().ItemSpacing.x)));
-                for(int i=group.startIndex;i<group.startIndex+group.count && i<colors.size();++i) {
-                    DrawColorButton(i,colors[i]);
-                    if(ImGui::IsItemActivated())selected=n;
-                    if(i+1<group.startIndex+group.count && i+1<colors.size() && (i-group.startIndex+1)%swatchesPerRow)ImGui::SameLine();
-                }
-                const auto effects=AdvancedPalette::GroupEffects(group);
-                if(effects!="No applied effects")ImGui::TextWrapped("%s",effects.c_str());
-                ImGui::Separator();ImGui::PopID();
+                ImGui::EndTable();
             }
             ImGui::EndChild();
             if(preview && !groups.empty()) {
@@ -606,7 +614,10 @@ void Drawing::DrawCharacterColors() {
                 if(i!=group.startIndex && (i-group.startIndex)%10)ImGui::SameLine(0,2);
                 ImGui::ColorButton(("##swatch"+std::to_string(i)).c_str(),ColorsTools::ImU32BGRAtoImVec4RGBA(colors[i]),ImGuiColorEditFlags_NoTooltip,ImVec2(14,14));
             }
-            drawGroupActions(group);
+            if(ImGui::Button("Copy",ImVec2(200,0)))CopyGroupColors(group);
+            ImGui::BeginDisabled(s_ClipboardColors.empty());
+            if(ImGui::Button(s_ClipboardColors.size()==group.count?"Paste###PasteGroup":"Paste matching swatches###PasteGroup",ImVec2(200,0)))PasteGroupColors(group);
+            ImGui::EndDisabled();
             ImGui::TextWrapped("%s",AdvancedPalette::GroupEffects(group).c_str());
             ImGui::Separator();ImGui::PopID();
         }
@@ -620,14 +631,8 @@ void Drawing::DrawCharacterColors() {
                 DrawColorButton(i,colors[i]);
                 if((i-group.startIndex+1)%6 && i+1<group.startIndex+group.count)ImGui::SameLine();
             }
-            if(ImGui::Button("Copy"))CopyGroupColors(group);
-            ImGui::SameLine();ImGui::BeginDisabled(s_ClipboardColors.empty());
-            const bool matching=s_ClipboardColors.size()==group.count;
-            if(ImGui::Button(matching?"Paste":"Paste matching swatches"))PasteGroupColors(group);
-            ImGui::EndDisabled();
-            std::string wheelKey=std::string(Curent_Char.Char_Name)+"|"+group.groupName;
-            if(ImGui::Button("Color wheel"))wheelOpenMap[wheelKey]=!wheelOpenMap[wheelKey];
-            if(wheelOpenMap[wheelKey])ColorWheel::Draw(group,wheelOpenMap[wheelKey]);
+            drawGroupActions(group);
+            if(ImGui::Button("Color Studio",ImVec2(140,0)))ColorWheel::Open(group);
             AdvancedPalette::DrawGroup(group);
 
             if(AdvancedPalette::OpenAdvanced){openAdvanced=true;AdvancedPalette::OpenAdvanced=false;}
