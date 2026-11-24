@@ -377,3 +377,6 @@ FodyWeavers.xsd
 /PalleteEditor/appearance-preset.json
 /PalleteEditor/transformation-preset.json
 /document-test-files/
+
+# Test project intermediate and executable output
+/tests/build/

@@ -32,9 +32,10 @@ try {
     Copy-Item -LiteralPath 'PalleteEditor/data01/3.7.14.json' -Destination "$output/groups.json"
     Copy-Item -LiteralPath 'PalleteEditor/data01/3.7.14.json' -Destination "$output/3.7.14.json"
     Copy-Item -LiteralPath 'PalleteEditor/data01/overlay-textures.json' -Destination "$output/overlay-textures.json"
+    Copy-Item -LiteralPath 'scripts/prepare-dll-preview.py' -Destination "$output/prepare-dll-preview.py"
     Copy-Item -LiteralPath 'release-docs/RELEASE-NOTES.md' -Destination "$output/RELEASE-NOTES.md"
 
-    $assets=@('d3d9.dll',$exeName,'groups.json','3.7.14.json','overlay-textures.json','RELEASE-NOTES.md')
+    $assets=@('d3d9.dll',$exeName,'groups.json','3.7.14.json','overlay-textures.json','prepare-dll-preview.py','RELEASE-NOTES.md')
     $packages=@()
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     foreach($variant in @('DLL','EXE')) {
@@ -44,12 +45,16 @@ try {
         foreach($file in @($binaryName,'groups.json','overlay-textures.json','RELEASE-NOTES.md')) {
             Copy-Item -LiteralPath (Join-Path $output $file) -Destination $stage
         }
+        if($variant -eq 'DLL') {
+            Copy-Item -LiteralPath (Join-Path $output 'prepare-dll-preview.py') -Destination $stage
+        }
         Copy-Item -LiteralPath "release-docs/INSTALL-$variant.md" -Destination "$stage/README.md"
         Copy-Item -LiteralPath 'docs/PAL-FORMAT.md' -Destination "$stage/PAL-FORMAT.md"
         Copy-Item -LiteralPath 'docs/UPSTREAM-README.md' -Destination "$stage/UPSTREAM-README.md"
         $manifest=[ordered]@{version=$version;variant=$variant;architecture='x86';configuration='Release';sourceCommit=$revision;workingTreeDirty=$false;gameBuild=26588330;binary=$binaryName;binarySha256=(Get-FileHash (Join-Path $stage $binaryName)).Hash;onlinePaletteSharingEnabled=$false;validationProbesEnabled=($variant -eq 'EXE');runtimeSignoffComplete=$false}
         $members=@($binaryName,'groups.json','overlay-textures.json','RELEASE-NOTES.md','README.md','PAL-FORMAT.md','UPSTREAM-README.md','build-manifest.json')
         $zipName="PaletteEditor-$variant-$version-win32.zip"
+        if($variant -eq 'DLL'){$members+='prepare-dll-preview.py'}
         $paths=@($members|ForEach-Object {Join-Path $stage $_})
         if($variant -eq 'DLL') {
             $shaderFolder=Join-Path $stage 'overlay-shader'

@@ -1,4 +1,6 @@
 import importlib.util
+import io
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -62,6 +64,56 @@ class SpriteTimelinePreparationTests(unittest.TestCase):
             preview.unpack(bytes([0x82]), 3)
         with self.assertRaises(ValueError):
             preview.unpack(bytes([0x80]), 3)
+
+    def test_authored_animation_name_and_numeric_fallback(self):
+        self.assertEqual(preview.authored_animation_name(42, "  Idle  "), "Idle")
+        self.assertEqual(preview.authored_animation_name(42, ""), "42")
+
+    def test_frame_origin_and_layer_offset_bounds(self):
+        layers = [(2, 2, [0], 0, 0, [1, 1, 1])] + [None] * 7
+        offsets = [(80, 160)] + [None] * 7
+        record = {"bank": 5, "origin": (100, 200), "layers": layers, "offsets": offsets}
+        self.assertIsNone(preview.frame_support_reason(record, {5: b"main"}))
+        record["offsets"] = [(10000, 160)] + [None] * 7
+        self.assertIn("origin", preview.frame_support_reason(record, {5: b"main"}))
+
+    def test_combined_bundle_character_sections_and_invalid_bounds(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "section.bin"
+            path.write_bytes(bytes(24))
+            characters = [
+                ("Filia", path, {}),
+                ("Cerebella", path, {}),
+            ]
+            index = preview.write_bundle_index(characters)
+            bundle = index + bytes(48)
+            parsed = preview.read_bundle_index(io.BytesIO(bundle), len(bundle))
+            self.assertEqual([entry[0] for entry in parsed], ["Filia", "Cerebella"])
+            self.assertEqual([entry[2] for entry in parsed], [24, 24])
+
+            malformed = bytearray(bundle)
+            malformed[16 + 2 + len("Filia"):16 + 2 + len("Filia") + 8] = (1).to_bytes(8, "little")
+            with self.assertRaises(ValueError):
+                preview.read_bundle_index(io.BytesIO(malformed), len(malformed))
+
+    def test_local_gfs_asset_lookup_and_malformed_offsets(self):
+        name = b"characters/test.foit"
+        payload = b"local-data"
+        entry_table = len(name).to_bytes(8, "big") + name + len(payload).to_bytes(8, "big") + bytes(4)
+        data_offset = 51 + len(entry_table)
+        header = bytearray(51)
+        header[:4] = data_offset.to_bytes(4, "big")
+        header[43:51] = (1).to_bytes(8, "big")
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = Path(temporary)
+            archive = folder / "test.gfs"
+            archive.write_bytes(header + entry_table + payload)
+            self.assertEqual(preview.asset(folder, "test.gfs", "characters/test.foit"), payload)
+
+            header[:4] = (50).to_bytes(4, "big")
+            archive.write_bytes(header + entry_table + payload)
+            with self.assertRaises(ValueError):
+                preview.asset(folder, "test.gfs", "characters/test.foit")
 
 
 if __name__ == "__main__":

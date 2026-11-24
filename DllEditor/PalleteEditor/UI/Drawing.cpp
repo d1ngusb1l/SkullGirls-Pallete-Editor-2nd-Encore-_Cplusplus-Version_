@@ -19,7 +19,7 @@
 #include "SpriteViewer.h"
 #include "UI/LoggerWidget.hpp"
 
-
+#include <filesystem>
 
 
 auto DrawingLogger = LOGGER::createLocal("Drawing", LogLevel::GENERAL_LOG);
@@ -28,8 +28,131 @@ static bool saveAndAssign=false,saveLegacy=false;
 static std::string copiedGroup;
 static int requestedSlot=-1, requestedPalette=-1;
 static bool openAdvanced=false, switchAfterApply=false;
+static std::string spritePreparationOutput;
 struct PasteUndo { int slot, palette, start; std::vector<ImU32> before, after; };
 static std::vector<PasteUndo> pasteUndo;
+
+static bool FindPreparationScript(std::filesystem::path& script) {
+    HMODULE module=nullptr;
+    if(!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS|GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+        reinterpret_cast<LPCWSTR>(&FindPreparationScript),&module))return false;
+    std::wstring modulePath(32768,L'\0');
+    DWORD length=GetModuleFileNameW(module,&modulePath[0],static_cast<DWORD>(modulePath.size()));
+    if(!length || length>=modulePath.size())return false;
+    modulePath.resize(length);
+    script=std::filesystem::path(modulePath).parent_path()/L"prepare-dll-preview.py";
+    std::error_code ec;
+    return std::filesystem::is_regular_file(script,ec) && !ec;
+}
+
+static void AppendPreparationOutput(const char* data,size_t length) {
+    spritePreparationOutput.append(data,length);
+    if(spritePreparationOutput.size()>8192)spritePreparationOutput.erase(0,spritePreparationOutput.size()-8192);
+}
+
+static void DrainPreparationOutput() {
+    if(!SpriteViewer::preparationPipe)return;
+    for(;;) {
+        DWORD available=0;
+        if(!PeekNamedPipe(SpriteViewer::preparationPipe,nullptr,0,nullptr,&available,nullptr)) {
+            if(GetLastError()!=ERROR_BROKEN_PIPE)SpriteViewer::preparationStatus="Could not read preview preparation output.";
+            break;
+        }
+        if(!available)break;
+        char buffer[2048];DWORD read=0;
+        if(!ReadFile(SpriteViewer::preparationPipe,buffer,(std::min)(available,DWORD(sizeof(buffer))),&read,nullptr) || !read)break;
+        AppendPreparationOutput(buffer,read);
+    }
+}
+
+static void StartSpritePreparation(const std::filesystem::path& archivePath) {
+    const auto dataFolder=archivePath.parent_path();
+    const auto fileName=archivePath.filename().wstring();
+    if(_wcsicmp(dataFolder.filename().c_str(),L"data01")!=0 ||
+        (_wcsicmp(fileName.c_str(),L"characters-foits.gfs")!=0 && _wcsicmp(fileName.c_str(),L"characters-foits-retail.gfs")!=0)) {
+        SpriteViewer::preparationStatus="Select characters-foits.gfs from the local game's data01 folder.";
+        return;
+    }
+    std::filesystem::path script;
+    if(!FindPreparationScript(script)) {
+        SpriteViewer::preparationStatus="The local prepare-dll-preview.py helper was not found beside the DLL.";
+        return;
+    }
+    std::wstring python=SpriteViewer::preparationPython.wstring();
+    if(python.empty()) {
+        python.resize(32768,L'\0');
+        DWORD pythonLength=SearchPathW(nullptr,L"python.exe",nullptr,static_cast<DWORD>(python.size()),&python[0],nullptr);
+        if(!pythonLength || pythonLength>=python.size()) {
+            SpriteViewer::preparationStatus="Python 3 was not found on PATH. Use Choose Python executable.";
+            return;
+        }
+        python.resize(pythonLength);
+    }
+    const auto gameDirectory=dataFolder.parent_path().wstring();
+    const auto outputDirectory=std::filesystem::current_path().wstring();
+    std::wstring command=L"\""+python+L"\" \""+script.wstring()+L"\" \""+gameDirectory+L"\" \""+outputDirectory+L"\"";
+    SECURITY_ATTRIBUTES security={sizeof(SECURITY_ATTRIBUTES),nullptr,TRUE};
+    HANDLE readPipe=nullptr,writePipe=nullptr;
+    if(!CreatePipe(&readPipe,&writePipe,&security,0)) {
+        SpriteViewer::preparationStatus="Could not create the preview preparation output pipe.";
+        return;
+    }
+    SetHandleInformation(readPipe,HANDLE_FLAG_INHERIT,0);
+    STARTUPINFOW startup={};startup.cb=sizeof(startup);startup.dwFlags=STARTF_USESTDHANDLES;
+    startup.hStdOutput=writePipe;startup.hStdError=writePipe;startup.hStdInput=GetStdHandle(STD_INPUT_HANDLE);
+    PROCESS_INFORMATION process={};
+    BOOL started=CreateProcessW(python.c_str(),&command[0],nullptr,nullptr,TRUE,CREATE_NO_WINDOW,nullptr,
+        gameDirectory.c_str(),&startup,&process);
+    DWORD createError=started?ERROR_SUCCESS:GetLastError();
+    CloseHandle(writePipe);
+    if(!started) {
+        CloseHandle(readPipe);
+        SpriteViewer::preparationStatus="Could not start Python preview preparation (Windows error "+std::to_string(createError)+").";
+        return;
+    }
+    CloseHandle(process.hThread);
+    SpriteViewer::preparationProcess=process.hProcess;
+    SpriteViewer::preparationPipe=readPipe;
+    spritePreparationOutput.clear();
+    SpriteViewer::preparationStatus="Generating the combined local preview asset. This can take several minutes.";
+}
+
+static void PollSpritePreparation() {
+    if(!SpriteViewer::preparationProcess)return;
+    DrainPreparationOutput();
+    DWORD wait=WaitForSingleObject(SpriteViewer::preparationProcess,0);
+    if(wait==WAIT_TIMEOUT)return;
+    if(wait!=WAIT_OBJECT_0) {
+        SpriteViewer::preparationStatus="Could not check the Python preview preparation process.";
+        CloseHandle(SpriteViewer::preparationProcess);SpriteViewer::preparationProcess=nullptr;
+        if(SpriteViewer::preparationPipe){CloseHandle(SpriteViewer::preparationPipe);SpriteViewer::preparationPipe=nullptr;}
+        return;
+    }
+    DrainPreparationOutput();
+    DWORD exitCode=1;
+    if(!GetExitCodeProcess(SpriteViewer::preparationProcess,&exitCode)) {
+        SpriteViewer::preparationStatus="Could not read the Python preview preparation exit code.";
+        CloseHandle(SpriteViewer::preparationProcess);SpriteViewer::preparationProcess=nullptr;
+        if(SpriteViewer::preparationPipe){CloseHandle(SpriteViewer::preparationPipe);SpriteViewer::preparationPipe=nullptr;}
+        return;
+    }
+    CloseHandle(SpriteViewer::preparationProcess);SpriteViewer::preparationProcess=nullptr;
+    CloseHandle(SpriteViewer::preparationPipe);SpriteViewer::preparationPipe=nullptr;
+    if(exitCode==0) {
+        SpriteViewer::ResetAsset();
+        SpriteViewer::preparationStatus="Combined local sprite asset prepared. "+spritePreparationOutput;
+    } else {
+        SpriteViewer::preparationStatus="Preview preparation failed (exit "+std::to_string(exitCode)+"). "+spritePreparationOutput;
+    }
+}
+
+static std::filesystem::path PathFromUtf8(const std::string& value) {
+    std::u8string encoded;
+    encoded.reserve(value.size());
+    for(unsigned char byte:value)encoded.push_back(static_cast<char8_t>(byte));
+    return std::filesystem::path(encoded);
+}
+
 static void RequestTarget(int slot,int palette) {
     requestedSlot=slot; requestedPalette=palette;
 }
@@ -626,6 +749,20 @@ void Drawing::DrawOptionsTabItem()
 void Drawing::DrawFileDialog() {
 
 	ImGui::SetNextWindowSize(vFileDialogSize, ImGuiCond_Once);
+    PollSpritePreparation();
+
+    if(ImGuiFileDialog::Instance()->Display("ChoosePreviewPython")) {
+        if(ImGuiFileDialog::Instance()->IsOk())SpriteViewer::preparationPython=PathFromUtf8(ImGuiFileDialog::Instance()->GetFilePathName());
+        ImGuiFileDialog::Instance()->Close();
+    }
+
+    if(ImGuiFileDialog::Instance()->Display("PrepareSpritePreview")) {
+        if(ImGuiFileDialog::Instance()->IsOk()) {
+            const auto selected=PathFromUtf8(ImGuiFileDialog::Instance()->GetFilePathName());
+            StartSpritePreparation(selected);
+        }
+        ImGuiFileDialog::Instance()->Close();
+    }
 
 	if (ImGuiFileDialog::Instance()->Display("SavePaletteFile")) {
 

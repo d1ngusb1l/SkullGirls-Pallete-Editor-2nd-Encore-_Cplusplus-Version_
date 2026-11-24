@@ -10,13 +10,65 @@ Branch: `codex/dll-palette-workspace`. Baseline: fork `origin/master` at `14df4b
 
 Palette-wide colors/effects remain in Advanced and assignments remain in Auto-load. Color edits and non-overlay shader changes retain immediate application. Overlay assignments are staged, with Apply and Pending/Applied/error reporting in the inspector. A target change offers Apply, Discard or Cancel for pending overlays. Unequal-size paste explicitly says **Paste matching swatches**; one Undo restores the pasted range, guarded against subsequent modifications. The .pal codec and network exclusions are unchanged.
 
-## Fixed-pose prototype
+## Combined local sprite preview
 
-Run `python scripts/prepare-dll-preview.py GAME_DIRECTORY OUTPUT_DIRECTORY` with a working Python 3 installation. This reads the user's local `data01` archives and creates `cerebella-pose.bin` and a provenance JSON beside the test DLL. The decoder intentionally supports only the tested version-9 Cerebella frame table, frame 2, main art bank, body layers 0 and 1. Game artwork is not committed or downloaded. The prepared pose is 448 by 384 pixels. The source FOIT SHA-256 is `ff9fd46bbb5c4d81a6f196ec311db9787fadd0ab9c3a4ad1ae10dd53b363492c`.
+The Sprite preview includes a **Prepare combined sprite asset** button. Select
+`characters-foits.gfs` (or its retail variant) in the installed game's `data01`
+folder. The helper script is placed beside the DLL by the build/package scripts;
+Python 3 must be available on PATH, or selected with **Choose Python executable**. It reads local `data01` archives only and
+generates `sprite-preview.bin` plus a provenance/limitations file,
+`sprite-preview.json`, in the game's working directory. Releases include the
+helper, not the generated asset or extracted game artwork.
 
-The pane snapshots the selected palette's colors into owned Original and Edited vectors. **Original** means that snapshot, not a reload of the palette's default game colors. Its local swatches edit only the Edited vector. It evaluates neutral color gradients and composites into a pane-owned dynamic D3D9 texture, displayed through ImGui. The selected display group's intersecting native bands determine highlighting. It has no palette writes, Save operation, native actor calls, or draw replay. CPU results are uploaded only when colors/highlight change or the texture must be recreated. Match/target changes drop snapshots; pre-reset and shutdown release GPU textures.
+The generator currently supports the 18 playable character FOITs observed in
+the local installation, version 9, art banks 4 and 6 from `characters-art-pt`
+and bank 5 from `characters-art`, and normal body layers 0 and 1. Authored root
+animation names, stable numeric move IDs, timeline-to-sprite references,
+repeated timeline entries, durations, art-bank selection and per-layer offsets
+are retained. Invalid references, unsupported banks/layers, malformed
+timelines, and missing required local archives fail explicitly or are listed
+in the JSON; no substitute sprite is selected for a rejected timeline.
 
-Overlays, native lighting, rainbow, redirects, transformations, and super effects are explicitly **not previewed**. Animation/frame selectors are feasible follow-up work, but are deferred until this milestone is reliable. The fixed pose cannot show every group. The preparation decoder's format investigation reference is [skullgirls-rough-cut](https://github.com/Anonnie04/skullgirls-rough-cut), especially its sprite channel and layer descriptions. Runtime code and preparation script are scoped implementations for this prototype, not an imported sprite library.
+On the inspected installation the generated bundle was 815,048,416 bytes,
+with 9,960 supported animations and 53,067 selectable timeline frames.
+Another 500 animations were excluded: 184 reference unsupported art bank 0
+and 316 reference records without normal body layers 0/1. Ms. Fortune has
+only 257 of 545 root animations supported in this increment. The UI exposes
+the character sections, not a promise that every authored animation is
+available. Authored names were recovered for all 10,460 root animation IDs.
+
+The combined `SGMULT1` file has an indexed section per character. It is
+streamed to disk, bounded to 4 GiB total and 128 MiB per character section;
+the viewer reads only the selected character section. Each section retains
+the original local RLE channels and decodes the chosen sprite lazily. No
+artwork is checked in or downloaded. The JSON lists animations that have
+additional populated art layers outside 0/1; those extra layers are not
+composited in this increment and may affect visual completeness. The UI also
+labels this limitation. Frame origins and layer offsets align frames to a shared pivot on a variable-size canvas. The continuation fixed mixed absolute/relative bounds and checked a crouch pose in-game; exact game-renderer equivalence is not claimed. In this installation, all 9,960 included animations
+had additional populated layers listed in the JSON.
+
+The pane snapshots the selected palette's colors into owned Original and
+Edited vectors. **Original** is that captured snapshot, not a reload of the
+palette's default game colors. Local swatches edit only the Edited vector.
+Selected-group highlighting and local recoloring remain independent of
+animation/frame selection. The viewer does not call live fighter animation,
+native actor actions, palette writes, save APIs, or gameplay actions.
+Textures are uploaded only when necessary and released on target changes,
+device reset, and shutdown. Variable frame dimensions do not reset user zoom.
+Overlays, native lighting, rainbow, redirects, transformations, super visuals,
+and additional non-body art layers are explicitly **not previewed**.
+
+Run manually from a developer checkout with:
+
+`python scripts/prepare-dll-preview.py GAME_DIRECTORY OUTPUT_DIRECTORY`
+
+In the game UI, use the button and select the installed `characters-foits.gfs`
+instead. The helper reports progress/errors in the pane. Do not copy or replace
+a loaded DLL; the user controls game restarts, matches, tags and display-mode
+changes. The generator test used the local installation's 18 FOITs and matching
+main/alternate art archives. It produced all 18 sections and authored-name
+tables. This is asset/parser evidence only, not a claim of in-game visual
+equivalence.
 
 ## Observed in the isolated Training runner
 
@@ -50,79 +102,61 @@ Autoload now watches recent, read-only palette texture snapshots before attachin
 
 The new visibility-history tests cover absent targets, another palette, expiry, return and match clearing. The updated validation DLL builds and passes network exclusion inspection. The user confirmed the initially-benched -> tag-in workflow waits and then loads automatically.
 
-## Authored sprite timeline preview
-
-The preview preparation now reads Cerebella's version-9 FOIT frame table and root
-move table. Each timeline entry retains its authored duration and three stored
-sprite slots. The first slot is the underlying body sprite record shown in the
-inspector; repeated timeline entries remain separate manual frame positions.
-Numeric move IDs are the current stable selector fallback until authored names
-are available reliably from the local table.
-
-The local asset format is `SGPOSE5`. It stores the local game's original RLE
-sprite channels and decodes only the selected sprite record. It has explicit
-limits of 128 MiB,
-4,096 sprite records, 1,000 animations, 65,535 timeline frames per animation,
-2,048 pixels per layer dimension and 16 MiB per layer. It stores variable-dimension
-body-layer 0/1 records from local art banks 4 (art-pt), 5 (main), and 6 (art-pt).
-The fixed sprite 2 record remains a fallback and `SGPOSE1` fixed-pose assets remain
-loadable for compatibility.
-
-Unsupported or malformed timeline frames are not guessed or substituted. The
-preparation JSON reports skipped unsupported animations by stable ID and reason.
-Timeline slot 1 is the authored Cerebella body pose. When it contains no new
-sprite record, the preview carries the prior authored pose forward (starting at
-the fixed fallback record); timeline positions and durations remain separate.
-The prior `SGPOSE2`/`SGPOSE3`/`SGPOSE4` files selected slot 0 or used an
-incompatible prepared layer format and are rejected as stale.
-It rejects unsupported art banks, invalid sprite references, zero/invalid durations,
-missing body layers, malformed RLE data, oversized dimensions and unsupported
-FOIT versions. Local layer slots 2-7 are not silently composited in this increment;
-they are listed as unsupported. Alt. normal layers and offsets need field
-comparison before display equivalence is claimed.
-
-The runtime preview maintains separate Original and Edited vectors across frame
-selection and retains highlight/local recoloring. It does not call live fighter
-animation, native actor actions, save APIs or live palette/application functions.
-Variable frames are composited on their own bounded canvas; zoom is not reset by
-frame changes. Unsupported overlays, native lighting, rainbow, redirects,
-transformations and super visuals remain explicitly labelled not previewed.
-
-Prepare only from a local game installation:
-
-`python scripts/prepare-dll-preview.py GAME_DIRECTORY OUTPUT_DIRECTORY`
-
-Put the generated `cerebella-pose.bin` and optional JSON beside the test DLL.
-Do not commit `cerebella-pose.bin`, FOIT, GFS, artwork or DDS data.
-The viewer reads `cerebella-pose.bin` from the runner's current working
-directory. A legacy `SGPOSE1` file provides the fixed-pose fallback only and
-therefore reports zero animations; use the newly generated `SGPOSE5` file and
-restart the runner before expecting the timeline selectors to populate.
-
 ## Build checks
 
-`./scripts/build-dll.ps1 -Validation` builds `build/dll/d3d9.dll`. Networking inspection reports palette networking, lobby tools, Steam imports, and legacy protocol markers all false. `OverlayBindingMatchTests.cpp` covers unrelated startup changes, true shared bindings, missing/inconsistent bindings, gradient interpolation, tolerance, and invalid layouts. `PaletteDocumentTests.exe` passed 32 existing format/legacy/validation/atomic-I/O checks.
+`scripts/build-dll.ps1 -Validation` builds `build/dll/d3d9.dll` and copies the
+local preparation helper beside it. Networking inspection reports palette
+networking, lobby tools, Steam imports, and legacy protocol markers all false.
+The final validation DLL SHA-256 is
+`7E3C713D5680749C6A6C2449A8B075E5B1D8412FA67D7E6984F26A9D6C4E3FA9`.
+`PaletteDocumentTests.exe` passed 32 existing format/legacy/validation/atomic
+I/O checks. `OverlayBindingMatchTests.exe` passed. This is a validation build,
+not a packaged release. The existing runner fixtures were not replaced or
+changed in this increment.
 
-The isolated runner contains the test DLL, pose asset and new workspace Autoload fixture. The user's existing Cerebella palette-2 fixture and assignment are retained. This is a validation build, not a packaged release.
+## Combined animation preview evidence and remaining work
 
-## Animation increment evidence
+- Unit: all 11 `tests/SpriteTimelinePreparationTests.py` cases pass; they cover authored-name and
+  numeric fallback behavior, timeline-to-sprite mapping, repeated frames,
+  boundaries, invalid references/durations, art-bank selection, GFS lookup and
+  bounds, origin/layer limits, and combined section indexing/bounds.
+- Local assets: preparation read all 18 playable character FOITs from the
+  available local version-9 archives, extracted authored names for every
+  root move table, and generated an 18-section `SGMULT1` bundle with matching
+  local art and palette data. The asset was regenerated in ignored build/dll and installed in the isolated
+  runner while it was closed; no game data is committed. This verifies
+  parsing and container generation, not rendered frame equivalence.
+- UI/build: the DLL offers a local file-picker/button workflow, runs the
+  helper asynchronously, reports completion/errors, indexes per-character
+  sections, and reads only the selected section. The final Win32 validation
+  build passed; compiler warnings remain in existing signed/unsigned and
+  numeric-conversion code paths.
+- Runtime evidence from the continuation is recorded below. The user controls
+  all match/restart/tag and display-mode actions.
+- Existing Autoload status remains separate: the prior user-confirmed
+  initially-benched flow loaded base colors early and activated two overlays
+  after tag-in. This task did not change live renderer/Autoload code.
 
-- Unit: `tests/SpriteTimelinePreparationTests.py` passes 7 timeline mapping,
-  repeated-frame, boundary, invalid-reference, invalid-duration and art-bank
-  selection checks.
-- Local preparation: SGPOSE5 is 63,358,633 bytes and contains 1,282 sprite
-  records, 549 supported animation IDs, and 3,233 timeline frames. Fifteen
-  animations are explicitly marked unsupported due to bank/layer limits.
-  Decoding fallback sprite 2's two layers from the local RLE source matched the
-  prior prepared pixel layers byte-for-byte; this is a decoder consistency
-  check, not an in-game visual comparison. SGPOSE2/3/4 are stale.
-- Build: `scripts/build-dll.ps1 -Validation` completed and produced
-  `build/dll/d3d9.dll`; network exclusion verification reported all four markers
-  false. DLL SHA-256:
-  `D93FA0BFB7748DBCD0AC13CC78B79EB89F8B64AA981AD8FF1BAE3282B3C32535`.
-- Existing format suite: 32/32 checks passed.
-- In-game work remains for the user: replace and restart only while the runner
-  is stopped, prepare/inspect a group absent from idle, verify frame
-  highlighting/recoloring/Original-Edited, confirm saved/live palette data
-  remains unchanged, compare at least one frame against the local reference,
-  and recheck initially-benched two-overlay Autoload after tag-in.
+## November 23 continuation from Copilot
+
+Preserved Copilot's unfinished 18-character bundle/preparation workflow and completed the following fixes:
+
+- Corrected layer offsets calculated against bounds in the wrong coordinate space. Negative offsets could previously wrap when converted to unsigned upload positions. Regression tests cover nonzero origins, multiple layers, positive offsets, and invalid bounds.
+- Bounded native reads to the selected character section, including channel-length checks before allocation. A native boundary fixture confirms a read cannot cross into the next section.
+- Kept numeric frame entry one-based, consistent with the frame dropdown. Removed the redundant zero-based frame slider.
+- Separated metadata lookup from lazy pixel decoding so invalid channel errors are caught in the upload error path instead of escaping through frame labels.
+- Added a Python executable picker for machines where the PATH entry is an unusable Windows app alias.
+- Centered the initial pose on the shared canvas and added explicit Center/Fit controls. Asset preparation is collapsed when usable assets exist; frame controls are compact and the canvas uses remaining pane space.
+- Restored Original-snapshot swatches when Original is selected; local color vectors and zoom remain intact across frame decoding.
+
+Validation performed:
+
+- All 11 Python preparation tests passed.
+- Win32 native geometry and asset tests passed. The native loader read every character section, checked layer offsets for every stored sprite, decoded fallback/first/last animation samples, and retained Original/Edited vectors and zoom during selection. The tests also found native band 21, absent from Cerebella's fixed fallback, in Stand [20], frame 16, sprite record 16.
+- Generated the 815,048,416-byte local bundle for all 18 characters. Native counts include 1,297 Cerebella sprites and 549 supported Cerebella animations.
+- In Training, selected Crouch [21], stepped frames 1 and 2 (both sprite 17, durations 1 and 4 ticks), then selected frame 6 (sprite 20, 4 ticks). The pane rendered a crouch pose and highlighted the skull region.
+- Edited a pane-local skull swatch and toggled Original/Edited. Read-only snapshots show all loaded fighters' palette bands and native overlay definitions unchanged; all existing runner .pal hashes were unchanged. Evidence: build/timeline-isolation-result.json.
+- Verified the installed compact layout in Training: Fit resized the fallback pose; filtered by `cr`, selected Crouching [22], and stepped from frame 1 (sprite 2, 1 tick) to frame 2 (sprite 35, 2 ticks). Zoom stayed at 0.35x and the skull highlight remained on the skull. Scrolling the pane exposed the full canvas at this window size.
+- The in-game preparation button/Python picker, exact pose equivalence, all-character GPU coverage, device reset and the benched Autoload scenario were not independently retested in this continuation. Extra artwork layers and shader effects remain explicitly unpreviewed. Existing live rendering/Autoload implementation was not modified.
+
+Native tests: tests/SpritePreviewGeometryTests.vcxproj and tests/SpritePreviewAssetTests.vcxproj. Run the asset executable with the directory containing sprite-preview.bin as its argument. Generated images/assets remain ignored build/ artifacts.

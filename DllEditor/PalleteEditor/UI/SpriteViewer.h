@@ -1,9 +1,10 @@
-#pragma once
+﻿#pragma once
 #include <fstream>
 #include <set>
 #include <algorithm>
 #include <limits>
 #include "Tools/Colors.hpp"
+#include "SpritePreviewGeometry.h"
 
 namespace SpriteViewer {
 struct PixelLayer {
@@ -15,7 +16,8 @@ struct PixelLayer {
     std::vector<unsigned char> pixels;
 };
 struct SpriteFrameAsset {
-    unsigned id=0,originX=0,originY=0,width=0,height=0;
+    unsigned id=0,width=0,height=0;
+    int originX=0,originY=0;
     std::vector<PixelLayer> layers;
 };
 struct TimelineEntry {
@@ -33,15 +35,20 @@ inline std::vector<unsigned char> pixels,defaultRows;
 inline std::vector<ImU32> original,edited;
 inline std::vector<int> sizes;
 inline unsigned width=0,height=0,layers=0;
+inline unsigned canvasLeft=0,canvasTop=0,canvasWidth=0,canvasHeight=0;
 inline int slot=-1,palette=-1;
 inline float zoom=0.7f;
 inline bool showOriginal=false,highlight=true,attempted=false;
 inline bool legacyFixedOnly=false;
+inline bool centerCanvas=true,fitCanvas=false;
 inline std::string error;
+inline std::string loadedCharacter,snapshotCharacter,preparationStatus;
+inline std::filesystem::path preparationPython;
+inline HANDLE preparationProcess=nullptr,preparationPipe=nullptr;
 inline std::vector<ImU32> uploaded;
 inline std::set<int> uploadedBands;
 inline bool uploadedHighlight=false;
-inline unsigned uploadedSprite=0;
+inline unsigned uploadedSprite=0,fallbackSprite=2;
 inline std::vector<SpriteFrameAsset> frames;
 inline std::vector<AnimationAsset> animations;
 inline SpriteFrameAsset decodedFrame;
@@ -51,59 +58,141 @@ inline char animationSearch[128]={};
 
 inline void LostDevice() {if(texture){texture->Release();texture=nullptr;}}
 inline void ForgetMatch() {
-    LostDevice();original.clear();edited.clear();sizes.clear();slot=palette=-1;
+    centerCanvas=true;LostDevice();original.clear();edited.clear();sizes.clear();slot=palette=-1;snapshotCharacter.clear();
 }
-inline void Shutdown() {ForgetMatch();device=nullptr;pixels.clear();defaultRows.clear();frames.clear();animations.clear();decodedFrame={};decodedSprite=(std::numeric_limits<unsigned>::max)();attempted=false;}
+inline void ResetAsset() {
+    centerCanvas=true;LostDevice();pixels.clear();defaultRows.clear();frames.clear();animations.clear();decodedFrame={};
+    decodedSprite=(std::numeric_limits<unsigned>::max)();attempted=false;legacyFixedOnly=false;
+    error.clear();loadedCharacter.clear();fallbackSprite=2;selectedAnimation=-1;frameIndex=0;
+    canvasLeft=canvasTop=canvasWidth=canvasHeight=0;
+}
+inline void Shutdown() {
+    ForgetMatch();device=nullptr;ResetAsset();
+    if(preparationPipe){CloseHandle(preparationPipe);preparationPipe=nullptr;}
+    if(preparationProcess){CloseHandle(preparationProcess);preparationProcess=nullptr;}
+}
 
-inline bool ReadExactly(std::ifstream& f,char* data,size_t size) {
+class PreviewInput : public std::ifstream {
+public:
+    using std::ifstream::ifstream;
+    unsigned long long limit=4ull*1024*1024*1024;
+    PreviewInput& read(char* data,std::streamsize count) {
+        const auto position=tellg();
+        if(position<0 || count<0 || static_cast<unsigned long long>(position)>limit ||
+           static_cast<unsigned long long>(count)>limit-static_cast<unsigned long long>(position))
+            throw std::runtime_error("Read exceeds the preview character section.");
+        std::ifstream::read(data,count);return *this;
+    }
+};
+inline bool ReadExactly(PreviewInput& f,char* data,size_t size) {
     f.read(data,(std::streamsize)size);return f.good();
 }
 inline unsigned BoundDimension(unsigned value) {
     if(value==0 || value>2048)throw std::runtime_error("Unsupported variable sprite dimension.");
     return value;
 }
-inline void Load() {
+inline void RebuildCanvasBounds() {
+    unsigned left=0,right=0,top=0,bottom=0;
+    for(const auto& frame:frames) {
+        left=(std::max)(left,static_cast<unsigned>((std::max)(frame.originX,0)));
+        right=(std::max)(right,static_cast<unsigned>((std::max)(static_cast<int>(frame.width)-frame.originX,0)));
+        top=(std::max)(top,static_cast<unsigned>((std::max)(frame.originY,0)));
+        bottom=(std::max)(bottom,static_cast<unsigned>((std::max)(static_cast<int>(frame.height)-frame.originY,0)));
+    }
+    if(left+right>8192 || top+bottom>8192)throw std::runtime_error("Sprite origins exceed the preview canvas bound.");
+    canvasLeft=left;canvasTop=top;canvasWidth=left+right;canvasHeight=top+bottom;
+}
+inline void Load(const char* character) {
+    if(loadedCharacter!=character){ResetAsset();loadedCharacter=character;}
     if(attempted)return;attempted=true;
     try {
-        std::ifstream f("cerebella-pose.bin",std::ios::binary|std::ios::ate);
-        if(!f)throw std::runtime_error("Prepare cerebella-pose.bin from the local installation with scripts/prepare-dll-preview.py.");
-        auto length=f.tellg();if(length<24 || length>128*1024*1024)throw std::runtime_error("Unsupported preview asset size.");
-        f.seekg(0);char magic[8]={};unsigned paletteBytes=0,fallback=0,frameCount=0,animationCount=0;
+        PreviewInput f("sprite-preview.bin",std::ios::binary|std::ios::ate);
+        bool legacyFile=false;
+        if(!f && _stricmp(character,"Cerebella")==0) {
+            f.clear();f.open("cerebella-pose.bin",std::ios::binary|std::ios::ate);legacyFile=bool(f);
+        }
+        if(!f)throw std::runtime_error("Use Prepare combined sprite asset to generate sprite-preview.bin from the local game archives.");
+        auto fileLength=f.tellg();
+        if(fileLength<8 || static_cast<unsigned long long>(fileLength)>4ull*1024*1024*1024)throw std::runtime_error("Unsupported combined preview asset size.");
+        f.limit=static_cast<unsigned long long>(fileLength);
+        f.seekg(0);char magic[8]={};
         if(!ReadExactly(f,magic,8))throw std::runtime_error("Truncated preview asset.");
+        std::streamoff sectionOffset=0;unsigned long long sectionLength=static_cast<unsigned long long>(fileLength);
+        if(!legacyFile && memcmp(magic,"SGMULT1\0",8)==0) {
+            unsigned version=0,characterCount=0;
+            f.read(reinterpret_cast<char*>(&version),4);f.read(reinterpret_cast<char*>(&characterCount),4);
+            if(!f || version!=1 || characterCount<1 || characterCount>18)throw std::runtime_error("Malformed combined preview index.");
+            struct Section {std::string name;unsigned long long offset,size;};
+            std::vector<Section> sections;sections.reserve(characterCount);
+            std::set<std::string> unique;
+            for(unsigned i=0;i<characterCount;++i) {
+                unsigned short nameBytes=0;f.read(reinterpret_cast<char*>(&nameBytes),2);
+                if(!f || !nameBytes || nameBytes>64)throw std::runtime_error("Malformed combined preview character name.");
+                std::string name(nameBytes,'\0');if(!ReadExactly(f,name.data(),nameBytes))throw std::runtime_error("Truncated combined preview character name.");
+                unsigned long long offset=0,size=0;f.read(reinterpret_cast<char*>(&offset),8);f.read(reinterpret_cast<char*>(&size),8);
+                if(!f || !unique.insert(name).second || size<24 || size>128ull*1024*1024 ||
+                    offset>static_cast<unsigned long long>(fileLength) || size>static_cast<unsigned long long>(fileLength)-offset)
+                    throw std::runtime_error("Invalid combined preview section bounds.");
+                sections.push_back({name,offset,size});
+            }
+            const auto indexEnd=static_cast<unsigned long long>(f.tellg());
+            std::vector<Section> ordered=sections;
+            std::sort(ordered.begin(),ordered.end(),[](const Section& a,const Section& b){return a.offset<b.offset;});
+            unsigned long long end=indexEnd;
+            for(const auto& section:ordered) {
+                if(section.offset!=end)throw std::runtime_error("Invalid combined preview section layout.");
+                end=section.offset+section.size;
+            }
+            if(end!=static_cast<unsigned long long>(fileLength))throw std::runtime_error("Truncated or trailing combined preview data.");
+            auto selected=std::find_if(sections.begin(),sections.end(),[character](const Section& section){return _stricmp(section.name.c_str(),character)==0;});
+            if(selected==sections.end())throw std::runtime_error("No local preview section exists for this character.");
+            sectionOffset=static_cast<std::streamoff>(selected->offset);sectionLength=selected->size;
+            f.limit=selected->offset+selected->size;
+            f.seekg(sectionOffset);if(!ReadExactly(f,magic,8))throw std::runtime_error("Truncated character preview section.");
+        } else if(!legacyFile) {
+            if(_stricmp(character,"Cerebella")!=0)throw std::runtime_error("Unsupported combined preview asset format.");
+            const bool knownPose=memcmp(magic,"SGPOSE1\0",8)==0 || memcmp(magic,"SGPOSE2\0",8)==0 ||
+                memcmp(magic,"SGPOSE3\0",8)==0 || memcmp(magic,"SGPOSE4\0",8)==0 || memcmp(magic,"SGPOSE5\0",8)==0;
+            if(!knownPose)throw std::runtime_error("Unsupported preview asset format.");
+        }
+        if(sectionLength<24 || sectionLength>128ull*1024*1024)throw std::runtime_error("Unsupported character preview section size.");
+        unsigned paletteBytes=0,fallback=0,frameCount=0,animationCount=0;
         f.read(reinterpret_cast<char*>(&paletteBytes),4);f.read(reinterpret_cast<char*>(&fallback),4);f.read(reinterpret_cast<char*>(&frameCount),4);f.read(reinterpret_cast<char*>(&animationCount),4);
+        fallbackSprite=fallback;
         if(memcmp(magic,"SGPOSE2\0",8)==0 || memcmp(magic,"SGPOSE3\0",8)==0 || memcmp(magic,"SGPOSE4\0",8)==0)throw std::runtime_error("This preview asset uses an outdated sprite mapping or layer format. Regenerate it with the current scripts/prepare-dll-preview.py.");
         if(memcmp(magic,"SGPOSE5\0",8)==0) {
             if(paletteBytes<64 || paletteBytes>16384 || paletteBytes%64 || frameCount<1 || frameCount>4096 || animationCount>1000)throw std::runtime_error("Malformed SGPOSE5 preview asset.");
-            if(static_cast<unsigned>(length)<24+paletteBytes)throw std::runtime_error("Truncated SGPOSE5 palette.");
+            if(sectionLength<24+paletteBytes)throw std::runtime_error("Truncated SGPOSE5 palette.");
             defaultRows.resize(paletteBytes);if(!ReadExactly(f,reinterpret_cast<char*>(defaultRows.data()),paletteBytes))throw std::runtime_error("Truncated SGPOSE5 palette.");
             bool fallbackFound=false;
             for(unsigned r=0;r<frameCount;++r) {
                 unsigned id=0,layerCount=0;int originX=0,originY=0;
                 f.read(reinterpret_cast<char*>(&id),4);f.read(reinterpret_cast<char*>(&originX),4);f.read(reinterpret_cast<char*>(&originY),4);f.read(reinterpret_cast<char*>(&layerCount),4);
                 if(!f || layerCount<1 || layerCount>8)throw std::runtime_error("Malformed SGPOSE5 sprite record.");
-                SpriteFrameAsset frame;frame.id=id;frame.originX=(unsigned)std::max(originX,0);frame.originY=(unsigned)std::max(originY,0);
-                int minX=0,minY=0,maxX=0,maxY=0;bool haveBounds=false;
+                SpriteFrameAsset frame;frame.id=id;
+                SpritePreviewGeometry::Bounds bounds;
                 for(unsigned l=0;l<layerCount;++l) {
                     unsigned slot=0,used=0;unsigned short columns=0,rows=0,flags=0;int x=0,y=0;unsigned channelBytes[3]={};
                     f.read(reinterpret_cast<char*>(&slot),4);f.read(reinterpret_cast<char*>(&x),4);f.read(reinterpret_cast<char*>(&y),4);f.read(reinterpret_cast<char*>(&columns),2);f.read(reinterpret_cast<char*>(&rows),2);f.read(reinterpret_cast<char*>(&flags),2);f.read(reinterpret_cast<char*>(&used),2);f.read(reinterpret_cast<char*>(&channelBytes[0]),4);f.read(reinterpret_cast<char*>(&channelBytes[1]),4);f.read(reinterpret_cast<char*>(&channelBytes[2]),4);
                     unsigned layerWidth=BoundDimension(columns*16),layerHeight=BoundDimension(rows*16);
                     if(slot>7 || used==0 || used>columns*rows || (flags&~64u) || size_t(layerWidth)*layerHeight*3>16*1024*1024)throw std::runtime_error("Malformed or oversized SGPOSE5 sprite layer.");
-                    PixelLayer layer;layer.slot=slot;layer.x=x;layer.y=y;layer.width=layerWidth;layer.height=layerHeight;layer.flags=flags;layer.tiles.resize(used);
+                    long long relativeX=static_cast<long long>(x)-originX,relativeY=static_cast<long long>(y)-originY;
+                    if(relativeX<-8192 || relativeX>8192 || relativeY<-8192 || relativeY>8192)throw std::runtime_error("Sprite layer origin offset exceeds bounds.");
+                    PixelLayer layer;layer.slot=slot;layer.x=static_cast<int>(relativeX);layer.y=static_cast<int>(relativeY);layer.width=layerWidth;layer.height=layerHeight;layer.flags=flags;layer.tiles.resize(used);
                     if(!ReadExactly(f,reinterpret_cast<char*>(layer.tiles.data()),used*sizeof(unsigned short)))throw std::runtime_error("Truncated SGPOSE5 sprite tile list.");
                     std::set<unsigned short> uniqueTiles;
                     for(auto tile:layer.tiles)if(tile>=columns*rows || !uniqueTiles.insert(tile).second)throw std::runtime_error("Invalid SGPOSE5 tile position.");
                     for(unsigned channel=0;channel<3;++channel) {
-                        if(channelBytes[channel]==0 || channelBytes[channel]>16*1024*1024)throw std::runtime_error("Malformed SGPOSE5 channel length.");
+                        if(channelBytes[channel]==0 || channelBytes[channel]>16*1024*1024 || static_cast<unsigned long long>(f.tellg())>f.limit || channelBytes[channel]>f.limit-static_cast<unsigned long long>(f.tellg()))throw std::runtime_error("Malformed SGPOSE5 channel length.");
                         layer.channels[channel].resize(channelBytes[channel]);
                         if(!ReadExactly(f,reinterpret_cast<char*>(layer.channels[channel].data()),channelBytes[channel]))throw std::runtime_error("Truncated SGPOSE5 sprite channel.");
                     }
-                    if(!haveBounds){minX=x;minY=y;maxX=x+(int)layerWidth;maxY=y+(int)layerHeight;haveBounds=true;}else{
-                        minX=(std::min)(minX,x);minY=(std::min)(minY,y);maxX=(std::max)(maxX,x+(int)layerWidth);maxY=(std::max)(maxY,y+(int)layerHeight);
-                    }
+                    bounds.Add(layer.x,layer.y,layerWidth,layerHeight);
                     frame.layers.push_back(std::move(layer));
                 }
-                frame.width=BoundDimension((unsigned)(maxX-minX));frame.height=BoundDimension((unsigned)(maxY-minY));
-                for(auto& layer:frame.layers){layer.offsetX=(unsigned)(layer.x-minX);layer.offsetY=(unsigned)(layer.y-minY);}
+                frame.width=BoundDimension((unsigned)(bounds.right-bounds.left));frame.height=BoundDimension((unsigned)(bounds.bottom-bounds.top));
+                frame.originX=-bounds.left;frame.originY=-bounds.top;
+                for(auto& layer:frame.layers){layer.offsetX=bounds.OffsetX(layer.x);layer.offsetY=bounds.OffsetY(layer.y);}
                 frames.push_back(std::move(frame));if(id==fallback)fallbackFound=true;
             }
             if(!fallbackFound)throw std::runtime_error("SGPOSE5 is missing the fixed-pose fallback sprite.");
@@ -124,21 +213,22 @@ inline void Load() {
                 }
                 animations.push_back(std::move(animation));
             }
-            if(f.tellg()!=length)throw std::runtime_error("Trailing or malformed SGPOSE5 preview data.");
+            if(static_cast<unsigned long long>(f.tellg())!=static_cast<unsigned long long>(sectionOffset)+sectionLength)throw std::runtime_error("Trailing or malformed SGPOSE5 preview data.");
         } else if(memcmp(magic,"SGPOSE1\0",8)==0) {
             legacyFixedOnly=true;
             unsigned count=paletteBytes;
             f.seekg(0);
             char oldMagic[8]={};unsigned w=0,h=0,oldLayers=0,oldCount=0;
             f.read(oldMagic,8);f.read(reinterpret_cast<char*>(&w),4);f.read(reinterpret_cast<char*>(&h),4);f.read(reinterpret_cast<char*>(&oldLayers),4);f.read(reinterpret_cast<char*>(&oldCount),4);
-            if(w!=448||h!=384||oldLayers!=2||oldCount<64||oldCount>16384||oldCount%64||static_cast<size_t>(length)!=24+oldCount+size_t(w)*h*3*oldLayers)throw std::runtime_error("Unsupported fixed-pose asset.");
+            if(w!=448||h!=384||oldLayers!=2||oldCount<64||oldCount>16384||oldCount%64||static_cast<size_t>(sectionLength)!=24+oldCount+size_t(w)*h*3*oldLayers)throw std::runtime_error("Unsupported fixed-pose asset.");
             defaultRows.resize(oldCount);pixels.resize(size_t(w)*h*3*oldLayers);
             f.read(reinterpret_cast<char*>(defaultRows.data()),oldCount);f.read(reinterpret_cast<char*>(pixels.data()),pixels.size());
-            width=w;height=h;layers=oldLayers;
+            width=w;height=h;layers=oldLayers;fallbackSprite=2;
             SpriteFrameAsset fixed;fixed.id=2;fixed.width=w;fixed.height=h;
             for(unsigned l=0;l<oldLayers;++l){PixelLayer layer;layer.slot=l;layer.width=w;layer.height=h;layer.pixels.resize(size_t(w)*h*3);std::copy(pixels.begin()+l*w*h*3,pixels.begin()+((l+1)*w*h*3),layer.pixels.begin());fixed.layers.push_back(std::move(layer));}
             frames.push_back(std::move(fixed));
         } else throw std::runtime_error("Unsupported preview asset magic.");
+        RebuildCanvasBounds();
     }catch(const std::exception& e){error=e.what();pixels.clear();frames.clear();animations.clear();}
 }
 
@@ -197,7 +287,7 @@ inline void DecodePixelLayer(PixelLayer& layer) {
         }
     }
 }
-inline const SpriteFrameAsset* ActiveFrame() {
+inline const SpriteFrameAsset* FrameMetadata() {
     const SpriteFrameAsset* source=nullptr;
     if(selectedAnimation>=0 && selectedAnimation<(int)animations.size()) {
         auto& animation=animations[selectedAnimation];
@@ -206,8 +296,12 @@ inline const SpriteFrameAsset* ActiveFrame() {
             for(const auto& frame:frames)if(frame.id==id){source=&frame;break;}
         }
     }
-    if(!source){unsigned fallback=2;for(const auto& frame:frames)if(frame.id==fallback){source=&frame;break;}}
+    if(!source){for(const auto& frame:frames)if(frame.id==fallbackSprite){source=&frame;break;}}
     if(!source && !frames.empty())source=&frames.front();
+    return source;
+}
+inline const SpriteFrameAsset* ActiveFrame() {
+    const auto* source=FrameMetadata();
     if(!source)return nullptr;
     if(decodedSprite!=source->id) {
         decodedFrame=*source;
@@ -251,20 +345,59 @@ inline void Upload(const std::set<int>& selected) {
     texture->UnlockRect(0);uploaded=colors;uploadedBands=selected;uploadedHighlight=highlight;uploadedSprite=frame->id;
 }
 
+inline void DrawCanvas() {
+    if(!texture)return;
+    const auto* frame=ActiveFrame();if(!frame)return;
+    ImGui::BeginChild("Preview canvas",ImVec2(0,(std::max)(180.0f,ImGui::GetContentRegionAvail().y)),true,ImGuiWindowFlags_HorizontalScrollbar);
+    if(fitCanvas) {
+        const auto available=ImGui::GetContentRegionAvail();
+        zoom=std::clamp((std::min)((available.x-16)/frame->width,(available.y-16)/frame->height),0.25f,3.0f);
+        fitCanvas=false;centerCanvas=true;
+    }
+    const ImVec2 canvasSize(canvasWidth*zoom,canvasHeight*zoom);
+    const ImVec2 canvasPosition=ImGui::GetCursorScreenPos();
+    const float imageX=canvasPosition.x+(static_cast<int>(canvasLeft)-frame->originX)*zoom;
+    const float imageY=canvasPosition.y+(static_cast<int>(canvasTop)-frame->originY)*zoom;
+    ImGui::GetWindowDrawList()->AddImage((ImTextureID)(intptr_t)texture,
+        ImVec2(imageX,imageY),ImVec2(imageX+frame->width*zoom,imageY+frame->height*zoom));
+    ImGui::Dummy(canvasSize);
+    if(centerCanvas) {
+        ImGui::SetScrollX((static_cast<int>(canvasLeft)-frame->originX+frame->width*0.5f)*zoom-ImGui::GetWindowWidth()*0.5f);
+        ImGui::SetScrollY((static_cast<int>(canvasTop)-frame->originY+frame->height*0.5f)*zoom-ImGui::GetWindowHeight()*0.5f);
+        centerCanvas=false;
+    }
+    ImGui::EndChild();
+}
+
 inline void Draw(int targetSlot,int targetPalette,const char* character,const std::vector<ImU32>& liveColors,const std::vector<int>& layout,const ColorGroup& group,const std::set<int>& bands) {
     if(!ImGui::CollapsingHeader("Sprite preview",ImGuiTreeNodeFlags_DefaultOpen))return;
-    ImGui::TextWrapped("Cerebella local sprite frames | isolated colors only. Overlays, native lighting, rainbow, redirects, transformations and super visuals are not previewed.");
-    if(_stricmp(character,"Cerebella")!=0){ImGui::TextDisabled("Select Cerebella to use the local sprite preview.");return;}
-    Load();if(!error.empty()){ImGui::TextWrapped("%s",error.c_str());return;}
-    if(slot!=targetSlot || palette!=targetPalette || sizes!=layout) {
-        ForgetMatch();slot=targetSlot;palette=targetPalette;sizes=layout;original=edited=liveColors;
+    ImGui::TextWrapped("Isolated preview. Extra artwork layers and shader effects are not previewed.");
+    if(!error.empty() || preparationProcess)ImGui::SetNextItemOpen(true);
+    if(ImGui::CollapsingHeader("Prepare local sprite assets")) {
+        ImGui::BeginDisabled(preparationProcess!=nullptr);
+        if(ImGui::Button("Prepare combined sprite asset")) {
+            IGFD::FileDialogConfig config;config.path=".";
+            ImGuiFileDialog::Instance()->OpenDialog("PrepareSpritePreview","Select local characters-foits.gfs",".gfs",config);
+        }
+        ImGui::SameLine();
+        if(ImGui::Button("Choose Python executable")) {
+            IGFD::FileDialogConfig config;config.path=".";
+            ImGuiFileDialog::Instance()->OpenDialog("ChoosePreviewPython","Select a working Python 3 executable",".exe",config);
+        }
+        ImGui::EndDisabled();
+        if(!preparationPython.empty())ImGui::TextWrapped("Python: %s",preparationPython.filename().string().c_str());
+        if(!preparationStatus.empty())ImGui::TextWrapped("%s",preparationStatus.c_str());
+    }
+    Load(character);if(!error.empty()){ImGui::TextWrapped("%s",error.c_str());return;}
+    if(slot!=targetSlot || palette!=targetPalette || sizes!=layout || snapshotCharacter!=character) {
+        ForgetMatch();slot=targetSlot;palette=targetPalette;sizes=layout;snapshotCharacter=character;original=edited=liveColors;
     }
     ImGui::Separator();
     ImGui::TextColored(ImVec4(0.4f,0.85f,1.0f,1.0f),"Animation / frame selection");
-    if(legacyFixedOnly)ImGui::TextWrapped("This folder has a fixed-pose-only SGPOSE1 asset. Replace cerebella-pose.bin with the output of scripts/prepare-dll-preview.py, then restart the runner to load animations.");
+    if(legacyFixedOnly)ImGui::TextWrapped("This is a fixed-pose-only asset. Prepare the combined sprite asset from the local game archives to enable animation selection.");
     ImGui::TextDisabled("%zu animations loaded | select an animation to reveal its frame controls",animations.size());
     ImGui::InputTextWithHint("##AnimationSearch","Filter animation name or numeric move ID",animationSearch,sizeof(animationSearch));
-    ImGui::BeginChild("Animation list",ImVec2(300,140),true);
+
     std::string query=animationSearch;std::transform(query.begin(),query.end(),query.begin(),::tolower);
     std::vector<int> filtered;
     for(int i=0;i<(int)animations.size();++i){
@@ -277,28 +410,25 @@ inline void Draw(int targetSlot,int targetPalette,const char* character,const st
     for(int i=0;i<(int)filtered.size();++i)if(filtered[i]==selectedAnimation)comboIndex=i;
     std::string selectedLabel="Choose animation";
     if(comboIndex>=0){const auto& a=animations[selectedAnimation];selectedLabel=a.name.empty()?("Move "+std::to_string(a.id)):a.name+" ["+std::to_string(a.id)+"]";}
-    ImGui::SetNextItemWidth(-1);
-    if(ImGui::BeginCombo("Animation dropdown",selectedLabel.c_str())){
+    ImGui::SetNextItemWidth((std::max)(160.0f,ImGui::GetContentRegionAvail().x-185));
+    if(ImGui::BeginCombo("##Animation dropdown",selectedLabel.c_str())){
         for(int i=0;i<(int)filtered.size();++i){
             int animationIndex=filtered[i];const auto& a=animations[animationIndex];
             std::string label=a.name.empty()?("Move "+std::to_string(a.id)):a.name+" ["+std::to_string(a.id)+"]";
-            if(ImGui::Selectable(label.c_str(),selectedAnimation==animationIndex)){selectedAnimation=animationIndex;frameIndex=0;}
+            if(ImGui::Selectable(label.c_str(),selectedAnimation==animationIndex)){selectedAnimation=animationIndex;frameIndex=0;centerCanvas=true;}
             if(selectedAnimation==animationIndex)ImGui::SetItemDefaultFocus();
         }
         ImGui::EndCombo();
     }
-    ImGui::EndChild();ImGui::SameLine();
-    ImGui::BeginGroup();
-    ImGui::TextUnformatted("Selected frame");
-    if(ImGui::Button("Fixed pose fallback")){selectedAnimation=-1;frameIndex=0;}
+    ImGui::SameLine();
+    if(ImGui::Button("Fixed pose fallback")){selectedAnimation=-1;frameIndex=0;centerCanvas=true;}
     if(selectedAnimation>=0 && selectedAnimation<(int)animations.size()) {
         auto& animation=animations[selectedAnimation];
-        ImGui::TextDisabled("%zu authored timeline frames",animation.frames.size());
         frameIndex=std::clamp(frameIndex,0,(int)animation.frames.size()-1);
         if(ImGui::Button("Previous"))frameIndex=(std::max)(0,frameIndex-1);ImGui::SameLine();
         if(ImGui::Button("Next"))frameIndex=(std::min)((int)animation.frames.size()-1,frameIndex+1);
         std::string frameLabel="Frame "+std::to_string(frameIndex+1)+" / "+std::to_string(animation.frames.size());
-        ImGui::SetNextItemWidth(180);
+        ImGui::SetNextItemWidth((std::max)(160.0f,ImGui::GetContentRegionAvail().x-80));
         if(ImGui::BeginCombo("Frame dropdown",frameLabel.c_str())){
             for(int i=0;i<(int)animation.frames.size();++i){
                 auto& entry=animation.frames[i];
@@ -308,15 +438,17 @@ inline void Draw(int targetSlot,int targetPalette,const char* character,const st
             }
             ImGui::EndCombo();
         }
-        ImGui::SetNextItemWidth(100);ImGui::InputInt("Frame within animation",&frameIndex);
+        int frameNumber=frameIndex+1;
+        ImGui::SetNextItemWidth(100);if(ImGui::InputInt("Frame number",&frameNumber))frameIndex=std::clamp(frameNumber,1,(int)animation.frames.size())-1;
         frameIndex=std::clamp(frameIndex,0,(int)animation.frames.size()-1);
-        ImGui::SliderInt("Frame", &frameIndex,0,(int)animation.frames.size()-1);
-        ImGui::Text("Frame %d / %d",frameIndex+1,(int)animation.frames.size());
         auto& entry=animation.frames[frameIndex];
         ImGui::Text("Sprite record: %u | duration: %u ticks",entry.sprite,entry.duration);
-        ImGui::TextDisabled("Alternate timeline slots: %u, %u",entry.sprite1,entry.sprite2);
-    } else ImGui::TextDisabled("Fixed pose fallback: sprite record 2");
-    ImGui::EndGroup();
+        if(ImGui::IsItemHovered()) {
+            ImGui::BeginTooltip();ImGui::Text("Other timeline slots: %u, %u",entry.sprite1,entry.sprite2);
+            if(const auto* frame=FrameMetadata())ImGui::Text("Origin anchor: %d, %d",frame->originX,frame->originY);
+            ImGui::EndTooltip();
+        }
+    } else ImGui::TextDisabled("Fixed pose fallback: sprite record %u",fallbackSprite);
     ImGui::Separator();
     if(ImGui::Button("Snapshot match colors"))original=edited=liveColors;
     ImGui::SameLine();ImGui::Checkbox("Original / Edited",&showOriginal);
@@ -324,12 +456,14 @@ inline void Draw(int targetSlot,int targetPalette,const char* character,const st
     ImGui::SliderFloat("Zoom",&zoom,0.25f,3.0f,"%.2fx");ImGui::Checkbox("Highlight selected group",&highlight);
     ImGui::BeginDisabled(showOriginal);
     for(int i=group.startIndex;i<group.startIndex+group.count && i<(int)edited.size();++i) {
-        ImGui::PushID(i);auto color=ColorsTools::ImU32BGRAtoImVec4RGBA(edited[i]);
+        ImGui::PushID(i);auto color=ColorsTools::ImU32BGRAtoImVec4RGBA(showOriginal?original[i]:edited[i]);
         if(ImGui::ColorEdit4("##Local swatch",&color.x,ImGuiColorEditFlags_NoInputs))edited[i]=ColorsTools::ImVec4RGBAtoImU32BGRA(color);
         ImGui::PopID();if((i-group.startIndex+1)%6)ImGui::SameLine();
     }
     ImGui::NewLine();ImGui::EndDisabled();
     try {Upload(bands);}catch(const std::exception& e){LostDevice();ImGui::TextWrapped("%s",e.what());}
-    if(texture){ImGui::BeginChild("Preview canvas",ImVec2(0,420),true,ImGuiWindowFlags_HorizontalScrollbar);ImGui::Image((ImTextureID)(intptr_t)texture,ImVec2(width*zoom,height*zoom));ImGui::EndChild();}
+    if(ImGui::Button("Center current frame"))centerCanvas=true;
+    ImGui::SameLine();if(ImGui::Button("Fit current frame"))fitCanvas=true;
+    DrawCanvas();
 }
 }

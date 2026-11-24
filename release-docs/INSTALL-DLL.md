@@ -4,7 +4,7 @@ Use this package for the in-game editor. All binaries are Windows x86 (32-bit), 
 
 1. Close Skullgirls and any standalone palette editor.
 2. Back up any existing `d3d9.dll` in the game folder.
-3. Extract **all** files from this ZIP beside `SkullGirls.exe`, including `groups.json`, `overlay-textures.json`, and the `overlay-shader` folder.
+3. Extract **all** files from this ZIP beside `SkullGirls.exe`, including `groups.json`, `overlay-textures.json`, `prepare-dll-preview.py`, and the `overlay-shader` folder.
 4. Start the game and enter a match. Press **F1** or **Insert** to show/hide the editor.
 
 **Palette** contains normal colors, group Copy/Paste, color wheels, and the eyedropper. **Advanced** is a separate tab for textures, rainbow, opacity, color links, and conditional transformations. Expanded color groups also offer **Shader settings**. The selectors in both tabs refer to the same character and palette number.
@@ -14,6 +14,8 @@ Apply settings before saving. **Save Palette** saves colors and applied shader a
 `PaletteEditorDLLConfig.json` stores DLL settings in the game working directory. This package does not replace personal palettes or include preset assignments. Disabling auto-load stops future loading; it does not undo an already loaded palette. Settings from the standalone editor are separate.
 
 In **Advanced → Overlay textures**, use **Add second texture** for two independent group assignments with shared lighting. Click **Apply overlays** before saving. **Shader settings → Assign overlay** stages a group's choice for the same Apply button. Each palette also supports one rainbow timing configuration and one conditional transformation trigger.
+
+The **Sprite preview** can generate one local animation asset for the 18 playable characters. Click **Prepare combined sprite asset**, select `characters-foits.gfs` in the local game's `data01` folder, and keep Python 3 available on PATH (or select it with **Choose Python executable**). The generated `sprite-preview.bin` stays beside the game and is not included in this package; no game artwork is uploaded or distributed.
 
 Online palette sending, receiving, and the editor's Steam lobby/chat tools are disabled at build time in 1.0.1. The DLL does not register those callbacks or link to Steam's API library. There is no setting to turn sharing back on. The game's own online play is unchanged. Palette assignments and auto-load remain local, and the Steam-dependent "only my side" option is unavailable.
 
