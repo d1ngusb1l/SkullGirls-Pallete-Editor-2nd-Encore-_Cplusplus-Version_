@@ -206,3 +206,13 @@ Follow-up validation DLL built successfully with all network-exclusion flags fal
 - Group names span a separate row above swatches / Color Studio / Effects / Copy / Paste, in that order. Fixed action columns preserve the click-down workflow. Swatches wrap within their own column.
 - Action widths derive from rendered label size and frame padding. Paste reserves width for the complete Paste matching label even when its label is the shorter Paste. Very narrow windows can scroll the row horizontally instead of clipping its controls.
 - Win32 validation build and networking-exclusion checks passed. Installed while the runner was closed, with the prior DLL backed up. SHA-256: 611906411EAB85632826B4144B2FE2C02B12835701F2341D57F49CBDE685E188. In-game visual check is pending.
+
+## Final PR audit
+
+- Whitespace/diff checks and Python syntax compilation passed. All 11 Python timeline-preparation tests passed. Native Release/Win32 suites passed: PaletteDocument (32 checks), OverlayBindingMatch, PaletteRamp, LegacyConfigMigration, SpritePreviewGeometry, SpritePreviewFocus and SpritePreviewAsset (all 18 local character sections). New PalettePasteHistory regression checks also passed.
+- Audit fixed stale editing history across native match-identity changes: generation changes clear paste history, Studio drafts and queued target switches. Undo additionally checks generation, slot, palette, bounds and unchanged pasted values before reading/writing the color vector. The regression suite includes a reused slot/palette/colors in a new generation and truncated color vectors.
+- The final validation DLL built and networking, lobby tooling, Steam imports and legacy protocol markers all remained absent. Existing signed/unsigned, numeric-conversion and legacy return-path warnings remain; this is not a zero-warning build. Generated assets and DLL binaries are excluded from Git.
+- The final single-row button arrangement and this audit fix have not received an additional in-game pass. Earlier verified workflows and source-preserving recovery of 16 legacy Autoload assignments remain documented above. Keep the PR draft until the final layout/identity transitions are checked in Training.
+- Follow-up agent prompt: docs/TRANSFORMATIONS-RESOURCE-TRIGGERS-PROMPT.txt. It covers independently active rules, schema migration/composition, and read-only investigation of character resources such as Beowulf Hype without inventing offsets or conflating meter values with persistent activation states.
+
+Audited validation DLL installed in the isolated runner while closed, with a previous-build backup. SHA-256: 25B7CB321E97F7C0B019716D79B0A30C504CEF59E22668BBC10B6E1B71CF2AA9.

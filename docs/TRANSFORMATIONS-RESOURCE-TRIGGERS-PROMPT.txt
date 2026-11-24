@@ -1,0 +1,47 @@
+Continue the Skullgirls Palette Editor DLL after the palette UI / isolated sprite viewer PR on codex/dll-palette-workspace. Start from that PR's reviewed head (or merged master), inspect the current Git state, and create a new codex/multiple-transformations branch. Preserve unrelated work. This task is about multiple independently active palette transformation rules, not multiple editor instances.
+
+The user controls ALL game menus, gameplay, tagging, resource changes, match restarts, launching and display transitions. You may operate the palette editor and use existing read-only diagnostics. Never replace a DLL while the isolated runner is running. Ask the user for controlled game actions when observations require them. Keep palette sharing/networking disabled. Do not bundle local game art or generated sprite assets into Git or the PR.
+
+Read these first:
+- docs/DLL-WORKSPACE-VALIDATION.md and docs/PAL-FORMAT.md
+- PalleteEditor/Data/PaletteDocument.h and PalleteEditor/PalettePersistence.inl
+- PalleteEditor/NativeColorLinks.inl, NativeTriggers.inl, TransformationSmoke.inl and NativeTriggerSmoke.inl
+- DllEditor/PalleteEditor/AdvancedPalette.cpp, GroupShaderControls.inl and DirectXWrapper/LiveOverlays.inl
+- DllEditor/PalleteEditor/UI/SpriteViewer.h and UI/ColorWheel.cpp
+- tests/PaletteDocumentTests.cpp, OverlayBindingMatchTests.cpp and PalettePasteHistoryTests.cpp
+Find the actual current locations if a file has moved. Distinguish documented in-game results from code-only support and hypotheses.
+
+Current constraints to verify in code:
+- Document has one optional Transformation, with one links map, shadeMask, previewMode and activationTag/legacyTrigger. ColorAssignment similarly holds one transformation. Group controls currently share its trigger. NativeColorLinks builds one redirect table per palette; don't create competing writers to its header.
+- NativeTriggers contains a bounded list of authored animation tags. Legacy automatic profiles include Annie supers and Filia Color 30; neither establishes support for Beowulf Hype or other resources.
+- Palette versions 1/2, legacy color-only .pal files, both overlay slots, existing color links and original-mod Autoload import must keep working.
+- Two-overlay base colors load while benched; renderer binding may wait until tag-in. Preserve mirror/tag behavior and live-color matching. This draw identification is not evidence for resource ownership.
+- Sprite preview has manual animation/frame selection and pane-local colors. Unsupported layers/effects are explicitly unpreviewed. A displayed pose does not imply that a gameplay trigger is active.
+
+Phase 1: independent transformation rules
+1. Map the existing serialization, UI, native predicate records, composition, allocation ownership and restoration paths before editing. Propose a small rule model: stable id/name, enabled flag, affected source/destination bands and shades, per-rule predicate and preview override, and explicit conflict handling.
+2. Allow two or more unrelated rules to coexist and activate simultaneously without changing each other's links, triggers or enabled state. Aggregate them through a single owner of the native redirect table.
+3. Define and document deterministic behavior for overlapping source bands/shades, priorities/ties, static color links, existing native records, and chained destinations. Verify the game's actual native record precedence instead of assuming list order works. Never silently let one rule erase another. If a combination is unsupported, reject it clearly before writing.
+4. Preserve the base/native appearance when no rule is active. Each rule's manual preview must be independent; preview in the isolated sprite window must not mutate the live fighter or saved file. Avoid calling unsupported effects game-equivalent.
+5. Extend .pal persistence deliberately. Prefer a new version when a collection/predicate changes the schema. Migrate old single transformations to exactly one equivalent rule, preserve V1/V2 and both overlays, reject unsupported versions/unknown triggers explicitly, and avoid silent lossy downgrade. Keep legacy colors-only export explicit.
+6. Provide compact rule management consistent with the current side-panel UI. Keep direct group Copy/Paste and separate Color Studio/Effects controls; don't reintroduce workspace mode. Make shared settings and conflicts understandable.
+7. Use existing transactional native-write and match-identity mechanisms. Audit rollback, inactive/disabled rules, stale actor pointers, tagging, palette changes, repeated Apply and match reset. Investigate allocation lifetime before freeing anything the renderer might still reference.
+8. Add meaningful tests for independent activation, simultaneous activation, conflict policy, masks/static links, V1/V2 migration, round trips, invalid input, rollback and restoration. Build a validation DLL before installing it with the runner closed.
+
+Phase 2: character resources and persistent character-dependent triggers
+Start with a read-only investigation of Beowulf Hype. Do not guess an offset, field type, resource range or native comparison opcode. Do not implement an unverified trigger as if it were an animation tag.
+1. Identify whether authored character FOIT expressions, native variable lookup/comparison nodes, or a verified actor-specific runtime field exposes the resource. Trace ownership to the selected fighter, not a fixed side, shared UI meter or the most recently drawn actor. Record game build, access path, field/type/units, validation limits and confidence.
+2. Distinguish resource amount, threshold availability, the activation event and any persistent active boost/mode. Spending a resource may lower its meter while the desired transformation remains active. Ask the user which observed condition should drive the appearance once those distinctions are established.
+3. Have the user create controlled observations: baseline, gain, threshold crossing, activation/spending, expiration/cancel, tag out/back, fresh match and mirrors on different teams. Compare repeated traces and counterexamples. Never write to the Hype resource itself, patch gameplay, force moves or navigate the game for the user.
+4. Explore a typed, allowlisted trigger-provider interface with character/build capability checks. A predicate may eventually express resource comparisons and bounded all/any composition with animation tags or verified mode flags. Specify sampling timing, threshold boundaries, reset behavior, and hysteresis only if evidence calls for it. Keep this minimal until one resource is reliable.
+5. Fail closed on missing/invalid ownership, unsupported characters/builds or stale match data. Show Unsupported/Unavailable, not a misleading inactive/success state. New conditions must not leak to mirrors, assists, benched fighters, or other character palettes.
+6. Prefer a verified native predicate if the game can evaluate the resource safely. If polling is required, establish per-actor identity checks and transactional appearance updates without accumulating allocations or overwriting unrelated native behavior. Document the tradeoff with evidence.
+7. Keep the isolated viewer's simulated rule/resource preview separate from live resource reads. Manual inspection of a frame should never modify match state. Preview overrides should not be saved as accidental permanent activation.
+8. Produce a short evidence report describing what is proven, what additional reverse engineering is required, and which other character-dependent mechanics can use the same approach only after validation. Other examples are research candidates, not promised support.
+
+Acceptance and deliverables
+- Two rules on different groups with different triggers can independently turn on/off and both remain active at once. Overlap behavior is deterministic and visible to the user.
+- Disable/remove/apply/undo where supported, save/load/Autoload, legacy settings import, static links, both overlays, match changes, mirrors and tagging retain their existing behavior.
+- Beowulf resource-trigger support is enabled only if repeated controlled observations verify its ownership and semantics; otherwise deliver the documented investigation and a safe unsupported state.
+- Run the relevant native/Python tests and scripts/build-dll.ps1 -Validation. Test in the isolated runner with user-controlled gameplay. Re-test device transitions if rendering/resource lifecycle changes. Do not claim every character or effect is verified from a Cerebella-only check.
+- Keep schema/model, native trigger/composition, UI and resource research changes reviewable in separate commits/phases. Report the exact DLL hash, verified workflows, outstanding limits and follow-up work. Prepare a draft PR; do not merge it.
