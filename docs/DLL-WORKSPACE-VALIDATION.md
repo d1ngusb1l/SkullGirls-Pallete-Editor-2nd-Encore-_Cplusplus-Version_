@@ -228,3 +228,13 @@ SpritePngTests passed for clear/partial alpha, overlapping layers, Original/Edit
 PNG-enabled DLL SHA-256: 6F3C1A32591AE88990D9B5FAB8E3575A5A0D6E6134E8CCC6927BC6031EA0ACB5. Installed in the closed isolated runner with the prior DLL backed up. In-game Export PNG save-dialog verification is pending.
 
 Post-setup preservation check: every saved .pal hash and the full PaletteEditorDLLConfig.json hash matched the pre-test snapshot; all 18 assignments remain. Previous generated assets remain in the dated backup recorded by sprite-setup-reset.json. No fallback was restored over the newly generated bundle.
+
+## Transparent GIF and APNG animation export
+
+- Added Export animation with format choice and total plays (0 infinite). Both capture the authored timeline, Original/Edited colors and a common origin-aligned canvas. Background encoding has progress/cancellation, bounded source/frame/output memory and atomic save. The worker has no live-fighter, device or mutable preview-global dependencies; shutdown cancels and joins it before DLL teardown.
+- APNG wraps WIC RGBA IDAT streams with standard acTL/fcTL/fdAT chunks, sequence numbers, CRCs, SOURCE replacement and exact tick/60 delays. GIF uses a shared adaptive palette, binary alpha cutoff 128, disposal-to-background, explicit loop semantics and LZW dictionary/width resets. GIF delays use cumulative centisecond rounding; decoder-imposed minimum timing remains a format/viewer limitation.
+- SpriteAnimationTests passed fixtures for dimensions/origin, repeated frame timing, Original/Edited capture, background save after globals changed, cancellation, input limits and adaptive quantization. High-entropy 256-color fixtures exercise LZW width growth and dictionary resets. PNG/focus regression tests passed.
+- VerifyAnimationExports.py independently decoded both formats with Pillow: all APNG RGBA bytes, GIF visible colors/transparency, an all-transparent frame after opaque content (no ghosts), delays, loop metadata, canvas offsets, quantization, APNG chunk CRCs and contiguous sequence numbers passed. APNG/gif examples of local Cerebella Crouch [21] each contain 21 frames with the correct common canvas and total duration. Generated examples stay in ignored build/animation-test-output.
+- Validation DLL builds with palette networking/lobby/Steam/protocol exclusions intact. The UI save-picker/progress/cancel controls still need direct in-game verification; native tests cover the same encoders and background job path.
+
+Animation-export test DLL installed while the isolated runner was closed, with its previous DLL backed up. SHA-256: 5E094F4584D73E92C40A299BA9DD80AAA3C3B1540F211A0F98E96EBA208E0812. Example sizes: Cerebella-crouch.gif 356,245 bytes; Cerebella-crouch.apng 1,337,548 bytes.

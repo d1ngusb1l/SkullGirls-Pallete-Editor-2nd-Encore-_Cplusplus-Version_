@@ -7,6 +7,12 @@
 #include "SpritePreviewGeometry.h"
 #include "SpritePreviewPixel.h"
 #include "SpritePng.h"
+#include "SpriteAnimation.h"
+#include <future>
+#include <atomic>
+#include <chrono>
+#include <map>
+#include <memory>
 
 namespace SpriteViewer {
 struct PixelLayer {
@@ -68,7 +74,9 @@ inline void ResetAsset() {
     error.clear();loadedCharacter.clear();fallbackSprite=2;selectedAnimation=-1;frameIndex=0;
     canvasLeft=canvasTop=canvasWidth=canvasHeight=0;
 }
+inline void CancelAnimationAndWait();
 inline void Shutdown() {
+    CancelAnimationAndWait();
     ForgetMatch();device=nullptr;ResetAsset();
     if(preparationPipe){CloseHandle(preparationPipe);preparationPipe=nullptr;}
     if(preparationProcess){CloseHandle(preparationProcess);preparationProcess=nullptr;}
@@ -234,16 +242,17 @@ inline void Load(const char* character) {
     }catch(const std::exception& e){error=e.what();pixels.clear();frames.clear();animations.clear();}
 }
 
-inline ImU32 Sample(int band,int shade,const std::vector<ImU32>& colors) {
-    if(band<0 || band>=sizes.size() || !sizes[band])return 0;
-    int start=0;for(int b=0;b<band;++b)start+=sizes[b];
-    const float index=(sizes[band]-1)*(1.0f-(shade&31)/31.0f);
-    int low=static_cast<int>(index),high=(std::min)(low+1,sizes[band]-1);
+inline ImU32 Sample(int band,int shade,const std::vector<ImU32>& colors,const std::vector<int>& layout) {
+    if(band<0 || band>=layout.size() || !layout[band])return 0;
+    int start=0;for(int b=0;b<band;++b)start+=layout[b];
+    const float index=(layout[band]-1)*(1.0f-(shade&31)/31.0f);
+    int low=static_cast<int>(index),high=(std::min)(low+1,layout[band]-1);
     if(start+high>=colors.size())return 0;
     float t=index-low,black=(shade>>5)/7.0f;ImU32 result=0;
     for(int ch=0;ch<4;++ch){float a=(colors[start+low]>>(8*ch))&255,b=(colors[start+high]>>(8*ch))&255;float v=a+(b-a)*t;v=ch==3?(std::max)(v,black*255):v*(1-black);result|=static_cast<ImU32>(v)<<(8*ch);}
     return result;
 }
+inline ImU32 Sample(int band,int shade,const std::vector<ImU32>& colors){return Sample(band,shade,colors,sizes);}
 inline std::vector<unsigned char> DecodeArtChannel(const std::vector<unsigned char>& input,unsigned expected) {
     if(expected>16*1024*1024 || input.empty())throw std::runtime_error("Sprite channel exceeds decode bounds.");
     std::vector<unsigned char> output;output.reserve(expected);size_t pos=0;
@@ -316,10 +325,10 @@ inline const SpriteFrameAsset* ActiveFrame() {
     }
     return &decodedFrame;
 }
-inline std::vector<ImU32> RenderFrame(const SpriteFrameAsset& frame,const std::vector<ImU32>& colors,const std::set<int>& selected,bool focus,bool transparent) {
+inline std::vector<ImU32> RenderFrame(const SpriteFrameAsset& frame,const std::vector<ImU32>& colors,const std::set<int>& selected,bool focus,bool transparent,const std::vector<int>& layout=sizes) {
     const unsigned outputWidth=BoundDimension(frame.width),outputHeight=BoundDimension(frame.height);
     std::vector<ImU32> lookup(256*256),output(size_t(outputWidth)*outputHeight);
-    for(int b=0;b<(int)sizes.size();++b)for(int shade=0;shade<256;++shade)lookup[b*256+shade]=Sample(b,shade,colors);
+    for(int b=0;b<(int)layout.size();++b)for(int shade=0;shade<256;++shade)lookup[b*256+shade]=Sample(b,shade,colors,layout);
     for(unsigned y=0;y<outputHeight;++y)for(unsigned x=0;x<outputWidth;++x) {
         SpritePreviewPixel pixel(transparent);
         for(const auto& layer:frame.layers) {
@@ -333,6 +342,85 @@ inline std::vector<ImU32> RenderFrame(const SpriteFrameAsset& frame,const std::v
         output[size_t(y)*outputWidth+x]=transparent?pixel.PackTransparent():pixel.Pack(focus,!selected.empty());
     }
     return output;
+}
+struct AnimationExport {
+    AnimationAsset animation;
+    std::map<unsigned,SpriteFrameAsset> sprites;
+    std::vector<ImU32> colors;
+    std::vector<int> layout;
+    SpritePreviewGeometry::Bounds bounds;
+    bool gif=false;unsigned plays=0;
+    std::string name;
+};
+struct AnimationProgress {std::atomic<size_t> frame{0};size_t total=0;std::atomic<bool> cancel{false};};
+inline std::optional<AnimationExport> pendingAnimationExport;
+inline std::shared_ptr<AnimationProgress> animationProgress;
+inline std::future<std::string> animationWorker;
+inline std::string animationStatus;
+inline int animationPlays=0;
+inline bool AnimationBusy(){return animationWorker.valid();}
+inline AnimationExport CaptureAnimationExport(bool gif,unsigned plays) {
+    if(selectedAnimation<0 || selectedAnimation>=int(animations.size()) || original.empty())throw std::runtime_error("Select an animation first.");
+    AnimationExport capture;capture.animation=animations[selectedAnimation];capture.gif=gif;capture.plays=plays;
+    if(capture.animation.frames.empty() || capture.animation.frames.size()>2000)throw std::runtime_error("Animation export supports 1 to 2000 timeline frames.");
+    capture.colors=showOriginal?original:edited;capture.layout=sizes;size_t bytes=0;
+    for(const auto& entry:capture.animation.frames) {
+        if(capture.sprites.count(entry.sprite))continue;
+        auto found=std::find_if(frames.begin(),frames.end(),[&](const auto& f){return f.id==entry.sprite;});
+        if(found==frames.end())throw std::runtime_error("Animation references an unavailable sprite.");
+        for(const auto& layer:found->layers){bytes+=layer.pixels.size()+layer.tiles.size()*2;for(const auto& channel:layer.channels)bytes+=channel.size();}
+        if(bytes>64ull*1024*1024)throw std::runtime_error("Animation source exceeds the 64 MiB export limit.");
+        capture.bounds.Add(-found->originX,-found->originY,found->width,found->height);capture.sprites.emplace(found->id,*found);
+    }
+    capture.name=snapshotCharacter+"-animation-"+std::to_string(capture.animation.id)+(showOriginal?"-original":"-edited")+(gif?".gif":".apng");
+    return capture;
+}
+inline SpriteAnimation::Bytes EncodeAnimation(const AnimationExport& capture,const std::shared_ptr<AnimationProgress>& progress) {
+    const unsigned w=unsigned(capture.bounds.right-capture.bounds.left),h=unsigned(capture.bounds.bottom-capture.bounds.top);
+    const auto cancel=[&](){if(progress->cancel)throw std::runtime_error("Animation export cancelled.");};
+    std::optional<SpriteFrameAsset> decoded;
+    auto get=[&](size_t i) {
+        cancel();progress->frame=i;const auto& entry=capture.animation.frames.at(i);
+        if(!decoded || decoded->id!=entry.sprite) {
+            decoded=capture.sprites.at(entry.sprite);size_t decodedBytes=0;
+            for(auto& layer:decoded->layers) {
+                decodedBytes+=size_t(layer.width)*layer.height*3;
+                if(decodedBytes>64ull*1024*1024)throw std::runtime_error("Decoded animation frame exceeds 64 MiB.");
+                if(!layer.channels[0].empty()){DecodePixelLayer(layer);for(auto& channel:layer.channels)channel.clear();layer.tiles.clear();}
+            }
+        }
+        const auto pixels=RenderFrame(*decoded,capture.colors,{},false,true,capture.layout);
+        std::vector<uint32_t> canvas(size_t(w)*h,0);
+        const unsigned x=capture.bounds.OffsetX(-decoded->originX),y=capture.bounds.OffsetY(-decoded->originY);
+        for(unsigned row=0;row<decoded->height;++row)memcpy(canvas.data()+size_t(y+row)*w+x,pixels.data()+size_t(row)*decoded->width,decoded->width*4);
+        return SpriteAnimation::Frame{std::move(canvas),entry.duration};
+    };
+    if(!capture.gif)return SpriteAnimation::APNG(w,h,capture.animation.frames.size(),capture.plays,get,cancel);
+    std::vector<uint32_t> samples;for(int band=0;band<int(capture.layout.size());++band)for(int shade=0;shade<256;++shade)samples.push_back(Sample(band,shade,capture.colors,capture.layout));
+    return SpriteAnimation::GIF(w,h,capture.animation.frames.size(),capture.plays,samples,get,cancel);
+}
+inline void StartAnimationExport(const std::filesystem::path& path) {
+    if(AnimationBusy() || !pendingAnimationExport)throw std::runtime_error("No animation capture is ready, or an export is already running.");
+    auto capture=std::move(*pendingAnimationExport);pendingAnimationExport.reset();
+    const auto destination=std::filesystem::absolute(path);
+    animationProgress=std::make_shared<AnimationProgress>();animationProgress->total=capture.animation.frames.size();
+    animationStatus="Exporting animation in the background.";
+    animationWorker=std::async(std::launch::async,[capture=std::move(capture),path=destination,progress=animationProgress]() {
+        try {auto bytes=EncodeAnimation(capture,progress);if(progress->cancel)return std::string("Animation export cancelled.");
+            PaletteData::AtomicWrite(path,bytes);progress->frame=progress->total;
+            return std::string("Saved ")+(capture.gif?"GIF: ":"APNG: ")+PaletteData::PathText(path);
+        }catch(const std::exception& e){return std::string("Animation export: ")+e.what();}
+    });
+}
+inline void PollAnimationExport() {
+    if(!AnimationBusy() || animationWorker.wait_for(std::chrono::seconds(0))!=std::future_status::ready)return;
+    try {animationStatus=animationWorker.get();}catch(const std::exception& e){animationStatus=std::string("Animation export failed: ")+e.what();}
+    animationProgress.reset();
+}
+inline void CancelAnimationAndWait() {
+    if(animationProgress)animationProgress->cancel=true;
+    if(animationWorker.valid())try{animationWorker.get();}catch(...){}
+    animationProgress.reset();pendingAnimationExport.reset();
 }
 struct PngExport {
     unsigned width=0,height=0;
@@ -501,6 +589,30 @@ inline void Draw(int targetSlot,int targetPalette,const char* character,const st
     }
     if(ImGui::IsItemHovered())ImGui::SetTooltip("Save this frame at native resolution with Original/Edited colors.\nTransparent background; no zoom, highlighting or unsupported effects.");
     if(!exportStatus.empty())ImGui::TextWrapped("%s",exportStatus.c_str());
+    ImGui::BeginDisabled(AnimationBusy() || selectedAnimation<0 || ImGuiFileDialog::Instance()->IsOpened());
+    if(ImGui::Button("Export animation"))ImGui::OpenPopup("Animation export options");
+    ImGui::EndDisabled();
+    if(ImGui::BeginPopup("Animation export options")) {
+        ImGui::TextUnformatted("Whole animation at authored 60 Hz timing");
+        ImGui::SetNextItemWidth(100);ImGui::InputInt("Plays (0 = forever)",&animationPlays);animationPlays=std::clamp(animationPlays,0,1000);
+        auto choose=[&](bool gif) {
+            try {
+                pendingAnimationExport=CaptureAnimationExport(gif,unsigned(animationPlays));
+                IGFD::FileDialogConfig config;config.path=".";config.fileName=pendingAnimationExport->name;config.flags=ImGuiFileDialogFlags_ConfirmOverwrite;
+                ImGuiFileDialog::Instance()->OpenDialog("ExportSpriteAnimation",gif?"Export transparent GIF":"Export transparent APNG",gif?".gif":".apng",config);
+            }catch(const std::exception& e){animationStatus=std::string("Animation export failed: ")+e.what();}
+        };
+        if(ImGui::Selectable("APNG - full color and partial transparency"))choose(false);
+        if(ImGui::Selectable("GIF - 255 colors plus transparency"))choose(true);
+        ImGui::TextWrapped("GIF uses a 50%% alpha cutoff and 10 ms timing steps. Some viewers slow very short frames. APNG retains full alpha and authored timing.");
+        ImGui::EndPopup();
+    }
+    if(AnimationBusy() && animationProgress) {
+        const auto done=animationProgress->frame.load();
+        ImGui::ProgressBar(float(done)/float(animationProgress->total),ImVec2(-120,0));ImGui::SameLine();
+        if(ImGui::Button("Cancel export"))animationProgress->cancel=true;
+    }
+    if(!animationStatus.empty())ImGui::TextWrapped("%s",animationStatus.c_str());
     DrawCanvas();
 }
 }
