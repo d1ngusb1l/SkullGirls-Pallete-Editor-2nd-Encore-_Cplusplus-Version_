@@ -6,6 +6,7 @@
 #include "Tools/Colors.hpp"
 #include "SpritePreviewGeometry.h"
 #include "SpritePreviewPixel.h"
+#include "SpritePng.h"
 
 namespace SpriteViewer {
 struct PixelLayer {
@@ -315,33 +316,60 @@ inline const SpriteFrameAsset* ActiveFrame() {
     }
     return &decodedFrame;
 }
+inline std::vector<ImU32> RenderFrame(const SpriteFrameAsset& frame,const std::vector<ImU32>& colors,const std::set<int>& selected,bool focus,bool transparent) {
+    const unsigned outputWidth=BoundDimension(frame.width),outputHeight=BoundDimension(frame.height);
+    std::vector<ImU32> lookup(256*256),output(size_t(outputWidth)*outputHeight);
+    for(int b=0;b<(int)sizes.size();++b)for(int shade=0;shade<256;++shade)lookup[b*256+shade]=Sample(b,shade,colors);
+    for(unsigned y=0;y<outputHeight;++y)for(unsigned x=0;x<outputWidth;++x) {
+        SpritePreviewPixel pixel(transparent);
+        for(const auto& layer:frame.layers) {
+            if(x<layer.offsetX || y<layer.offsetY || x>=layer.offsetX+layer.width || y>=layer.offsetY+layer.height)continue;
+            const unsigned lx=x-layer.offsetX,ly=y-layer.offsetY;
+            const auto offset=(size_t(ly)*layer.width+lx)*3;
+            if(offset+2>=layer.pixels.size())continue;
+            const int band=layer.pixels[offset+2],shade=layer.pixels[offset+1];
+            pixel.Blend(lookup[band*256+(shade&255)],selected.count(band)>0);
+        }
+        output[size_t(y)*outputWidth+x]=transparent?pixel.PackTransparent():pixel.Pack(focus,!selected.empty());
+    }
+    return output;
+}
+struct PngExport {
+    unsigned width=0,height=0;
+    std::vector<ImU32> pixels;
+    std::string name;
+};
+inline std::optional<PngExport> pendingPngExport;
+inline std::string exportStatus;
+inline void CapturePngExport() {
+    const auto* frame=ActiveFrame();if(!frame || original.empty())throw std::runtime_error("Choose a preview frame first.");
+    const auto& colors=showOriginal?original:edited;
+    std::string name=snapshotCharacter;
+    if(selectedAnimation>=0 && selectedAnimation<int(animations.size()))name+="-move-"+std::to_string(animations[selectedAnimation].id)+"-frame-"+std::to_string(frameIndex+1);
+    else name+="-sprite-"+std::to_string(frame->id);
+    name+=showOriginal?"-original.png":"-edited.png";
+    pendingPngExport=PngExport{frame->width,frame->height,RenderFrame(*frame,colors,{},false,true),name};
+}
+inline void SavePngExport(const std::filesystem::path& path) {
+    try {
+        if(!pendingPngExport)throw std::runtime_error("No captured frame is available. Choose Export PNG again.");
+        const auto& image=*pendingPngExport;SpritePng::Save(path,image.width,image.height,image.pixels);
+        exportStatus="Saved transparent PNG: "+PaletteData::PathText(path);
+    }catch(const std::exception& e){exportStatus=std::string("PNG export failed: ")+e.what();}
+    pendingPngExport.reset();
+}
 inline void Upload(const std::set<int>& selected) {
     if(!device || original.empty())return;
     auto frame=ActiveFrame();if(!frame)return;
     const auto& colors=showOriginal?original:edited;
     if(texture && uploaded==colors && uploadedBands==selected && uploadedHighlight==highlight && uploadedSprite==frame->id)return;
+    // Finish CPU work before locking the device texture, so errors never leave it locked.
+    const auto image=RenderFrame(*frame,colors,selected,highlight,false);
     if(texture && (width!=frame->width || height!=frame->height)){texture->Release();texture=nullptr;}
     if(!texture && FAILED(device->CreateTexture(frame->width,frame->height,1,D3DUSAGE_DYNAMIC,D3DFMT_A8R8G8B8,D3DPOOL_DEFAULT,&texture,nullptr)))throw std::runtime_error("Could not create preview texture.");
     D3DLOCKED_RECT lock{};if(FAILED(texture->LockRect(0,&lock,nullptr,D3DLOCK_DISCARD)))throw std::runtime_error("Could not upload preview texture.");
     width=frame->width;height=frame->height;
-    std::vector<ImU32> lookup(256*256);
-    for(int b=0;b<(int)sizes.size();++b)for(int s=0;s<256;++s)lookup[b*256+s]=Sample(b,s,colors);
-    for(unsigned y=0;y<height;++y) {
-        auto row=reinterpret_cast<ImU32*>(static_cast<unsigned char*>(lock.pBits)+y*lock.Pitch);
-        for(unsigned x=0;x<width;++x) {
-            SpritePreviewPixel pixel;
-            for(const auto& layer:frame->layers) {
-                if(x<layer.offsetX || y<layer.offsetY || x>=layer.offsetX+layer.width || y>=layer.offsetY+layer.height)continue;
-                unsigned lx=x-layer.offsetX,ly=y-layer.offsetY;
-                auto offset=(size_t(ly)*layer.width+lx)*3;
-                if(offset+2>=layer.pixels.size())continue;
-                int band=layer.pixels[offset+2],shade=layer.pixels[offset+1];
-                if(band<0 || band>=256)continue;
-                pixel.Blend(lookup[band*256+(shade&255)],selected.count(band)>0);
-            }
-            row[x]=pixel.Pack(highlight,!selected.empty());
-        }
-    }
+    for(unsigned y=0;y<height;++y)memcpy(static_cast<unsigned char*>(lock.pBits)+y*lock.Pitch,image.data()+size_t(y)*width,width*4);
     texture->UnlockRect(0);uploaded=colors;uploadedBands=selected;uploadedHighlight=highlight;uploadedSprite=frame->id;
 }
 
@@ -463,6 +491,16 @@ inline void Draw(int targetSlot,int targetPalette,const char* character,const st
     try {Upload(bands);}catch(const std::exception& e){LostDevice();ImGui::TextWrapped("%s",e.what());}
     if(ImGui::Button("Center current frame"))centerCanvas=true;
     ImGui::SameLine();if(ImGui::Button("Fit current frame"))fitCanvas=true;
+    ImGui::SameLine();
+    if(ImGui::Button("Export PNG")) {
+        try {
+            CapturePngExport();IGFD::FileDialogConfig config;config.path=".";config.fileName=pendingPngExport->name;
+            config.flags=ImGuiFileDialogFlags_ConfirmOverwrite;
+            ImGuiFileDialog::Instance()->OpenDialog("ExportSpritePNG","Export transparent sprite PNG",".png",config);
+        }catch(const std::exception& e){exportStatus=std::string("PNG export failed: ")+e.what();}
+    }
+    if(ImGui::IsItemHovered())ImGui::SetTooltip("Save this frame at native resolution with Original/Edited colors.\nTransparent background; no zoom, highlighting or unsupported effects.");
+    if(!exportStatus.empty())ImGui::TextWrapped("%s",exportStatus.c_str());
     DrawCanvas();
 }
 }

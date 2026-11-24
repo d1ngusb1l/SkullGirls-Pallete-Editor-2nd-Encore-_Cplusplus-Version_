@@ -216,3 +216,15 @@ Follow-up validation DLL built successfully with all network-exclusion flags fal
 - Follow-up agent prompt: docs/TRANSFORMATIONS-RESOURCE-TRIGGERS-PROMPT.txt. It covers independently active rules, schema migration/composition, and read-only investigation of character resources such as Beowulf Hype without inventing offsets or conflating meter values with persistent activation states.
 
 Audited validation DLL installed in the isolated runner while closed, with a previous-build backup. SHA-256: 25B7CB321E97F7C0B019716D79B0A30C504CEF59E22668BBC10B6E1B71CF2AA9.
+
+## Fresh sprite setup flow and transparent PNG follow-up
+
+The generated sprite-preview.bin/json and legacy cerebella-pose.bin were moved into a dated backup while the runner was closed. Palettes, settings, labels, helper and original game archives stayed in place. The missing-asset viewer showed preparation controls. Preparation was launched through the UI archive picker with no manually selected Python executable. It produced a new 815,048,416-byte bundle and metadata for 18 characters, matching the prior known-good bundle SHA-256 and its metadata hash. The legacy fallback remains absent. Native asset tests loaded/decoded all 18 generated sections successfully. Evidence: ignored build/sprite-setup-reset.json, sprite-setup-generation-result.json and sprite-setup-generated-asset-tests.log. The runner closed before a final post-generation rendered-pose check, so that specific UI check remains pending.
+
+On codex/sprite-frame-png-export from merged master, Export PNG captures the current frame and Original/Edited colors, composes on transparent black, converts to straight alpha, and writes PNG through Windows WIC with an atomic destination replacement. Zoom, canvas background, focus tint/dimming and unsupported effects are excluded. Captured pixels are independent of subsequent match/frame changes. Export cancellation releases the capture.
+
+SpritePngTests passed for clear/partial alpha, overlapping layers, Original/Edited selection, native dimensions despite zoom, highlight exclusion, WIC encode/decode byte equality, Unicode filename save, previous-file preservation on invalid dimensions, missing directories and unchanged palette/preview state. A real local Peacock default-palette frame exported at 320x320 with 63,330 transparent pixels; WIC decoded exactly the captured pixels, and the generated image was visually inspected. Existing preview-focus and all-character asset suites passed after the compositor refactor. Validation DLL builds and all four networking-exclusion checks pass.
+
+PNG-enabled DLL SHA-256: 6F3C1A32591AE88990D9B5FAB8E3575A5A0D6E6134E8CCC6927BC6031EA0ACB5. Installed in the closed isolated runner with the prior DLL backed up. In-game Export PNG save-dialog verification is pending.
+
+Post-setup preservation check: every saved .pal hash and the full PaletteEditorDLLConfig.json hash matched the pre-test snapshot; all 18 assignments remain. Previous generated assets remain in the dated backup recorded by sprite-setup-reset.json. No fallback was restored over the newly generated bundle.
