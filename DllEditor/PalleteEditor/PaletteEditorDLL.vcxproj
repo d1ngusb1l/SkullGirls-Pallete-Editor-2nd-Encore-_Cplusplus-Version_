@@ -187,6 +187,7 @@
     <ClInclude Include="Tools\StringFormating.hpp" />
     <ClInclude Include="UI\ColorWheel.h" />
     <ClInclude Include="UI\PaletteRamp.h" />
+    <ClInclude Include="UI\SpritePreviewPixel.h" />
     <ClInclude Include="UI\Drawing.h" />
     <ClInclude Include="UI\Eyedropper\Eyedropper.h" />
     <ClInclude Include="UI\ImGuiCustom.h" />

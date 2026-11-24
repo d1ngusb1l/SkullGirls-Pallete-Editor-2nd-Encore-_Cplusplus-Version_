@@ -178,3 +178,15 @@ Native tests: tests/SpritePreviewGeometryTests.vcxproj and tests/SpritePreviewAs
 - Native PaletteRampTests passed across 4,096 RGB samples plus hue-wrap, alpha, hue-spacing, shading-order and endpoint checks. Win32 DLL build and all four network-exclusion checks passed. In Training on Cerebella palette 5, observed linked wheel interaction and staged Before/After changes. Read-only snapshots confirmed staging left all live palette bands unchanged, Apply changed colors, Undo restored every loaded band, and all existing .pal hashes stayed unchanged (build/studio-isolation-result.json). Copying five swatches changed Paste labels while action rectangles and group rows stayed fixed. The initial picker was too tall; the final follow-up uses a larger opaque window, compact picker and explicit RGB/hex switch. That layout follow-up still needs a visual check after installation.
 
 Final Color Studio follow-up built and installed while the runner was closed. DLL SHA-256: 2B65577BCA49C3916CD44FA7F7864710A32D3BFBDCDFC6E253406F61C1801045. Prior DLL backed up.
+
+## Narrow editor and detached preview follow-up
+
+- Color Studio always shows the RGBA editor and a separate editable hex field below it. Both modify the same staged swatch; no display toggle is required.
+- Workspace list Copy/Paste now share one compact row. No-effects text is omitted; applied effect names remain visible. Wide workspace uses the remaining editor width for its inspector, and narrow workspace stacks a short group list above the inspector.
+- Sprite preview is an independent movable/resizable ImGui window opened by the same checkbox in both layouts. It follows the target/group across tabs; animation/frame and local colors remain in SpriteViewer state. The main editor supports widths down to 360 pixels and defaults to 580 pixels for new window settings. Classic groups use stacked cards below 800 pixels; wide windows retain columns.
+- Selected highlight pixels take the normal compositing path with no tint or brightness change. Other covered sprite pixels are dimmed to 25%; neutral background pixels are unchanged. Coverage is composited across layers so fully occluded selected layers do not suppress dimming of the visible region.
+- This follow-up's in-game checks are pending: side-panel layouts, simultaneous RGBA/hex edits, independent preview movement and exact selected-pixel comparison with highlighting off/on.
+
+Preview pixel regression tests passed against SpritePreviewPixel, the compositor used by Upload: selected opaque/translucent samples are byte-identical with focus on/off; other regions dim, background remains unchanged, and occluded selected layers do not keep unrelated regions bright. An attempted standalone D3D9 readback harness could not create a device in the tool session (D3DERR_INVALIDCALL); no GPU readback result is claimed.
+
+Follow-up validation DLL built successfully with all network-exclusion flags false and installed while the runner was closed, with the previous DLL backed up. SHA-256: B05F8EFA2AF3F3FDB3E69750A4F2076954D962B2BF56F4CDE04AAED528E60D70.

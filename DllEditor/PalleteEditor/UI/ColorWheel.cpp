@@ -7,7 +7,7 @@
 
 namespace {
 struct Studio {
-    bool open=false,linked=true,dragging=false,hex=false;
+    bool open=false,linked=true,dragging=false;
     int slot=-1,palette=-1,selected=0;
     ColorGroup group;
     std::string character,status;
@@ -139,9 +139,12 @@ void ColorWheel::Draw() {
     ImGui::SeparatorText("Selected swatch");
     ImGui::Text("Swatch %d | palette index %d",studio.selected+1,studio.group.startIndex+studio.selected);
     auto color=ColorsTools::ImU32BGRAtoImVec4RGBA(draft[studio.selected]);
-    ImGui::Checkbox("Hex values",&studio.hex);
     ImGui::SetNextItemWidth(-1);
-    if(ImGui::ColorEdit4("##Selected",&color.x,ImGuiColorEditFlags_NoPicker|(studio.hex?ImGuiColorEditFlags_DisplayHex:ImGuiColorEditFlags_DisplayRGB)|ImGuiColorEditFlags_Uint8)) {
+    if(ImGui::ColorEdit4("##Selected",&color.x,ImGuiColorEditFlags_NoPicker|ImGuiColorEditFlags_DisplayRGB|ImGuiColorEditFlags_Uint8)) {
+        Bake();studio.source[studio.selected]=ColorsTools::ImVec4RGBAtoImU32BGRA(color);
+    }
+    ImGui::SetNextItemWidth(-1);
+    if(ImGui::ColorEdit4("##Hex",&color.x,ImGuiColorEditFlags_NoPicker|ImGuiColorEditFlags_DisplayHex|ImGuiColorEditFlags_Uint8)) {
         Bake();studio.source[studio.selected]=ColorsTools::ImVec4RGBAtoImU32BGRA(color);
     }
     ImGui::SetNextItemWidth(230);

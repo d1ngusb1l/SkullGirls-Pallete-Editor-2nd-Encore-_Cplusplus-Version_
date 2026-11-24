@@ -5,6 +5,7 @@
 #include <limits>
 #include "Tools/Colors.hpp"
 #include "SpritePreviewGeometry.h"
+#include "SpritePreviewPixel.h"
 
 namespace SpriteViewer {
 struct PixelLayer {
@@ -328,7 +329,7 @@ inline void Upload(const std::set<int>& selected) {
     for(unsigned y=0;y<height;++y) {
         auto row=reinterpret_cast<ImU32*>(static_cast<unsigned char*>(lock.pBits)+y*lock.Pitch);
         for(unsigned x=0;x<width;++x) {
-            float rgb[3]={0.20f,0.20f,0.20f};
+            SpritePreviewPixel pixel;
             for(const auto& layer:frame->layers) {
                 if(x<layer.offsetX || y<layer.offsetY || x>=layer.offsetX+layer.width || y>=layer.offsetY+layer.height)continue;
                 unsigned lx=x-layer.offsetX,ly=y-layer.offsetY;
@@ -336,10 +337,9 @@ inline void Upload(const std::set<int>& selected) {
                 if(offset+2>=layer.pixels.size())continue;
                 int band=layer.pixels[offset+2],shade=layer.pixels[offset+1];
                 if(band<0 || band>=256)continue;
-                auto color=lookup[band*256+(shade&255)];float a=((color>>24)&255)/255.0f;
-                for(int ch=0;ch<3;++ch){float v=((color>>(ch*8))&255)/255.0f;if(highlight&&!selected.empty())v=selected.count(band)?v*0.55f+(ch==2?0.0f:0.45f):v*0.25f;rgb[ch]=rgb[ch]*(1-a)+v*a;}
+                pixel.Blend(lookup[band*256+(shade&255)],selected.count(band)>0);
             }
-            row[x]=0xff000000|static_cast<ImU32>(rgb[0]*255)|static_cast<ImU32>(rgb[1]*255)<<8|static_cast<ImU32>(rgb[2]*255)<<16;
+            row[x]=pixel.Pack(highlight,!selected.empty());
         }
     }
     texture->UnlockRect(0);uploaded=colors;uploadedBands=selected;uploadedHighlight=highlight;uploadedSprite=frame->id;
@@ -370,7 +370,6 @@ inline void DrawCanvas() {
 }
 
 inline void Draw(int targetSlot,int targetPalette,const char* character,const std::vector<ImU32>& liveColors,const std::vector<int>& layout,const ColorGroup& group,const std::set<int>& bands) {
-    if(!ImGui::CollapsingHeader("Sprite preview",ImGuiTreeNodeFlags_DefaultOpen))return;
     ImGui::TextWrapped("Isolated preview. Extra artwork layers and shader effects are not previewed.");
     if(!error.empty() || preparationProcess)ImGui::SetNextItemOpen(true);
     if(ImGui::CollapsingHeader("Prepare local sprite assets")) {
