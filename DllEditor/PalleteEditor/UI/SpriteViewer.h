@@ -112,7 +112,7 @@ inline void Load(const char* character) {
         if(!f && _stricmp(character,"Cerebella")==0) {
             f.clear();f.open("cerebella-pose.bin",std::ios::binary|std::ios::ate);legacyFile=bool(f);
         }
-        if(!f)throw std::runtime_error("Use Prepare combined sprite asset to generate sprite-preview.bin from the local game archives.");
+        if(!f)throw std::runtime_error("If you don't already have the required sprite preview files, select your local character-foits.gfs file in the data01 folder in the skug directory -> Use Prepare combined sprite asset to generate sprite-preview.bin from the local game archives.");
         auto fileLength=f.tellg();
         if(fileLength<8 || static_cast<unsigned long long>(fileLength)>4ull*1024*1024*1024)throw std::runtime_error("Unsupported combined preview asset size.");
         f.limit=static_cast<unsigned long long>(fileLength);
