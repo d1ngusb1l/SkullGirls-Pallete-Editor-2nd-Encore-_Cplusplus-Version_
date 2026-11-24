@@ -515,4 +515,3 @@ def main():
         if metadata_temp.exists():metadata_temp.unlink()
     print('Prepared local preview for %d playable characters: %s'%(len(sections),out/'sprite-preview.bin'))
 if __name__=='__main__':main()
-
