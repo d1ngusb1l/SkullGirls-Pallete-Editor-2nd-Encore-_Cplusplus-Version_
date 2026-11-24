@@ -26,7 +26,7 @@ Run `scripts/build-dll.ps1` from the repository root with Visual Studio 2022's C
 
 Palette uses one grouped-color layout. Bundled `groups.json` loads automatically from beside the DLL; an optional saved custom JSON is used when available. There is no Group Character Parts activation step or workspace toggle. If labels are unavailable, Palette offers a file picker and ungrouped swatches as a fallback.
 
-Each group has Studio/Effects controls on the left and dedicated Copy/Paste columns on the right. Copy/Paste never share their horizontal positions with Studio/Effects. Unequal sizes explicitly offer **Paste matching** (matching swatches). The clipboard summary and one-step Undo paste remain above the list. Line and both shadow colors are on Palette. The slider label sits above a full-width slider.
+Each group has its name above one aligned row: swatches, Color Studio, Effects, Copy, Paste. The action columns keep the same horizontal positions for every group. Larger swatch sets wrap inside their own column without moving the buttons. Button widths are measured from their full labels at the current font size; Paste keeps the same width when its label changes. Unequal sizes explicitly offer **Paste matching** (matching swatches). The clipboard summary and one-step Undo paste remain above the list. Line and both shadow colors are on Palette. The slider label sits above a full-width slider.
 
 **Sprite preview window** opens the independent movable/resizable frame viewer. It follows the selected group and keeps its local colors and animation/frame state separate from the editor. The editor supports narrow side panels, with a minimum width of 420 pixels. Palette-wide shader settings remain in Advanced; assignment management remains in Auto-load.
 

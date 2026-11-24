@@ -200,3 +200,9 @@ Follow-up validation DLL built successfully with all network-exclusion flags fal
 - Win32 validation build and network-exclusion inspection passed. Installed while the runner was closed; previous DLL backed up. SHA-256: E828CDACA30E4D6E2A88B5F3551BE14635E1AA91247994382CBE4CE704BAFE0E.
 - Runtime migration verified after launch: all 16 original assignments were recovered exactly, retaining the two existing DLL assignments (18 total). The pre-import backup exists, one successful-source marker is present, and the original JSON SHA-256 is unchanged. Evidence: ignored build/legacy-config-runtime-result.json. In the editor, restored Umbrella and Peacock entries reported Loaded colors and shader settings; Peacock palette 10 was active.
 - In-game UI verified at the side-panel size: grouped Peacock swatches appeared automatically, workspace/group activation toggles were absent, Studio/Effects stayed left of dedicated Copy/Paste actions, Line/Shadow 1/Shadow 2 appeared on Palette, the slider label was fully visible, RGBA and hex were simultaneously shown in Studio, and its title-bar X closed it. The independent preview remained visible across tabs. The user reported the layout looked good.
+
+## Group-name and single action-row follow-up
+
+- Group names span a separate row above swatches / Color Studio / Effects / Copy / Paste, in that order. Fixed action columns preserve the click-down workflow. Swatches wrap within their own column.
+- Action widths derive from rendered label size and frame padding. Paste reserves width for the complete Paste matching label even when its label is the shorter Paste. Very narrow windows can scroll the row horizontally instead of clipping its controls.
+- Win32 validation build and networking-exclusion checks passed. Installed while the runner was closed, with the prior DLL backed up. SHA-256: 611906411EAB85632826B4144B2FE2C02B12835701F2341D57F49CBDE685E188. In-game visual check is pending.

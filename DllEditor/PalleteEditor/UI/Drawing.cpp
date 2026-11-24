@@ -525,38 +525,50 @@ void Drawing::DrawCharacterColors() {
             }
             ImGui::EndDisabled();
         ImGui::BeginChild("Color groups",ImVec2(0,0),true);
-        if(ImGui::BeginTable("Grouped palette",2,ImGuiTableFlags_SizingStretchProp|ImGuiTableFlags_BordersInnerH|ImGuiTableFlags_RowBg)) {
-            ImGui::TableSetupColumn("Group / colors",ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableSetupColumn("Copy / Paste",ImGuiTableColumnFlags_WidthFixed,192);
-            ImGui::TableHeadersRow();
+        const auto& style=ImGui::GetStyle();
+        auto buttonWidth=[&](const char* label){return std::ceil(ImGui::CalcTextSize(label).x+style.FramePadding.x*2+4);};
+        const float studioWidth=buttonWidth("Color Studio"),effectsWidth=buttonWidth("Effects");
+        const float copyWidth=buttonWidth("Copy"),pasteWidth=buttonWidth("Paste matching");
+        const float minimumWidth=studioWidth+effectsWidth+copyWidth+pasteWidth+style.CellPadding.x*10+ImGui::GetFrameHeight()*2;
+        const float tableWidth=std::max(minimumWidth,ImGui::GetContentRegionAvail().x-style.ScrollbarSize);
+        if(ImGui::BeginTable("Grouped palette rows",5,ImGuiTableFlags_SizingStretchProp|ImGuiTableFlags_ScrollX|ImGuiTableFlags_ScrollY,ImVec2(0,0),tableWidth)) {
+            ImGui::TableSetupColumn("Swatches",ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn("Color Studio",ImGuiTableColumnFlags_WidthFixed,studioWidth);
+            ImGui::TableSetupColumn("Effects",ImGuiTableColumnFlags_WidthFixed,effectsWidth);
+            ImGui::TableSetupColumn("Copy",ImGuiTableColumnFlags_WidthFixed,copyWidth);
+            ImGui::TableSetupColumn("Paste",ImGuiTableColumnFlags_WidthFixed,pasteWidth);
             for(int n=0;n<int(groups.size());++n) {
                 const auto& group=groups[n];if(!groupMatchesSearch(group))continue;
                 ImGui::PushID(n);ImGui::TableNextRow();ImGui::TableSetColumnIndex(0);
-                if(ImGui::Selectable(group.groupName.c_str(),selected==n))selected=n;
+                if(ImGui::Selectable(group.groupName.c_str(),selected==n,ImGuiSelectableFlags_SpanAllColumns))selected=n;
                 if(ImGui::IsItemHovered())ImGui::SetTooltip("%s (%d swatches)",group.groupName.c_str(),group.count);
-                if(ImGui::Button("Studio",ImVec2(70,0))){selected=n;ColorWheel::Open(group);}
-                if(ImGui::GetContentRegionAvail().x>=148)ImGui::SameLine();
-                if(ImGui::Button("Effects",ImVec2(70,0))){selected=n;ImGui::OpenPopup("Group tools");}
+                ImGui::TableNextRow();ImGui::TableSetColumnIndex(0);
+                const int perRow=std::max(1,int(ImGui::GetContentRegionAvail().x/(ImGui::GetFrameHeight()+style.ItemSpacing.x)));
+                for(int i=group.startIndex;i<group.startIndex+group.count && i<int(colors.size());++i) {
+                    DrawColorButton(i,colors[i]);if(ImGui::IsItemActivated())selected=n;
+                    if(i+1<group.startIndex+group.count && i+1<int(colors.size()) && (i-group.startIndex+1)%perRow)ImGui::SameLine();
+                }
+                ImGui::TableSetColumnIndex(1);
+                if(ImGui::Button("Color Studio",ImVec2(studioWidth,0))){selected=n;ColorWheel::Open(group);}
+                ImGui::TableSetColumnIndex(2);
+                if(ImGui::Button("Effects",ImVec2(effectsWidth,0))){selected=n;ImGui::OpenPopup("Group tools");}
                 if(ImGui::BeginPopup("Group tools")) {
                     ImGui::TextUnformatted(group.groupName.c_str());AdvancedPalette::DrawGroup(group);
                     if(AdvancedPalette::OpenAdvanced){openAdvanced=true;AdvancedPalette::OpenAdvanced=false;}
                     ImGui::EndPopup();
                 }
-                const int perRow=std::max(1,int(ImGui::GetContentRegionAvail().x/(ImGui::GetFrameHeight()+ImGui::GetStyle().ItemSpacing.x)));
-                for(int i=group.startIndex;i<group.startIndex+group.count && i<int(colors.size());++i) {
-                    DrawColorButton(i,colors[i]);if(ImGui::IsItemActivated())selected=n;
-                    if(i+1<group.startIndex+group.count && i+1<int(colors.size()) && (i-group.startIndex+1)%perRow)ImGui::SameLine();
-                }
-                const auto effects=AdvancedPalette::GroupEffects(group);
-                if(effects!="No applied effects")ImGui::TextWrapped("%s",effects.c_str());
-                ImGui::TableSetColumnIndex(1);
-                ImGui::Dummy(ImVec2(0,ImGui::GetTextLineHeightWithSpacing()-ImGui::GetStyle().ItemSpacing.y));
-                if(ImGui::Button("Copy",ImVec2(52,0)))CopyGroupColors(group);
-                ImGui::SameLine();ImGui::BeginDisabled(s_ClipboardColors.empty());
+                ImGui::TableSetColumnIndex(3);
+                if(ImGui::Button("Copy",ImVec2(copyWidth,0)))CopyGroupColors(group);
+                ImGui::TableSetColumnIndex(4);ImGui::BeginDisabled(s_ClipboardColors.empty());
                 const bool matches=s_ClipboardColors.size()==group.count;
-                if(ImGui::Button(matches?"Paste###PasteGroup":"Paste matching###PasteGroup",ImVec2(128,0)))PasteGroupColors(group);
+                if(ImGui::Button(matches?"Paste###PasteGroup":"Paste matching###PasteGroup",ImVec2(pasteWidth,0)))PasteGroupColors(group);
                 if(!matches && ImGui::IsItemHovered())ImGui::SetTooltip("Paste matching swatches: %u of %d",unsigned(std::min(s_ClipboardColors.size(),size_t(group.count))),group.count);
-                ImGui::EndDisabled();ImGui::PopID();
+                ImGui::EndDisabled();
+                const auto effects=AdvancedPalette::GroupEffects(group);
+                if(effects!="No applied effects") {
+                    ImGui::TableNextRow();ImGui::TableSetColumnIndex(0);ImGui::TextWrapped("%s",effects.c_str());
+                }
+                ImGui::PopID();
             }
             ImGui::EndTable();
         }
