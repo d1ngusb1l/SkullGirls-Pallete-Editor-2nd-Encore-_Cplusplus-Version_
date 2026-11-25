@@ -39,6 +39,9 @@ int main(int argc,char** argv){try {
  const auto single=SpriteViewer::CaptureAnimationExport(true,1,3,3);
  Check(single.animation.frames.size()==1 && single.sprites.size()==1 && single.bounds.right-single.bounds.left==2,"Single-frame range included excluded sprites or bounds");
  Check(single.name.find("frames-3-3")!=std::string::npos,"Range missing from filename");
+ auto rangeProgress=std::make_shared<SpriteViewer::AnimationProgress>();
+ PaletteData::AtomicWrite(output/"trimmed.apng",SpriteViewer::EncodeAnimation(trimmed,rangeProgress));
+ PaletteData::AtomicWrite(output/"single.gif",SpriteViewer::EncodeAnimation(single,rangeProgress));
  for(const auto limits: {std::pair<int,int>{0,2},{3,2},{1,4}}) {
   bool invalid=false;try{SpriteViewer::CaptureAnimationExport(false,0,limits.first,limits.second);}catch(const std::exception&){invalid=true;}
   Check(invalid,"Invalid export range accepted");
@@ -55,6 +58,14 @@ int main(int argc,char** argv){try {
  Check(!SpriteViewer::AnimationBusy() && SpriteViewer::animationStatus.find("Saved APNG:")==0,"Background export failed");
  auto progress=std::make_shared<SpriteViewer::AnimationProgress>();progress->cancel=true;
  cancelled=false;try{SpriteViewer::EncodeAnimation(capture,progress);}catch(...){cancelled=true;}Check(cancelled,"Snapshot cancellation ignored");
+
+ // An outdated standalone bundle must point users to regeneration, not a generic format error.
+ std::filesystem::create_directory(output/"old-bundle");
+ {std::ofstream old(output/"old-bundle"/"sprite-preview.bin",std::ios::binary);const char magic[8]={'S','G','P','O','S','E','5',0};old.write(magic,8);const unsigned fields[4]={64,1,1,1};old.write(reinterpret_cast<const char*>(fields),sizeof(fields));}
+ const auto priorDirectory=std::filesystem::current_path();std::filesystem::current_path(output/"old-bundle");
+ SpriteViewer::ResetAsset();SpriteViewer::Load("Cerebella");
+ Check(SpriteViewer::error.find("regenerate")!=std::string::npos,"Outdated bundle did not explain regeneration");
+ std::filesystem::current_path(priorDirectory);
  if(argc==3) {
   std::filesystem::current_path(std::filesystem::absolute(argv[2]));SpriteViewer::ResetAsset();SpriteViewer::Load("Cerebella");Check(SpriteViewer::error.empty(),"Load Cerebella failed");
   const auto& rows=SpriteViewer::defaultRows;SpriteViewer::sizes.assign(rows.size()/64,16);SpriteViewer::original.assign(rows.size()/4,0);

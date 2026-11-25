@@ -164,7 +164,7 @@ inline void Load(const char* character) {
         } else if(!legacyFile) {
             if(_stricmp(character,"Cerebella")!=0)throw std::runtime_error("Unsupported combined preview asset format.");
             const bool knownPose=memcmp(magic,"SGPOSE1\0",8)==0 || memcmp(magic,"SGPOSE2\0",8)==0 ||
-                memcmp(magic,"SGPOSE3\0",8)==0 || memcmp(magic,"SGPOSE4\0",8)==0 || memcmp(magic,"SGPOSE6\0",8)==0;
+                memcmp(magic,"SGPOSE3\0",8)==0 || memcmp(magic,"SGPOSE4\0",8)==0 || memcmp(magic,"SGPOSE5\0",8)==0 || memcmp(magic,"SGPOSE6\0",8)==0;
             if(!knownPose)throw std::runtime_error("Unsupported preview asset format.");
         }
         if(sectionLength<24 || sectionLength>128ull*1024*1024)throw std::runtime_error("Unsupported character preview section size.");

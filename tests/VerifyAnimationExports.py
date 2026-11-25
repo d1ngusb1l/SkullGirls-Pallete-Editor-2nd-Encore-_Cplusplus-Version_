@@ -65,6 +65,16 @@ with Image.open(root / 'snapshot.apng') as image:
         pixels = [image.convert('RGBA').getpixel((x, 0)) for x in range(3)]
         assert pixels[0 if i < 2 else 2] == (255, 0, 0, 128), 'Snapshot/origin moved or changed'
         assert sum(p[3] > 0 for p in pixels) == 1
+check_chunks(root / 'trimmed.apng')
+with Image.open(root / 'trimmed.apng') as image:
+    assert image.n_frames == 2 and image.size == (3, 1)
+    for i, ticks in enumerate((4, 2)):
+        image.seek(i)
+        assert abs(image.info['duration']-ticks*1000/60) < 0.001
+        assert image.convert('RGBA').getpixel((0 if i == 0 else 2, 0)) == (255, 0, 0, 128)
+with Image.open(root / 'single.gif') as image:
+    assert image.n_frames == 1 and image.size == (2, 1)
+    assert image.info['duration'] == 30
 for metadata in root.glob('Cerebella-*.json'):
     data = json.loads(metadata.read_text())
     for ext in ('apng', 'gif'):
