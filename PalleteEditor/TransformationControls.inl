@@ -13,7 +13,7 @@ inline void SelectTransformationPalette(const Character& c) {
 }
 inline nlohmann::json TransformationPreset(const Character& c,const TransformSettings& settings) {
     ValidateTransformation(c,AppearanceData(c),settings);
-    if(settings.hypeLevel>=0)throw std::runtime_error("Resource predicates require a V4 .pal save; legacy presets cannot represent them.");
+    if(settings.hypeLevel>=0 || !settings.moveId.empty())throw std::runtime_error("Typed predicates require a .pal save; legacy presets cannot represent them.");
     return {{"version",2},{"character",c.Char_Name},{"trigger",settings.activationTag.empty()?TransformTrigger(c):"tag:"+settings.activationTag},{"activationTag",settings.activationTag},
             {"previewMode",(int)settings.mode},{"links",settings.links},{"shadeMask",settings.shadeMask}};
 }
@@ -32,15 +32,18 @@ inline std::vector<TransformSettings> ruleDraft,ruleObserved;
 inline DWORD ruleActor=0,rulePalette=0;
 inline int rulePaletteNumber=-1,ruleIndex=0;
 inline unsigned long long ruleDraftGeneration=0;
+inline int ruleTriggerCategory=0;
+inline std::string ruleTriggerSelectionKey;
+inline char ruleMoveFilter[97]{};
 inline void DrawTransformationEditor(const Character& c,const std::set<int>& sourceBands={}) {
     try {
         auto data=AppearanceData(c); auto live=CurrentColorAssignment(c,data);
         if(ruleDraftGeneration!=ruleGeneration || ruleActor!=data.actor || rulePalette!=data.palette || rulePaletteNumber!=c.Current_Pallete_Num || ruleObserved!=live.transformations) {
             ruleDraftGeneration=ruleGeneration;ruleActor=data.actor; rulePalette=data.palette; rulePaletteNumber=c.Current_Pallete_Num;
-            ruleObserved=ruleDraft=live.transformations; ruleIndex=0;
+            ruleObserved=ruleDraft=live.transformations; ruleIndex=0;ruleTriggerSelectionKey.clear();
         }
         if(!sourceBands.empty() && !sourceBands.count(transformSource))transformSource=*sourceBands.begin();
-        ImGui::TextWrapped("Each rule owns its trigger and native band shades. Overlapping rules are rejected except distinct Hype levels, which are mutually exclusive. Changes are staged until Apply rules.");
+        ImGui::TextWrapped("Each rule owns its trigger and native band shades. Overlaps require mutually exclusive Hype levels or mapped moves. Changes are staged until Apply rules.");
         if(ImGui::BeginCombo("Rule",ruleDraft.empty()?"No rules":ruleDraft[std::clamp(ruleIndex,0,(int)ruleDraft.size()-1)].name.c_str())) {
             for(int i=0;i<(int)ruleDraft.size();++i)if(ImGui::Selectable((ruleDraft[i].name+"##"+ruleDraft[i].id).c_str(),ruleIndex==i))ruleIndex=i;
             ImGui::EndCombo();
@@ -59,15 +62,34 @@ inline void DrawTransformationEditor(const Character& c,const std::set<int>& sou
             char name[97]{};memcpy(name,rule.name.data(),(std::min)(rule.name.size(),sizeof(name)-1));
             if(ImGui::InputText("Rule name",name,sizeof(name)))rule.name=name;
             ImGui::Checkbox("Enabled",&rule.enabled);
-            std::string triggerLabel=rule.hypeLevel>=0?"Beowulf Hype level "+std::to_string(rule.hypeLevel):NativeTriggerLabel(rule.activationTag);
-            if(ImGui::BeginCombo("Trigger",triggerLabel.c_str())) {
-                for(const auto& entry:nativeTriggers)if(ImGui::Selectable(entry.label,rule.activationTag==entry.tag)){rule.activationTag=entry.tag;rule.hypeLevel=-1;rule.mode=TransformMode::Automatic;}
-                if(TransformTrigger(c)!="preview-only" && ImGui::Selectable("Legacy character trigger",rule.activationTag.empty())){rule.activationTag.clear();rule.hypeLevel=-1;rule.mode=TransformMode::Automatic;}
-                if(c.Char_Name=="Beowulf")for(int level=0;level<4;++level)if(ImGui::Selectable(("Hype level "+std::to_string(level)).c_str(),rule.hypeLevel==level)){rule.hypeLevel=level;rule.activationTag.clear();rule.mode=TransformMode::Automatic;}
+            const auto move=PaletteData::FindCharacterMove(rule.moveId);
+            const int currentCategory=move?1:rule.hypeLevel>=0?2:0;
+            if(ruleTriggerSelectionKey!=rule.id){ruleTriggerSelectionKey=rule.id;ruleTriggerCategory=currentCategory;ruleMoveFilter[0]=0;}
+            const std::string triggerLabel=move?move->label:rule.hypeLevel>=0?"Beowulf Hype level "+std::to_string(rule.hypeLevel):NativeTriggerLabel(rule.activationTag);
+            ImGui::Combo("Trigger type",&ruleTriggerCategory,"General\0Character moves\0Resources\0");
+            if(ruleTriggerCategory!=currentCategory)ImGui::TextWrapped("Current trigger: %s. Choose a replacement below.",triggerLabel.c_str());
+            if(ruleTriggerCategory==1)ImGui::InputText("Find move",ruleMoveFilter,sizeof(ruleMoveFilter));
+            if(ImGui::BeginCombo("Trigger",ruleTriggerCategory==currentCategory?triggerLabel.c_str():"Choose trigger")) {
+                if(ruleTriggerCategory==0) {
+                    for(const auto& entry:nativeTriggers)if(ImGui::Selectable(entry.label,currentCategory==0 && rule.activationTag==entry.tag)){rule.activationTag=entry.tag;rule.hypeLevel=-1;rule.moveId.clear();rule.mode=TransformMode::Automatic;}
+                    if(TransformTrigger(c)!="preview-only" && ImGui::Selectable("Legacy character trigger",currentCategory==0 && rule.activationTag.empty())){rule.activationTag.clear();rule.hypeLevel=-1;rule.moveId.clear();rule.mode=TransformMode::Automatic;}
+                } else if(ruleTriggerCategory==1) {
+                    bool any=false;
+                    for(const auto& entry:PaletteData::CharacterMoves())if(entry.character==c.Char_Name) {
+                        if(ruleMoveFilter[0] && std::search(entry.label.begin(),entry.label.end(),ruleMoveFilter,ruleMoveFilter+strlen(ruleMoveFilter),[](unsigned char a,unsigned char b){return std::tolower(a)==std::tolower(b);})==entry.label.end())continue;
+                        any=true;
+                        if(ImGui::Selectable(entry.label.c_str(),rule.moveId==entry.id)){rule.moveId=entry.id;rule.activationTag.clear();rule.hypeLevel=-1;rule.mode=TransformMode::Automatic;}
+                    }
+                    if(!any)ImGui::TextDisabled("No mapped moves match this character/filter.");
+                } else {
+                    if(c.Char_Name=="Beowulf")for(int level=0;level<4;++level)if(ImGui::Selectable(("Hype level "+std::to_string(level)).c_str(),rule.hypeLevel==level)){rule.hypeLevel=level;rule.activationTag.clear();rule.moveId.clear();rule.mode=TransformMode::Automatic;}
+                    if(c.Char_Name!="Beowulf")ImGui::TextDisabled("No supported resource provider for this character.");
+                }
                 ImGui::EndCombo();
             }
+            if(ruleTriggerCategory==1)ImGui::TextWrapped("Initial mappings: Beowulf Chair Toss and Gigantic Arm. Covers mapped move phases; awaiting gameplay tests.");
             if(rule.hypeLevel>=0)ImGui::TextWrapped("Completed Hype amount only: level %d. Fractional progress stays in the lower level; this does not track a persistent boost after spending.",rule.hypeLevel);
-            ImGui::TextDisabled("Tags follow authored move phases; confirm them for the chosen fighter.");
+            if(ruleTriggerCategory==0)ImGui::TextDisabled("Tags follow authored move phases; confirm them for the chosen fighter.");
             if(rule.mode!=TransformMode::Automatic) {
                 ImGui::TextWrapped("Imported live override: %s. Preserved from the old previewMode field; this affects the live palette, not the isolated viewer.",rule.mode==TransformMode::NormalPreview?"forced normal":"forced transformed");
                 if(ImGui::Button("Use trigger instead of imported override"))rule.mode=TransformMode::Automatic;

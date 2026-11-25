@@ -11,6 +11,7 @@ This fork brings the current advanced palette features into one editor, with com
 Keep `PaletteEditor-V1.exe`, `groups.json`, and `overlay-textures.json` together in a writable folder outside the game directory. Start the game and editor, then open a match.
 
 - **Palette** contains the normal color editor. Its collapsed **Advanced** section contains overlay textures, rainbow, opacity, always-on color links, and conditional transformations. Existing named triggers and manual previews remain available.
+- Transformation rules separate **General**, **Character moves**, and **Resources**. The initial move options are Beowulf Chair Toss (all strengths) and Gigantic Arm; their mapped phases use native conditions and V5 palette saves. Other move families remain unavailable pending mapping. See [whole-move trigger scope and testing](docs/WHOLE-MOVE-TRIGGERS.md).
 - Apply advanced changes before saving. **File → Save palette** stores live colors, opacity, line/shadow colors, and applied advanced assignments in one `.pal` file. Unapplied controls are not saved.
 - **File → Load palette** accepts both plain legacy `.pal` files and extended V1 files. Invalid or mismatched files are rejected before game data changes.
 - **File → Save palette and auto-load** saves and assigns the file to the selected character/palette number. The **Auto-load** tab also lets you add, browse, enable/disable, and retry assignments.

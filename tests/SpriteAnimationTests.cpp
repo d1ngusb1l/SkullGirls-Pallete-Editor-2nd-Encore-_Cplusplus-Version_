@@ -46,6 +46,13 @@ int main(int argc,char** argv){try {
   for(int level=0;level<4;++level){auto r=ra;r.id="hype-"+std::to_string(level);r.hypeLevel=level;r.activationTag.clear();r.links={{1,level==1?3:2}};SpriteViewer::simulatedRules.push_back(r);}
   for(int level=0;level<4;++level){SpriteViewer::simulatedHypeLevel=level;const auto redirects=SpriteViewer::SimulatedRedirects();Check(redirects.size()==1 && redirects.at(1)==(level==1?3:2),"Local Hype simulation allowed competing levels");}
   SpriteViewer::simulatedRules.clear();SpriteViewer::simulatedActive.clear();SpriteViewer::simulatedHypeLevel=-1;
+  auto chair=ra;chair.activationTag.clear();chair.moveId="beowulf/chair-toss";
+  auto arm=chair;arm.id="arm";arm.links={{1,3}};arm.moveId="beowulf/organic-arm";
+  SpriteViewer::simulatedRules={chair,arm};SpriteViewer::simulatedActive={chair.id,arm.id};
+  Check(SpriteViewer::SimulatedRedirects().empty(),"Manual animation checkboxes activated move predicates");
+  SpriteViewer::simulatedMoveId=chair.moveId;Check(SpriteViewer::SimulatedRedirects()==std::map<int,int>{{1,2}},"Local move selector mixed exclusive rules");
+  SpriteViewer::simulatedMoveId=arm.moveId;Check(SpriteViewer::SimulatedRedirects()==std::map<int,int>{{1,3}},"Local move switch retained previous move");
+  SpriteViewer::simulatedRules.clear();SpriteViewer::simulatedActive.clear();SpriteViewer::simulatedMoveId.clear();
  }
  SpriteViewer::SpriteFrameAsset a;a.id=7;a.width=2;a.height=1;a.originX=1;a.originY=1;
  SpriteViewer::PixelLayer layer;layer.width=2;layer.height=1;layer.pixels={0,31,1,0,31,0};a.layers={layer};
@@ -76,12 +83,19 @@ int main(int argc,char** argv){try {
  const auto simulationCapture=SpriteViewer::CaptureAnimationExport(false,0);
  SpriteViewer::simulatedRules.clear();SpriteViewer::simulatedActive.clear();SpriteViewer::simulatedHypeLevel=-1;
  Check(simulationCapture.redirects==std::map<int,int>{{1,2}} && capture.redirects.empty(),"Simulation was not independently snapshotted");
+ auto moveSimulation=simulation;moveSimulation.hypeLevel=-1;moveSimulation.moveId="beowulf/chair-toss";
+ SpriteViewer::simulatedRules={moveSimulation};SpriteViewer::simulatedMoveId=moveSimulation.moveId;
+ const auto moveCapture=SpriteViewer::CaptureAnimationExport(false,0);
+ SpriteViewer::simulatedMoveId="beowulf/organic-arm";SpriteViewer::simulatedRules.clear();
+ Check(moveCapture.redirects==std::map<int,int>{{1,2}},"Move export lost its independent simulation snapshot");
+ SpriteViewer::simulatedMoveId.clear();
  SpriteViewer::sizes={1,1};SpriteViewer::edited.pop_back();
  SpriteViewer::showOriginal=true;
  Check(capture.bounds.right-capture.bounds.left==3 && capture.bounds.bottom-capture.bounds.top==1,"Shared origin canvas incorrect");
  Check(SpriteViewer::selectedAnimation==0 && SpriteViewer::frameIndex==1 && SpriteViewer::highlight && SpriteViewer::zoom==3,"Capture changed viewer state");
  SpriteViewer::original.clear();SpriteViewer::edited.clear();SpriteViewer::sizes.clear();SpriteViewer::frames.clear();SpriteViewer::animations.clear();SpriteViewer::selectedAnimation=-1;
  PaletteData::AtomicWrite(output/"simulation-snapshot.apng",SpriteViewer::EncodeAnimation(simulationCapture,std::make_shared<SpriteViewer::AnimationProgress>()));
+ PaletteData::AtomicWrite(output/"move-simulation-snapshot.apng",SpriteViewer::EncodeAnimation(moveCapture,std::make_shared<SpriteViewer::AnimationProgress>()));
  SpriteViewer::pendingAnimationExport=capture;SpriteViewer::StartAnimationExport(output/"snapshot.apng");
  for(unsigned i=0;SpriteViewer::AnimationBusy() && i<30000;++i){SpriteViewer::PollAnimationExport();Sleep(1);}
  Check(!SpriteViewer::AnimationBusy() && SpriteViewer::animationStatus.find("Saved APNG:")==0,"Background export failed");
