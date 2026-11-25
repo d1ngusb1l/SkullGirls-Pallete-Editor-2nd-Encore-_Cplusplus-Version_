@@ -123,3 +123,34 @@ validation record for the exact installed hash and actual live results.
 - Live confirmation is pending user-controlled launching/gameplay. No runtime
   truth-table, tagging/mirror/Autoload or device-transition success is claimed
   for this new build. Existing compiler warnings remain in inherited code.
+
+## User-controlled Beowulf continuation
+
+The installed validation DLL was not replaced while the runner was running.
+A read-only native trace captured all four states on Beowulf palette 4: neither
+(109 changed-state samples), ATTACK only (43), JUMPING only (24), and both (59).
+The editor loaded A `band 2 <- band 1` (pink hair on ATTACK) and B
+`band 25 <- band 2` (brown shirt on JUMPING). An air attack visibly showed pink
+hair and a brown shirt together, consistent with one-hop destination colors.
+All six fighters' base-color arrays were unchanged by loading these redirects.
+
+Through the editor, A was disabled and then removed. B retained its name,
+JUMPING trigger, enabled flag, band 25 <- 2 link and full mask. The disabled-A
+trace contained B-only records in both inactive and active states; removing A
+also retained B. Reload restored both rules. Save palette and auto-load produced
+an exactly equivalent V3 document, preserved all previous Autoload rows, and
+palette 4 -> 5 -> 4 restored the two rules. The existing palette-5 imported
+Autoload entry loaded without acquiring either test rule.
+
+The user confirmed tag-out/return still behaved correctly. A fresh match with
+opposing Beowulfs on palettes 4 and 2 restored player 1's two native records
+through Autoload; player 2's redirect table remained empty. These observations
+cover the tested Beowulf configurations, not every character/effect.
+
+The generated test palettes and traces remain local. The test Autoload assignment
+for Beowulf palette 4 references `multiple-beowulf-saved.pal`; its predecessor
+settings were backed up in ignored build/. A save attempt using an absolute path
+inside the filename field failed before writing; a simple filename succeeded.
+This is a file-dialog/path limitation observed here, not a new codec failure.
+Device/display transitions and two-overlay combinations have not been retested
+in this continuation.
