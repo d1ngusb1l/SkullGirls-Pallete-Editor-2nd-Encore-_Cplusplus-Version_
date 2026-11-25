@@ -75,40 +75,21 @@ void DrawGroup(const ColorGroup& group) {
                     }
                     ImGui::EndCombo();
                 }
-                int transformed=d.transformation && d.transformation->links.count(source)?d.transformation->links.at(source):0;
-                if(ImGui::BeginCombo(("Copy colors from (when triggered)##"+std::to_string(source)).c_str(),transformed?data.groups[transformed].label.c_str():"No transformation")) {
-                    if(ImGui::Selectable("No transformation",transformed==0)) {
-                        if(d.transformation){d.transformation->links.erase(source);if(d.transformation->links.empty())d.transformation.reset();}apply();
-                    }
-                    for(auto& dest:data.groups)if(dest.band && dest.count && dest.band!=source && ImGui::Selectable((dest.label+"##"+std::to_string(dest.band)).c_str(),transformed==dest.band)) {
-                        if(!d.transformation)d.transformation=PaletteData::Transformation{{},255,0,"SUPER",""};
-                        d.transformation->links[source]=dest.band;apply();
-                    }
-                    ImGui::EndCombo();
-                }
                 ImGui::PopID();
             }
-            if(d.transformation) {
-                bool shared=std::any_of(d.transformation->links.begin(),d.transformation->links.end(),[&](auto& link){return !bands.count(link.first);});
-                ImGui::BeginDisabled(shared);
-                if(ImGui::BeginCombo("Trigger",OverlayEditor::NativeTriggerLabel(d.transformation->activationTag))) {
-                    for(auto& entry:OverlayEditor::nativeTriggers)if(ImGui::Selectable(entry.label,d.transformation->activationTag==entry.tag)) {
-                        d.transformation->activationTag=entry.tag;d.transformation->legacyTrigger.clear();d.transformation->previewMode=0;apply();
-                    }
-                    ImGui::EndCombo();
-                }
-                ImGui::EndDisabled();
-                if(shared)ImGui::TextDisabled("The transformation trigger is shared. Change it in Advanced.");
-            }
+            ImGui::SeparatorText("Transformation rules");
+            ImGui::BeginDisabled(Busy());
+            OverlayEditor::DrawTransformationEditor(c,bands);
+            ImGui::EndDisabled();
             if(ImGui::Button("Remove shader assignments from this group")) {
                 for(int b:bands) {
                     if(d.rainbow)d.rainbow->bands.erase(b);
                     if(d.colorLinks)d.colorLinks->links.erase(b);
-                    if(d.transformation)d.transformation->links.erase(b);
+                    for(auto& rule:d.transformations)rule.links.erase(b);
                 }
                 if(d.rainbow && d.rainbow->bands.empty())d.rainbow.reset();
                 if(d.colorLinks && d.colorLinks->links.empty())d.colorLinks.reset();
-                if(d.transformation && d.transformation->links.empty())d.transformation.reset();
+                d.transformations.erase(std::remove_if(d.transformations.begin(),d.transformations.end(),[](const auto& rule){return rule.links.empty();}),d.transformations.end());
                 apply();
                 for(int b:bands)AssignDraftBand(Draft(c),b,0);
                 if(HasPending())Status="Other assignments removed. Overlay removal Pending; use Apply overlays.";

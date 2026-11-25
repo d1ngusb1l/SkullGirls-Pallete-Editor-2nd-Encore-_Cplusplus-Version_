@@ -363,6 +363,7 @@ void ApplyPending() {
         }
     }catch(const std::exception& e){Status=std::string("Apply failed: ")+e.what();}
 }
+std::vector<PaletteData::Transformation> PreviewRules() {return OverlayEditor::CapturePalette(Current()).transformations;}
 std::string GroupEffects(const ColorGroup& group) {
     try {
         auto c=Current();
@@ -376,14 +377,15 @@ std::string GroupEffects(const ColorGroup& group) {
         auto add=[&](const auto& effect,const std::string& name) {if(effect && std::any_of(bands.begin(),bands.end(),[&](int band){return effect->bands.count(band);})) {if(!result.empty())result+=", ";result+=name;}};
         add(d.overlay,d.overlay?d.overlay->texture:"");add(d.secondOverlay,d.secondOverlay?d.secondOverlay->texture:"");add(d.rainbow,"Rainbow");
         if(d.colorLinks)for(int b:bands)if(d.colorLinks->links.count(b)){result+=" Borrow colors";break;}
-        if(d.transformation)for(int b:bands)if(d.transformation->links.count(b)){result+=" Transformation";break;}
+        for(const auto& rule:d.transformations)for(int b:bands)if(rule.links.count(b)){result+=rule.enabled?" Transformation":" Disabled rule";break;}
         return result.empty()?"No applied effects":result;
     }catch(...) {return "Native band controls in Advanced";}
 }
 void Draw() {
     if(!Status.empty())ImGui::TextWrapped("%s",Status.c_str());
     try {
-        auto c=Current();OverlayEditor::Draw(OverlayEditor::process,OverlayEditor::base,c);
+        auto c=Current();ImGui::BeginDisabled(LiveOverlays::Busy());
+        OverlayEditor::Draw(OverlayEditor::process,OverlayEditor::base,c);ImGui::EndDisabled();
         if(RevealNativeBands){ImGui::SetNextItemOpen(true);ImGui::SetScrollHereY(0.0f);RevealNativeBands=false;}
         OverlayControls::Draw(c,Status,LiveOverlays::Busy(),true,[&](PaletteData::Document document) {
             if(document.secondOverlay) {

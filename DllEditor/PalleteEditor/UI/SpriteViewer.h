@@ -8,6 +8,7 @@
 #include "SpritePreviewPixel.h"
 #include "SpritePng.h"
 #include "SpriteAnimation.h"
+#include "../../../PalleteEditor/Data/PaletteDocument.h"
 #include <future>
 #include <atomic>
 #include <chrono>
@@ -42,6 +43,15 @@ inline IDirect3DTexture9* texture=nullptr;
 inline std::vector<unsigned char> pixels,defaultRows;
 inline std::vector<ImU32> original,edited;
 inline std::vector<int> sizes;
+// Explicit pane-local simulation; never passed to persistence or live writes.
+inline std::vector<PaletteData::Transformation> simulatedRules;
+inline std::set<std::string> simulatedActive;
+inline std::map<int,int> uploadedRedirects;
+inline std::map<int,int> SimulatedRedirects() {
+    std::map<int,int> result;
+    for(const auto& rule:simulatedRules)if(rule.enabled && rule.shadeMask==255 && simulatedActive.count(rule.id))result.insert(rule.links.begin(),rule.links.end());
+    return result;
+}
 inline unsigned width=0,height=0,layers=0;
 inline unsigned canvasLeft=0,canvasTop=0,canvasWidth=0,canvasHeight=0;
 inline int slot=-1,palette=-1;
@@ -68,7 +78,7 @@ inline char animationSearch[128]={};
 
 inline void LostDevice() {if(texture){texture->Release();texture=nullptr;}}
 inline void ForgetMatch() {
-    centerCanvas=true;LostDevice();original.clear();edited.clear();sizes.clear();slot=palette=-1;snapshotCharacter.clear();
+    centerCanvas=true;LostDevice();simulatedRules.clear();simulatedActive.clear();uploadedRedirects.clear();original.clear();edited.clear();sizes.clear();slot=palette=-1;snapshotCharacter.clear();
 }
 inline void ResetAsset() {
     centerCanvas=true;LostDevice();pixels.clear();defaultRows.clear();frames.clear();animations.clear();decodedFrame={};
@@ -327,10 +337,10 @@ inline const SpriteFrameAsset* ActiveFrame() {
     }
     return &decodedFrame;
 }
-inline std::vector<ImU32> RenderFrame(const SpriteFrameAsset& frame,const std::vector<ImU32>& colors,const std::set<int>& selected,bool focus,bool transparent,const std::vector<int>& layout=sizes) {
+inline std::vector<ImU32> RenderFrame(const SpriteFrameAsset& frame,const std::vector<ImU32>& colors,const std::set<int>& selected,bool focus,bool transparent,const std::vector<int>& layout=sizes,const std::map<int,int>& redirects={}) {
     const unsigned outputWidth=BoundDimension(frame.width),outputHeight=BoundDimension(frame.height);
     std::vector<ImU32> lookup(256*256),output(size_t(outputWidth)*outputHeight);
-    for(int b=0;b<(int)layout.size();++b)for(int shade=0;shade<256;++shade)lookup[b*256+shade]=Sample(b,shade,colors,layout);
+    for(int b=0;b<(int)layout.size();++b)for(int shade=0;shade<256;++shade)lookup[b*256+shade]=Sample(redirects.count(b)?redirects.at(b):b,shade,colors,layout);
     for(unsigned y=0;y<outputHeight;++y)for(unsigned x=0;x<outputWidth;++x) {
         SpritePreviewPixel pixel(transparent);
         for(const auto& layer:frame.layers) {
@@ -351,6 +361,7 @@ struct AnimationExport {
     std::vector<ImU32> colors;
     std::vector<int> layout;
     SpritePreviewGeometry::Bounds bounds;
+    std::map<int,int> redirects;
     bool gif=false;unsigned plays=0;
     std::string name;
 };
@@ -400,7 +411,7 @@ inline AnimationExport CaptureAnimationExport(bool gif,unsigned plays,int first=
     if(first<1 || last<first || last>count)throw std::runtime_error("Choose a valid inclusive frame range.");
     capture.animation.frames=decltype(capture.animation.frames)(capture.animation.frames.begin()+first-1,capture.animation.frames.begin()+last);
     if(capture.animation.frames.empty() || capture.animation.frames.size()>2000)throw std::runtime_error("Animation export supports 1 to 2000 timeline frames.");
-    capture.colors=showOriginal?original:edited;capture.layout=sizes;size_t bytes=0;
+    capture.colors=showOriginal?original:edited;capture.layout=sizes;capture.redirects=showOriginal?std::map<int,int>{}:SimulatedRedirects();size_t bytes=0;
     for(const auto& entry:capture.animation.frames) {
         if(capture.sprites.count(entry.sprite))continue;
         auto found=std::find_if(frames.begin(),frames.end(),[&](const auto& f){return f.id==entry.sprite;});
@@ -426,7 +437,7 @@ inline SpriteAnimation::Bytes EncodeAnimation(const AnimationExport& capture,con
                 if(!layer.channels[0].empty()){DecodePixelLayer(layer);for(auto& channel:layer.channels)channel.clear();layer.tiles.clear();}
             }
         }
-        const auto pixels=RenderFrame(*decoded,capture.colors,{},false,true,capture.layout);
+        const auto pixels=RenderFrame(*decoded,capture.colors,{},false,true,capture.layout,capture.redirects);
         std::vector<uint32_t> canvas(size_t(w)*h,0);
         const unsigned x=capture.bounds.OffsetX(-decoded->originX),y=capture.bounds.OffsetY(-decoded->originY);
         for(unsigned row=0;row<decoded->height;++row)memcpy(canvas.data()+size_t(y+row)*w+x,pixels.data()+size_t(row)*decoded->width,decoded->width*4);
@@ -473,7 +484,7 @@ inline void CapturePngExport() {
     if(selectedAnimation>=0 && selectedAnimation<int(animations.size()))name+="-move-"+std::to_string(animations[selectedAnimation].id)+"-frame-"+std::to_string(frameIndex+1);
     else name+="-sprite-"+std::to_string(frame->id);
     name+=showOriginal?"-original.png":"-edited.png";
-    pendingPngExport=PngExport{frame->width,frame->height,RenderFrame(*frame,colors,{},false,true),name};
+    pendingPngExport=PngExport{frame->width,frame->height,RenderFrame(*frame,colors,{},false,true,sizes,showOriginal?std::map<int,int>{}:SimulatedRedirects()),name};
 }
 inline void SavePngExport(const std::filesystem::path& path) {
     try {
@@ -487,15 +498,16 @@ inline void Upload(const std::set<int>& selected) {
     if(!device || original.empty())return;
     auto frame=ActiveFrame();if(!frame)return;
     const auto& colors=showOriginal?original:edited;
-    if(texture && uploaded==colors && uploadedBands==selected && uploadedHighlight==highlight && uploadedSprite==frame->id)return;
+    const auto redirects=showOriginal?std::map<int,int>{}:SimulatedRedirects();
+    if(texture && uploadedRedirects==redirects && uploaded==colors && uploadedBands==selected && uploadedHighlight==highlight && uploadedSprite==frame->id)return;
     // Finish CPU work before locking the device texture, so errors never leave it locked.
-    const auto image=RenderFrame(*frame,colors,selected,highlight,false);
+    const auto image=RenderFrame(*frame,colors,selected,highlight,false,sizes,redirects);
     if(texture && (width!=frame->width || height!=frame->height)){texture->Release();texture=nullptr;}
     if(!texture && FAILED(device->CreateTexture(frame->width,frame->height,1,D3DUSAGE_DYNAMIC,D3DFMT_A8R8G8B8,D3DPOOL_DEFAULT,&texture,nullptr)))throw std::runtime_error("Could not create preview texture.");
     D3DLOCKED_RECT lock{};if(FAILED(texture->LockRect(0,&lock,nullptr,D3DLOCK_DISCARD)))throw std::runtime_error("Could not upload preview texture.");
     width=frame->width;height=frame->height;
     for(unsigned y=0;y<height;++y)memcpy(static_cast<unsigned char*>(lock.pBits)+y*lock.Pitch,image.data()+size_t(y)*width,width*4);
-    texture->UnlockRect(0);uploaded=colors;uploadedBands=selected;uploadedHighlight=highlight;uploadedSprite=frame->id;
+    texture->UnlockRect(0);uploadedRedirects=redirects;uploaded=colors;uploadedBands=selected;uploadedHighlight=highlight;uploadedSprite=frame->id;
 }
 
 inline void DrawCanvas() {
@@ -522,7 +534,7 @@ inline void DrawCanvas() {
     ImGui::EndChild();
 }
 
-inline void Draw(int targetSlot,int targetPalette,const char* character,const std::vector<ImU32>& liveColors,const std::vector<int>& layout,const ColorGroup& group,const std::set<int>& bands) {
+inline void Draw(int targetSlot,int targetPalette,const char* character,const std::vector<ImU32>& liveColors,const std::vector<int>& layout,const ColorGroup& group,const std::set<int>& bands,const std::vector<PaletteData::Transformation>& rules={}) {
     ImGui::TextWrapped("Isolated preview. Extra artwork layers and shader effects are not previewed.");
     if(!error.empty() || preparationProcess)ImGui::SetNextItemOpen(true);
     if(ImGui::CollapsingHeader("Prepare local sprite assets")) {
@@ -542,7 +554,7 @@ inline void Draw(int targetSlot,int targetPalette,const char* character,const st
     }
     Load(character);if(!error.empty()){ImGui::TextWrapped("%s",error.c_str());return;}
     if(slot!=targetSlot || palette!=targetPalette || sizes!=layout || snapshotCharacter!=character) {
-        ForgetMatch();slot=targetSlot;palette=targetPalette;sizes=layout;snapshotCharacter=character;original=edited=liveColors;
+        ForgetMatch();slot=targetSlot;palette=targetPalette;sizes=layout;snapshotCharacter=character;original=edited=liveColors;simulatedRules=rules;
     }
     ImGui::Separator();
     ImGui::TextColored(ImVec4(0.4f,0.85f,1.0f,1.0f),"Animation / frame selection");
@@ -605,6 +617,20 @@ inline void Draw(int targetSlot,int targetPalette,const char* character,const st
     if(ImGui::Button("Snapshot match colors"))original=edited=liveColors;
     ImGui::SameLine();ImGui::Checkbox("Original / Edited",&showOriginal);
     ImGui::TextDisabled(showOriginal?"Original snapshot":"Edited locally (match unchanged)");
+    if(ImGui::CollapsingHeader("Simulate transformation rules locally")) {
+        ImGui::TextWrapped("Manual full-band color borrowing only. Check each rule independently. Pose selection does not activate tags. Native conditions, shade masks, static/native redirects and shader effects are not emulated.");
+        if(ImGui::Button("Refresh rule snapshot")){simulatedRules=rules;simulatedActive.clear();}
+        ImGui::BeginDisabled(showOriginal);
+        for(const auto& rule:simulatedRules) {
+            const bool supported=rule.shadeMask==255 && rule.enabled;
+            bool active=simulatedActive.count(rule.id)>0;
+            ImGui::BeginDisabled(!supported);
+            if(ImGui::Checkbox((rule.name+"##simulate-"+rule.id).c_str(),&active)){if(active)simulatedActive.insert(rule.id);else simulatedActive.erase(rule.id);}
+            ImGui::EndDisabled();
+            if(!supported)ImGui::TextDisabled(rule.enabled?"Unsupported: partial shader shade mask":"Disabled rule");
+        }
+        ImGui::EndDisabled();
+    }
     ImGui::SliderFloat("Zoom",&zoom,0.25f,3.0f,"%.2fx");ImGui::Checkbox("Highlight selected group",&highlight);
     ImGui::BeginDisabled(showOriginal);
     for(int i=group.startIndex;i<group.startIndex+group.count && i<(int)edited.size();++i) {

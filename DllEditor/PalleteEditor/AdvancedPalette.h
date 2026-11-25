@@ -3,12 +3,14 @@
 #include <vector>
 #include <set>
 #include "Files/GroupJSONFiles.h"
+#include "../../PalleteEditor/Data/PaletteDocument.h"
 namespace AdvancedPalette {
     extern std::string Status;
     inline unsigned long long MatchGeneration=0;
     inline bool OpenAdvanced=false;
     inline bool RevealNativeBands=false;
     std::vector<int> PreviewLayout();
+    std::vector<PaletteData::Transformation> PreviewRules();
     std::set<int> PreviewBands(const ColorGroup& group);
     bool Busy();
     bool HasPending();
