@@ -43,6 +43,9 @@ int main(int argc,char** argv){try {
   SpriteViewer::simulatedRules[0].shadeMask=15;SpriteViewer::simulatedRules[1].enabled=false;
   Check(SpriteViewer::SimulatedRedirects().empty(),"Unsupported or disabled rule simulated");
   SpriteViewer::simulatedRules.clear();SpriteViewer::simulatedActive.clear();
+  for(int level=0;level<4;++level){auto r=ra;r.id="hype-"+std::to_string(level);r.hypeLevel=level;r.activationTag.clear();r.links={{1,level==1?3:2}};SpriteViewer::simulatedRules.push_back(r);}
+  for(int level=0;level<4;++level){SpriteViewer::simulatedHypeLevel=level;const auto redirects=SpriteViewer::SimulatedRedirects();Check(redirects.size()==1 && redirects.at(1)==(level==1?3:2),"Local Hype simulation allowed competing levels");}
+  SpriteViewer::simulatedRules.clear();SpriteViewer::simulatedActive.clear();SpriteViewer::simulatedHypeLevel=-1;
  }
  SpriteViewer::SpriteFrameAsset a;a.id=7;a.width=2;a.height=1;a.originX=1;a.originY=1;
  SpriteViewer::PixelLayer layer;layer.width=2;layer.height=1;layer.pixels={0,31,1,0,31,0};a.layers={layer};
@@ -67,10 +70,11 @@ int main(int argc,char** argv){try {
  SpriteViewer::showOriginal=false;const auto editedCapture=SpriteViewer::CaptureAnimationExport(true,2);
  Check(editedCapture.colors[1]==0x800000ff && editedCapture.gif && editedCapture.plays==2,"Edited colors or export options were not captured");
  SpriteViewer::sizes={1,1,1};SpriteViewer::edited.push_back(0xff00ff00);
- PaletteData::Transformation simulation{{{1,2}},255,0,"ATTACK","","simulation","Local only",true};
+ PaletteData::Transformation simulation{{{1,2}},255,0,"","","simulation","Local only",true,2};
+ SpriteViewer::simulatedHypeLevel=2;
  SpriteViewer::simulatedRules={simulation};SpriteViewer::simulatedActive={"simulation"};
  const auto simulationCapture=SpriteViewer::CaptureAnimationExport(false,0);
- SpriteViewer::simulatedRules.clear();SpriteViewer::simulatedActive.clear();
+ SpriteViewer::simulatedRules.clear();SpriteViewer::simulatedActive.clear();SpriteViewer::simulatedHypeLevel=-1;
  Check(simulationCapture.redirects==std::map<int,int>{{1,2}} && capture.redirects.empty(),"Simulation was not independently snapshotted");
  SpriteViewer::sizes={1,1};SpriteViewer::edited.pop_back();
  SpriteViewer::showOriginal=true;

@@ -67,7 +67,8 @@ Transformation rules are independently named, enabled and triggered in Effects o
 Advanced. Stage links/shades and Apply rules; overlapping native source shades are
 rejected. Saves use palette schema V3 and import V1/V2. The isolated viewer can
 manually simulate enabled full-band rules without changing gameplay or saved files;
-partial masks and other shader effects remain unpreviewed. Beowulf Hype is explicitly
-unsupported pending verified resource ownership/semantics. See
+partial masks and other shader effects remain unpreviewed. Beowulf completed Hype levels 0–3 have an allowlisted native provider for build
+26588330, based on controlled resource/mirror observations; V4 saves preserve these
+predicates. Native appearance validation status is recorded in the resource report. See
 [rule validation](../docs/MULTIPLE-TRANSFORMATIONS.md) and
 [resource evidence](../docs/BEOWULF-RESOURCE-INVESTIGATION.md).

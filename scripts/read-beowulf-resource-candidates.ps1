@@ -1,4 +1,4 @@
-# Read-only diagnostic. Script slot 0x64 is a Hype candidate, not a supported trigger.
+# Read-only evidence diagnostic. Never enables or changes an appearance trigger.
 param([ValidateRange(0,60)][int]$Seconds=0,[string]$OutputPath='build/beowulf-resource-candidates.json')
 $ErrorActionPreference='Stop'
 if(!('BeowulfResourceReader' -as [type])) {
@@ -67,6 +67,6 @@ try {
         }
         if($Seconds -gt 0){Start-Sleep -Milliseconds 50}
     }while($watch.Elapsed.TotalSeconds -lt $Seconds)
-    $report=[ordered]@{gameBuild=26588330;pid=$game.Id;root=('{0:X8}' -f $initialRoot);readOnly=$true;runtimeTriggerSupport='Unsupported';endReason=$reason;observations=$observations}
+    $report=[ordered]@{gameBuild=26588330;pid=$game.Id;root=('{0:X8}' -f $initialRoot);readOnly=$true;runtimeTriggerSupport='Not queried by this read-only diagnostic';endReason=$reason;observations=$observations}
     $report | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $OutputPath -Encoding utf8
 } finally {[void][BeowulfResourceReader]::CloseHandle($processHandle)}

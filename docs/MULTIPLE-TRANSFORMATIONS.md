@@ -154,3 +154,29 @@ inside the filename field failed before writing; a simple filename succeeded.
 This is a file-dialog/path limitation observed here, not a new codec failure.
 Device/display transitions and two-overlay combinations have not been retested
 in this continuation.
+
+
+## Four-level Hype validation build
+
+The amount-provider extension is separated from the already tested independent
+animation rules. V4 carries resource predicates; only distinct Hype levels may
+share a source/shade. Tags remain independent and all other overlaps reject.
+The isolated viewer offers a single local Hype level, without reading live values
+or saving an accidental override. Other character resources and persistent boosts
+remain unsupported.
+
+Build verification: `scripts/build.ps1` passed **108** palette/schema/legacy/atomic
+checks and native-owner tests including actual encoded Hype chains, invalid
+samples, fake mirror owners and idempotent Apply. The nine relevant native suites,
+16 Python tests, independent Pillow GIF/APNG and local Hype snapshot decoding,
+Python/PowerShell syntax checks and diff whitespace checks passed. The validation
+DLL network inspection again reported all four exclusion checks False.
+
+New validation DLL SHA-256:
+`74B97F796E34F0571F9F92F732D597D3E03D9F77F2C7E1AA7E92AEB822D66450`.
+Installed with no SkullGirls process running; the previous `2FC9D278...` validation
+DLL was backed up by its complete hash. Native appearance tests on the new DLL are
+pending. The reversible local test palette uses four mutually exclusive hair
+redirects (tan/pink/white/gold at levels 0/1/2/3) and retains the independent
+JUMPING shirt rule. No palette colors, resource samples or runtime pointers are
+included in Git.

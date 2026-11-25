@@ -46,10 +46,11 @@ inline std::vector<int> sizes;
 // Explicit pane-local simulation; never passed to persistence or live writes.
 inline std::vector<PaletteData::Transformation> simulatedRules;
 inline std::set<std::string> simulatedActive;
+inline int simulatedHypeLevel=-1;
 inline std::map<int,int> uploadedRedirects;
 inline std::map<int,int> SimulatedRedirects() {
     std::map<int,int> result;
-    for(const auto& rule:simulatedRules)if(rule.enabled && rule.shadeMask==255 && simulatedActive.count(rule.id))result.insert(rule.links.begin(),rule.links.end());
+    for(const auto& rule:simulatedRules)if(rule.enabled && rule.shadeMask==255 && (rule.hypeLevel>=0?rule.hypeLevel==simulatedHypeLevel:simulatedActive.count(rule.id)>0))result.insert(rule.links.begin(),rule.links.end());
     return result;
 }
 inline unsigned width=0,height=0,layers=0;
@@ -78,7 +79,7 @@ inline char animationSearch[128]={};
 
 inline void LostDevice() {if(texture){texture->Release();texture=nullptr;}}
 inline void ForgetMatch() {
-    centerCanvas=true;LostDevice();simulatedRules.clear();simulatedActive.clear();uploadedRedirects.clear();original.clear();edited.clear();sizes.clear();slot=palette=-1;snapshotCharacter.clear();
+    centerCanvas=true;LostDevice();simulatedRules.clear();simulatedActive.clear();simulatedHypeLevel=-1;uploadedRedirects.clear();original.clear();edited.clear();sizes.clear();slot=palette=-1;snapshotCharacter.clear();
 }
 inline void ResetAsset() {
     centerCanvas=true;LostDevice();pixels.clear();defaultRows.clear();frames.clear();animations.clear();decodedFrame={};
@@ -619,13 +620,24 @@ inline void Draw(int targetSlot,int targetPalette,const char* character,const st
     ImGui::TextDisabled(showOriginal?"Original snapshot":"Edited locally (match unchanged)");
     if(ImGui::CollapsingHeader("Simulate transformation rules locally")) {
         ImGui::TextWrapped("Manual full-band color borrowing only. Check each rule independently. Pose selection does not activate tags. Native conditions, shade masks, static/native redirects and shader effects are not emulated.");
-        if(ImGui::Button("Refresh rule snapshot")){simulatedRules=rules;simulatedActive.clear();}
+        if(ImGui::Button("Refresh rule snapshot")){simulatedRules=rules;simulatedActive.clear();simulatedHypeLevel=-1;}
         ImGui::BeginDisabled(showOriginal);
+        const bool hasHype=std::any_of(simulatedRules.begin(),simulatedRules.end(),[](const auto& rule){return rule.hypeLevel>=0;});
+        if(hasHype) {
+            const std::string label=simulatedHypeLevel<0?"No Hype simulation":"Hype "+std::to_string(simulatedHypeLevel);
+            if(ImGui::BeginCombo("Local Hype level",label.c_str())) {
+                if(ImGui::Selectable("No Hype simulation",simulatedHypeLevel<0))simulatedHypeLevel=-1;
+                for(int level=0;level<4;++level)if(ImGui::Selectable(("Hype "+std::to_string(level)).c_str(),simulatedHypeLevel==level))simulatedHypeLevel=level;
+                ImGui::EndCombo();
+            }
+            ImGui::TextDisabled("Manual simulation only; no live Hype read or saved override.");
+        }
         for(const auto& rule:simulatedRules) {
             const bool supported=rule.shadeMask==255 && rule.enabled;
             bool active=simulatedActive.count(rule.id)>0;
             ImGui::BeginDisabled(!supported);
-            if(ImGui::Checkbox((rule.name+"##simulate-"+rule.id).c_str(),&active)){if(active)simulatedActive.insert(rule.id);else simulatedActive.erase(rule.id);}
+            if(rule.hypeLevel>=0)ImGui::Text("%s (Hype %d)",rule.name.c_str(),rule.hypeLevel);
+            else if(ImGui::Checkbox((rule.name+"##simulate-"+rule.id).c_str(),&active)){if(active)simulatedActive.insert(rule.id);else simulatedActive.erase(rule.id);}
             ImGui::EndDisabled();
             if(!supported)ImGui::TextDisabled(rule.enabled?"Unsupported: partial shader shade mask":"Disabled rule");
         }

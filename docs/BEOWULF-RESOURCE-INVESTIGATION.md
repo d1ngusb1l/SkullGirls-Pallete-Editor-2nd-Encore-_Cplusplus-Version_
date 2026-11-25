@@ -1,6 +1,7 @@
 # Beowulf resource evidence — read-only first pass
 
-Status: **Unsupported**. No Hype runtime predicate or polling field is enabled.
+Initial status: **Unsupported**. The archive-only phase enabled no Hype runtime predicate.
+The controlled continuation and validation implementation are described below.
 No resource value was written, no gameplay script was executed and no offset,
 field type, resource range or comparison opcode was guessed.
 
@@ -115,3 +116,35 @@ remain prerequisites to claiming the new runtime appearance workflow verified.
 The read-only collector is `scripts/read-beowulf-resource-candidates.ps1` and still
 reports runtime trigger support as Unsupported; it is an evidence tool, not a
 palette writer or production trigger provider.
+
+
+## Native amount-provider implementation (validation pending)
+
+The reciprocal mirror trace confirmed player 1 at completed level 2 while player 2
+changed 0 -> 3. Player 1's raw value also showed fractional progress (for example
+2.34), remaining independent of player 2's exact 3. The preceding mirror spend
+trace captured player 1 3 -> 2 while player 2 stayed 0. Both entities had distinct
+actor-bound storage; no fixed-side or shared-meter address is used.
+
+V4 rules now describe an allowlisted `beowulf-hype` provider and completed level.
+The native predicate consists of two ANDed comparisons on ordinary variable 0x64:
+lower bound >= level, upper bound < next level (or <= 3 for level 3). The game's
+own predicate/cache update path evaluates it with the fighter entity context;
+there is no polling loop that rewrites appearance, and no resource write.
+Existing native allocation retention remains unchanged. Conditions are created
+only when the assignment changes, not per sample or presentation frame.
+
+Before Apply, the provider checks the researched PE signatures, Beowulf identity,
+active match, a unique actor-bound entity, the float's finite 0–3 range, and an
+ownership recheck. UI status distinguishes Available, Unsupported and Unavailable.
+Invalid data cannot masquerade as inactive level zero. The native comparisons
+also reject invalid numeric values after Apply. No hysteresis is introduced;
+no evidence called for it. Reset and stale-match handling reuse the table owner.
+
+Offline verification includes V4 migration/round trips, unknown-provider and lossy
+downgrade rejection, all interval boundaries and invalid samples, mutual exclusion,
+encoded native comparison shapes, independent fake mirror owners, invalid-owner
+and build cases, rollback, repeated Apply, and isolated export snapshot behavior.
+Actual native-predicate appearance, mirror behavior and tag/match reset still need
+the new validation DLL installed and tested with user-controlled gameplay.
+Persistent modes after spending and other characters' resources remain unsupported.
