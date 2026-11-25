@@ -9,6 +9,7 @@ struct TransformSettings {
     TransformMode mode=TransformMode::NormalPreview;
     std::string id="legacy",name="Imported transformation";
     bool enabled=true;
+    int hypeLevel=-1;
     bool operator==(const TransformSettings&) const = default;
 };
 struct ColorAssignment {
@@ -33,15 +34,49 @@ inline void ValidateLinks(const AppearanceContext& data,const std::map<int,int>&
         if(rule.first==rule.second) throw std::runtime_error("Source and destination groups must differ.");
     }
 }
+enum class HypeAvailability { Available, Unsupported, Unavailable };
+struct HypeSnapshot {HypeAvailability availability=HypeAvailability::Unavailable;float amount=0;int level=-1;std::string message="Unavailable: actor ownership missing.";};
+inline HypeSnapshot ReadHypeProvider(const Character& c,const AppearanceContext& data) {
+    if(c.Char_Name!="Beowulf")return {HypeAvailability::Unsupported,0,-1,"Unsupported: Hype requires Beowulf."};
+    try {
+        const DWORD pe=Word(base+0x3c);
+        if(pe>0x10000 || Word(base+pe+8)!=0x6af3723f || Word(base+pe+24+56)!=0x8bd000)return {HypeAvailability::Unsupported,0,-1,"Unsupported: Hype requires game build 26588330."};
+        const DWORD root=Word(base+0x85ea4c);
+        if(!root || Word(root+0x168)!=4 || c.ID<0 || c.ID>=6 || Word(root+0x5e8+4*c.ID)!=data.actor)return {};
+        std::set<DWORD> entities;
+        for(int slot=0;slot<6;++slot){const DWORD entity=Word(root+0x1d4+4*slot);if(entity && Word(entity+0x330)==data.actor)entities.insert(entity);}
+        if(entities.size()!=1)return {};
+        const DWORD entity=*entities.begin();float amount=0;auto bytes=Read(entity+0x190,4);memcpy(&amount,bytes.data(),4);
+        const int level=PaletteData::BeowulfHypeLevel(amount);
+        if(level<0)return {HypeAvailability::Unavailable,0,-1,"Unavailable: Hype sample outside validated range."};
+        if(Word(base+0x85ea4c)!=root || Word(root+0x168)!=4 || Word(root+0x5e8+4*c.ID)!=data.actor || Word(entity+0x330)!=data.actor || Word(data.actor+0x328)!=data.palette)return {};
+        return {HypeAvailability::Available,amount,level,"Available: completed Hype level "+std::to_string(level)+"."};
+    } catch(...) {return {};}
+}
 inline void ValidateTransformation(const Character& c,const AppearanceContext& data,const TransformSettings& settings) {
     if(settings.links.empty()) throw std::runtime_error("Add at least one transformed color link.");
     ValidateLinks(data,settings.links,settings.shadeMask);
     if((int)settings.mode<0 || (int)settings.mode>2) throw std::runtime_error("Invalid transformation preview mode.");
+    if(settings.hypeLevel!=-1) {
+        if(settings.hypeLevel<0 || settings.hypeLevel>3 || settings.mode!=TransformMode::Automatic || !settings.activationTag.empty())throw std::runtime_error("Invalid or mixed Beowulf Hype predicate.");
+        const auto sample=ReadHypeProvider(c,data);
+        if(sample.availability!=HypeAvailability::Available)throw std::runtime_error(sample.message);
+        return;
+    }
     if(!settings.activationTag.empty() && !KnownNativeTrigger(settings.activationTag)) throw std::runtime_error("Unknown native animation trigger.");
     if(settings.mode==TransformMode::Automatic && settings.activationTag.empty() && TransformTrigger(c)=="preview-only")
         throw std::runtime_error("Automatic activation is validated for Annie and Filia Color 30 only. Use a manual preview here.");
 }
 inline DWORD TransformCondition(const Character& c,const TransformSettings& settings) {
+    if(settings.hypeLevel>=0) {
+        DWORD next=0;const auto comparisons=PaletteData::HypeComparisons(settings.hypeLevel);
+        for(auto it=comparisons.rbegin();it!=comparisons.rend();++it) {
+            Bytes node(48);node[0]=1;Put(node,4,0x64);memcpy(node.data()+20,&it->rhs,4);
+            node[24]=1;Put(node,28,next);node[32]=static_cast<unsigned char>(it->opcode);
+            const DWORD memory=Allocate(node.size());Write(memory,node);next=memory;
+        }
+        return next;
+    }
     if(!settings.activationTag.empty()) {
         auto node=NativeTagCondition(settings.activationTag); DWORD memory=Allocate(node.size()); Write(memory,node); return memory;
     }
@@ -81,7 +116,7 @@ inline void CommitColorAssignment(const Character& c,const AppearanceContext& da
     std::vector<PaletteData::Transformation> rules;
     for(const auto& settings:assignment.transformations) {
         ValidateTransformation(c,data,settings);
-        rules.push_back({settings.links,settings.shadeMask,(int)settings.mode,settings.activationTag,"",settings.id,settings.name,settings.enabled});
+        rules.push_back({settings.links,settings.shadeMask,(int)settings.mode,settings.activationTag,"",settings.id,settings.name,settings.enabled,settings.hypeLevel});
     }
     PaletteData::ValidateRuleConflicts(rules);
     ValidateLinks(data,assignment.staticLinks,assignment.staticMask);

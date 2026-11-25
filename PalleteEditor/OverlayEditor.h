@@ -13,6 +13,7 @@
 #include <functional>
 #include "Data/PaletteDocument.h"
 #include "Data/NativeRedirectPlan.h"
+#include "Data/BeowulfHype.h"
 
 // Phase 1 overlay prototype. Native layouts are guarded to the researched build.
 namespace OverlayEditor {

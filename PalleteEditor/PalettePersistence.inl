@@ -32,15 +32,15 @@ inline PaletteData::Document CapturePalette(const Character& c) {
         auto& a=assignment->second;
         if(!a.staticLinks.empty()) d.colorLinks=PaletteData::ColorLinks{a.staticLinks,a.staticMask};
         for(const auto& settings:a.transformations) d.transformations.push_back({settings.links,settings.shadeMask,
-            (int)settings.mode,settings.activationTag,settings.activationTag.empty()?TransformTrigger(c):"",settings.id,settings.name,settings.enabled});
+            (int)settings.mode,settings.activationTag,settings.hypeLevel<0 && settings.activationTag.empty()?TransformTrigger(c):"",settings.id,settings.name,settings.enabled,settings.hypeLevel});
     }
     PaletteData::Encode(d); return d;
 }
 inline TransformSettings DocumentTransformation(const Character& c,const AppearanceContext& data,const PaletteData::Transformation& value) {
     TransformSettings settings; settings.links=value.links; settings.shadeMask=value.shadeMask;
     settings.mode=(TransformMode)value.previewMode; settings.activationTag=value.activationTag;
-    settings.id=value.id; settings.name=value.name; settings.enabled=value.enabled;
-    if(value.activationTag.empty() && value.legacyTrigger!=TransformTrigger(c)) throw std::runtime_error("Legacy transformation trigger does not match this character/palette.");
+    settings.id=value.id; settings.name=value.name; settings.enabled=value.enabled; settings.hypeLevel=value.hypeLevel;
+    if(value.hypeLevel<0 && value.activationTag.empty() && value.legacyTrigger!=TransformTrigger(c)) throw std::runtime_error("Legacy transformation trigger does not match this character/palette.");
     ValidateTransformation(c,data,settings); return settings;
 }
 inline void ValidatePalette(const Character& c,const PaletteData::Document& document,bool allowTwo=false) {
