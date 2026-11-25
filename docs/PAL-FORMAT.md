@@ -1,4 +1,4 @@
-# Versioned `.pal` format (V1/V2/V3)
+# Versioned `.pal` format (V1/V2/V3/V4)
 
 V1 retains the existing `.pal` extension and binary prefix. The new reader accepts plain legacy files and files with the optional V1 effect block. Existing readers can read the colors from an extended file, because the added block follows the fields they already read. Saving through an older editor strips the extra block and loses its advanced assignments.
 
@@ -100,3 +100,34 @@ No runtime pointer, condition graph, actor sample, allocation or viewer override
 serialized. `Export legacy colors only` explicitly discards all effect configuration.
 Opening a V3 palette in an older editor is unsupported and may strip its extension;
 there is no editor-provided silent downgrade.
+
+
+## V4 Beowulf Hype predicates
+
+A document containing Hype rules is saved as schema **4**. Documents using only
+legacy/animation predicates continue to save as V3. V4 preserves the same prefix,
+envelope, overlays and collection metadata. It adds this typed object to a rule:
+
+```json
+"predicate": {"provider": "beowulf-hype", "level": 2}
+```
+
+The provider is allowlisted to Beowulf; `level` is an integer 0–3. It cannot combine
+with `activationTag`, `legacyTrigger` or non-automatic `previewMode`. Unknown
+providers, additional provider fields/arbitrary offsets, unsupported characters,
+out-of-range levels and V1/V2/V3 files carrying predicates are rejected. Resource
+rules cannot be exported through legacy transformation presets; use a V4 .pal save.
+
+Completed-level intervals are [0,1), [1,2), [2,3), and exactly 3. Fractional resource
+progress stays in the lower level. Negative, nonfinite and above-3 values activate
+no level. This follows resource amount, not a persistent effect after spending.
+
+Different automatic Hype levels may overlap the same source/shades because their
+native predicates are mutually exclusive. Duplicate levels, animation/resource
+mixtures and all other overlapping rules remain rejected, including disabled
+rules. Static/native baseline behavior and one-hop destinations are unchanged.
+
+The native provider is restricted to researched build 26588330, with actor-bound
+availability validation before Apply. Sampled amounts, entity pointers and local
+viewer Hype simulation are never serialized. Viewer simulation uses one local
+level selector so two mutually exclusive levels cannot be forced on together.

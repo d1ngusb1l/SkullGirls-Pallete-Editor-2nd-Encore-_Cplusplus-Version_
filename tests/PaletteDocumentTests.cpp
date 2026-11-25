@@ -1,6 +1,8 @@
 #include "Data/PaletteDocument.h"
 #include "Data/AtomicFile.h"
 #include "Data/NativeRedirectPlan.h"
+#include "Data/BeowulfHype.h"
+#include <limits>
 #include <iostream>
 #include <functional>
 
@@ -53,7 +55,7 @@ int main() {
         corrupt=plain; corrupt[16]=0; corrupt[17]=corrupt[18]=corrupt[19]=0;
         Reject([&]{DecodePal(corrupt);},"Zero color-count legacy file accepted.");
         corrupt=plain; corrupt.push_back(1); Reject([&]{DecodePal(corrupt);},"Unknown legacy suffix silently ignored.");
-        auto bad=json; bad["version"]=4; Reject([&]{Decode(bad);},"Unknown schema version accepted.");
+        auto bad=json; bad["version"]=5; Reject([&]{Decode(bad);},"Unknown schema version accepted.");
         bad=json; bad["colors"][1]=-1; Reject([&]{Decode(bad);},"Negative packed color accepted.");
         bad=json; bad["colors"][1]=4294967296ULL; Reject([&]{Decode(bad);},"Overflowing packed color accepted.");
         bad=json; bad["effects"]["rainbow"]["speed"]=1.5; Reject([&]{Decode(bad);},"Fractional timing accepted.");
@@ -123,6 +125,42 @@ int main() {
         Require(BuildRedirectPlan(nativeRecord,{},255,{})[0].bytes[8]==255,"No rules changed native data.");
         Reject([&]{BuildRedirectPlan({1,2,3},{},255,{});},"Partial native record accepted.");
         Require(DecodePal(EncodePal(multiple,true)).transformations.empty(),"Explicit color-only export retained rules.");
+        auto hype=multiple;hype.character="Beowulf";hype.transformations.clear();
+        for(int level=0;level<4;++level) {
+            Transformation rule{{{1,2}},255,0,"","","hype-"+std::to_string(level),"Hype "+std::to_string(level),true,level};
+            hype.transformations.push_back(rule);
+        }
+        auto invalidInternal=hype;invalidInternal.transformations[0].hypeLevel=-2;
+        Reject([&]{Encode(invalidInternal);},"Invalid internal predicate was silently discarded.");
+        const auto hypeJson=Encode(hype);
+        Require(hypeJson["version"]==4 && Encode(DecodePal(EncodePal(hype)))==hypeJson,"Four Hype predicates did not round-trip.");
+        auto badHype=hypeJson;badHype["version"]=3;
+        Reject([&]{Decode(badHype);},"Resource predicates silently downgraded to V3.");
+        badHype=hypeJson;badHype["character"]="Annie";
+        Reject([&]{Decode(badHype);},"Hype resource applied to another character.");
+        badHype=hypeJson;badHype["effects"]["transformations"][0]["predicate"]["provider"]="unknown";
+        Reject([&]{Decode(badHype);},"Unknown resource provider accepted.");
+        badHype=hypeJson;badHype["effects"]["transformations"][0]["predicate"]["offset"]=0x190;
+        Reject([&]{Decode(badHype);},"Arbitrary resource offset accepted.");
+        badHype=hypeJson;badHype["effects"]["transformations"][1]["predicate"]["level"]=0;
+        Reject([&]{Decode(badHype);},"Duplicate overlapping Hype levels accepted.");
+        badHype=hypeJson;badHype["effects"]["transformations"][0]["previewMode"]=2;
+        Reject([&]{Decode(badHype);},"Forced resource mode destroyed exclusivity.");
+        badHype=hypeJson;badHype["effects"]["transformations"][0]["activationTag"]="ATTACK";
+        Reject([&]{Decode(badHype);},"Mixed tag/resource predicate accepted.");
+        badHype=hypeJson;badHype["effects"]["transformations"][0]["predicate"]["level"]=4;
+        Reject([&]{Decode(badHype);},"Out-of-range Hype level accepted.");
+        for(float amount:{0.f,0.999f,1.f,1.25f,1.999f,2.f,2.34f,2.999f,3.f}) {
+            const int expected=static_cast<int>(amount);Require(BeowulfHypeLevel(amount)==expected,"Completed Hype level boundary failed.");
+            int matches=0;
+            for(int level=0;level<4;++level) {
+                const auto comparisons=HypeComparisons(level);
+                const bool active=amount>=comparisons[0].rhs && (comparisons[1].opcode==0x10?amount<comparisons[1].rhs:amount<=comparisons[1].rhs);
+                if(active){++matches;Require(level==expected,"Native Hype plan selected the wrong level.");}
+            }
+            Require(matches==1,"Hype levels are not mutually exclusive and exhaustive.");
+        }
+        for(float invalid:{-1.f,3.001f,std::numeric_limits<float>::quiet_NaN(),std::numeric_limits<float>::infinity()})Require(BeowulfHypeLevel(invalid)==-1,"Invalid Hype sample reported an inactive/success state.");
         auto folder=std::filesystem::current_path()/"document-test-files";
         std::filesystem::create_directories(folder);
         auto path=folder/L"palette-unicode-\u03A9.pal";
