@@ -62,6 +62,8 @@ inline std::vector<AnimationAsset> animations;
 inline SpriteFrameAsset decodedFrame;
 inline unsigned decodedSprite=(std::numeric_limits<unsigned>::max)();
 inline int selectedAnimation=-1,frameIndex=0;
+inline int exportStart=1,exportEnd=1;
+inline int rangeHandle=0;
 inline char animationSearch[128]={};
 
 inline void LostDevice() {if(texture){texture->Release();texture=nullptr;}}
@@ -71,7 +73,7 @@ inline void ForgetMatch() {
 inline void ResetAsset() {
     centerCanvas=true;LostDevice();pixels.clear();defaultRows.clear();frames.clear();animations.clear();decodedFrame={};
     decodedSprite=(std::numeric_limits<unsigned>::max)();attempted=false;legacyFixedOnly=false;
-    error.clear();loadedCharacter.clear();fallbackSprite=2;selectedAnimation=-1;frameIndex=0;
+    error.clear();loadedCharacter.clear();fallbackSprite=2;selectedAnimation=-1;frameIndex=0;exportStart=exportEnd=1;
     canvasLeft=canvasTop=canvasWidth=canvasHeight=0;
 }
 inline void CancelAnimationAndWait();
@@ -359,9 +361,44 @@ inline std::future<std::string> animationWorker;
 inline std::string animationStatus;
 inline int animationPlays=0;
 inline bool AnimationBusy(){return animationWorker.valid();}
-inline AnimationExport CaptureAnimationExport(bool gif,unsigned plays) {
+inline void DrawExportRange(int count) {
+    exportStart=std::clamp(exportStart,1,count);exportEnd=std::clamp(exportEnd,exportStart,count);
+    ImGui::TextUnformatted("Export frame range (inclusive)");
+    const float width=ImGui::GetContentRegionAvail().x;
+    ImGui::SetNextItemWidth((std::max)(60.0f,(width-110)*0.5f));
+    if(ImGui::InputInt("Start",&exportStart,0))exportStart=std::clamp(exportStart,1,exportEnd);
+    ImGui::SameLine();ImGui::SetNextItemWidth((std::max)(60.0f,(width-110)*0.5f));
+    if(ImGui::InputInt("End",&exportEnd,0))exportEnd=std::clamp(exportEnd,exportStart,count);
+    const ImVec2 pos=ImGui::GetCursorScreenPos();const float height=30.0f,pad=9.0f;
+    ImGui::InvisibleButton("##Export range",ImVec2((std::max)(60.0f,width),height));
+    const float left=pos.x+pad,right=pos.x+(std::max)(60.0f,width)-pad;
+    auto x=[&](int frame){return left+(right-left)*float(frame-1)/float((std::max)(1,count-1));};
+    if(ImGui::IsItemActivated()) {
+        const float mouse=ImGui::GetIO().MousePos.x;
+        const float a=fabsf(mouse-x(exportStart)),b=fabsf(mouse-x(exportEnd));
+        rangeHandle=a==b?(mouse<x(exportStart)?0:1):(a<b?0:1);
+    }
+    if(ImGui::IsItemActive()) {
+        int frame=1+int(std::round(std::clamp((ImGui::GetIO().MousePos.x-left)/(right-left),0.0f,1.0f)*(count-1)));
+        if(rangeHandle==0)exportStart=std::clamp(frame,1,exportEnd);else exportEnd=std::clamp(frame,exportStart,count);
+    }
+    auto* draw=ImGui::GetWindowDrawList();const float y=pos.y+height*0.5f;
+    draw->AddLine(ImVec2(left,y),ImVec2(right,y),ImGui::GetColorU32(ImGuiCol_FrameBg),5);
+    draw->AddLine(ImVec2(x(exportStart),y),ImVec2(x(exportEnd),y),ImGui::GetColorU32(ImGuiCol_SliderGrabActive),5);
+    for(int value:{exportStart,exportEnd})draw->AddCircleFilled(ImVec2(x(value),y),7,ImGui::GetColorU32(ImGuiCol_SliderGrab));
+    if(ImGui::IsItemHovered())ImGui::SetTooltip("Drag either endpoint. Start and End are inclusive; original frame durations are preserved.");
+    if(ImGui::Button("Whole animation")){exportStart=1;exportEnd=count;}
+    unsigned ticks=0;for(int i=exportStart-1;i<exportEnd;++i)ticks+=animations[selectedAnimation].frames[i].duration;
+    ImGui::SameLine();ImGui::Text("%d frames, %.2f s",exportEnd-exportStart+1,ticks/60.0f);
+}
+
+inline AnimationExport CaptureAnimationExport(bool gif,unsigned plays,int first=1,int last=0) {
     if(selectedAnimation<0 || selectedAnimation>=int(animations.size()) || original.empty())throw std::runtime_error("Select an animation first.");
     AnimationExport capture;capture.animation=animations[selectedAnimation];capture.gif=gif;capture.plays=plays;
+    const int count=int(capture.animation.frames.size());
+    if(last==0)last=count;
+    if(first<1 || last<first || last>count)throw std::runtime_error("Choose a valid inclusive frame range.");
+    capture.animation.frames=decltype(capture.animation.frames)(capture.animation.frames.begin()+first-1,capture.animation.frames.begin()+last);
     if(capture.animation.frames.empty() || capture.animation.frames.size()>2000)throw std::runtime_error("Animation export supports 1 to 2000 timeline frames.");
     capture.colors=showOriginal?original:edited;capture.layout=sizes;size_t bytes=0;
     for(const auto& entry:capture.animation.frames) {
@@ -372,7 +409,7 @@ inline AnimationExport CaptureAnimationExport(bool gif,unsigned plays) {
         if(bytes>64ull*1024*1024)throw std::runtime_error("Animation source exceeds the 64 MiB export limit.");
         capture.bounds.Add(-found->originX,-found->originY,found->width,found->height);capture.sprites.emplace(found->id,*found);
     }
-    capture.name=snapshotCharacter+"-animation-"+std::to_string(capture.animation.id)+(showOriginal?"-original":"-edited")+(gif?".gif":".apng");
+    capture.name=snapshotCharacter+"-animation-"+std::to_string(capture.animation.id)+"-frames-"+std::to_string(first)+"-"+std::to_string(last)+(showOriginal?"-original":"-edited")+(gif?".gif":".apng");
     return capture;
 }
 inline SpriteAnimation::Bytes EncodeAnimation(const AnimationExport& capture,const std::shared_ptr<AnimationProgress>& progress) {
@@ -530,13 +567,13 @@ inline void Draw(int targetSlot,int targetPalette,const char* character,const st
         for(int i=0;i<(int)filtered.size();++i){
             int animationIndex=filtered[i];const auto& a=animations[animationIndex];
             std::string label=a.name.empty()?("Move "+std::to_string(a.id)):a.name+" ["+std::to_string(a.id)+"]";
-            if(ImGui::Selectable(label.c_str(),selectedAnimation==animationIndex)){selectedAnimation=animationIndex;frameIndex=0;centerCanvas=true;}
+            if(ImGui::Selectable(label.c_str(),selectedAnimation==animationIndex)){selectedAnimation=animationIndex;frameIndex=0;exportStart=1;exportEnd=int(animations[animationIndex].frames.size());centerCanvas=true;}
             if(selectedAnimation==animationIndex)ImGui::SetItemDefaultFocus();
         }
         ImGui::EndCombo();
     }
     ImGui::SameLine();
-    if(ImGui::Button("Fixed pose fallback")){selectedAnimation=-1;frameIndex=0;centerCanvas=true;}
+    if(ImGui::Button("Fixed pose fallback")){selectedAnimation=-1;frameIndex=0;exportStart=exportEnd=1;centerCanvas=true;}
     if(selectedAnimation>=0 && selectedAnimation<(int)animations.size()) {
         auto& animation=animations[selectedAnimation];
         frameIndex=std::clamp(frameIndex,0,(int)animation.frames.size()-1);
@@ -593,11 +630,12 @@ inline void Draw(int targetSlot,int targetPalette,const char* character,const st
     if(ImGui::Button("Export animation"))ImGui::OpenPopup("Animation export options");
     ImGui::EndDisabled();
     if(ImGui::BeginPopup("Animation export options")) {
-        ImGui::TextUnformatted("Whole animation at authored 60 Hz timing");
+        if(selectedAnimation<0 || selectedAnimation>=int(animations.size()) || animations[selectedAnimation].frames.empty()){ImGui::CloseCurrentPopup();ImGui::EndPopup();return;}
+        DrawExportRange(int(animations[selectedAnimation].frames.size()));
         ImGui::SetNextItemWidth(100);ImGui::InputInt("Plays (0 = forever)",&animationPlays);animationPlays=std::clamp(animationPlays,0,1000);
         auto choose=[&](bool gif) {
             try {
-                pendingAnimationExport=CaptureAnimationExport(gif,unsigned(animationPlays));
+                pendingAnimationExport=CaptureAnimationExport(gif,unsigned(animationPlays),exportStart,exportEnd);
                 IGFD::FileDialogConfig config;config.path=".";config.fileName=pendingAnimationExport->name;config.flags=ImGuiFileDialogFlags_ConfirmOverwrite;
                 ImGuiFileDialog::Instance()->OpenDialog("ExportSpriteAnimation",gif?"Export transparent GIF":"Export transparent APNG",gif?".gif":".apng",config);
             }catch(const std::exception& e){animationStatus=std::string("Animation export failed: ")+e.what();}

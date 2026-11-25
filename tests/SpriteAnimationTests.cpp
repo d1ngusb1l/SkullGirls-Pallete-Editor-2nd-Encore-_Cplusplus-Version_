@@ -34,6 +34,16 @@ int main(int argc,char** argv){try {
  SpriteViewer::selectedAnimation=0;SpriteViewer::frameIndex=1;SpriteViewer::snapshotCharacter="Fixture";
  SpriteViewer::sizes={1,1};SpriteViewer::original={0,0x80ff0000};SpriteViewer::edited={0,0x800000ff};SpriteViewer::showOriginal=true;SpriteViewer::highlight=true;SpriteViewer::zoom=3;
  auto capture=SpriteViewer::CaptureAnimationExport(false,0);
+ const auto trimmed=SpriteViewer::CaptureAnimationExport(false,0,2,3);
+ Check(trimmed.animation.frames.size()==2 && trimmed.animation.frames[0].duration==4 && trimmed.animation.frames[1].sprite==8,"Inclusive range lost frame timing or endpoints");
+ const auto single=SpriteViewer::CaptureAnimationExport(true,1,3,3);
+ Check(single.animation.frames.size()==1 && single.sprites.size()==1 && single.bounds.right-single.bounds.left==2,"Single-frame range included excluded sprites or bounds");
+ Check(single.name.find("frames-3-3")!=std::string::npos,"Range missing from filename");
+ for(const auto limits: {std::pair<int,int>{0,2},{3,2},{1,4}}) {
+  bool invalid=false;try{SpriteViewer::CaptureAnimationExport(false,0,limits.first,limits.second);}catch(const std::exception&){invalid=true;}
+  Check(invalid,"Invalid export range accepted");
+ }
+
  SpriteViewer::showOriginal=false;const auto editedCapture=SpriteViewer::CaptureAnimationExport(true,2);
  Check(editedCapture.colors[1]==0x800000ff && editedCapture.gif && editedCapture.plays==2,"Edited colors or export options were not captured");
  SpriteViewer::showOriginal=true;
