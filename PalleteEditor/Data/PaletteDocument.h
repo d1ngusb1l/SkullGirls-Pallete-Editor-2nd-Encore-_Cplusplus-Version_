@@ -11,6 +11,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include "CharacterMoves.h"
 
 // Portable, versioned values only. No native pointers, handles or cache bytes.
 namespace PaletteData {
@@ -19,7 +20,7 @@ using Links=std::map<int,int>;
 struct Overlay { std::string texture; std::set<int> bands; int lighting=0,tintBand=0; };
 struct Rainbow { std::set<int> bands; int speed=4,interval=8; };
 struct ColorLinks { Links links; int shadeMask=255; };
-struct Transformation { Links links; int shadeMask=255,previewMode=0; std::string activationTag,legacyTrigger; std::string id="legacy",name="Imported transformation"; bool enabled=true; int hypeLevel=-1; };
+struct Transformation { Links links; int shadeMask=255,previewMode=0; std::string activationTag,legacyTrigger; std::string id="legacy",name="Imported transformation"; bool enabled=true; int hypeLevel=-1; std::string moveId; };
 struct Document {
     std::string character;
     std::vector<uint32_t> colors;
@@ -78,19 +79,20 @@ inline void ValidateRuleConflicts(const std::vector<Transformation>& rules) {
         if(rule.name.empty() || rule.name.size()>96 || std::any_of(rule.name.begin(),rule.name.end(),[](unsigned char c){return c<32 || c==127;}))throw std::runtime_error("Rule names require 1 to 96 bytes of printable text.");
         if(rule.links.empty() || rule.shadeMask<1 || rule.shadeMask>255)throw std::runtime_error("Each rule needs links and at least one shader shade.");
         if(rule.hypeLevel < -1 || rule.hypeLevel>3)throw std::runtime_error("Unsupported Beowulf Hype level.");
-        if(rule.hypeLevel>=0 && (rule.previewMode!=0 || !rule.activationTag.empty() || !rule.legacyTrigger.empty()))throw std::runtime_error("Hype predicates cannot combine with live overrides or animation/legacy triggers.");
+        if(rule.hypeLevel>=0 && (rule.previewMode!=0 || !rule.activationTag.empty() || !rule.legacyTrigger.empty() || !rule.moveId.empty()))throw std::runtime_error("Hype predicates cannot combine with other triggers or live overrides.");
+        if(!rule.moveId.empty() && (!FindCharacterMove(rule.moveId) || rule.previewMode!=0 || rule.hypeLevel!=-1 || !rule.activationTag.empty() || !rule.legacyTrigger.empty()))throw std::runtime_error("Unknown or mixed character move predicate.");
         for(size_t other=0;other<index;++other) {
             const auto& previous=rules[other];
-            const bool exclusive=rule.hypeLevel>=0 && previous.hypeLevel>=0 && rule.hypeLevel!=previous.hypeLevel;
+            const bool exclusive=(rule.hypeLevel>=0 && previous.hypeLevel>=0 && rule.hypeLevel!=previous.hypeLevel) || ExclusiveCharacterMoves(rule.moveId,previous.moveId);
             if(exclusive || !(rule.shadeMask&previous.shadeMask))continue;
-            for(const auto& link:rule.links)if(previous.links.count(link.first))throw std::runtime_error("Rules overlap on native band "+std::to_string(link.first)+". Use disjoint shades or distinct Beowulf Hype levels.");
+            for(const auto& link:rule.links)if(previous.links.count(link.first))throw std::runtime_error("Rules overlap on native band "+std::to_string(link.first)+". Use disjoint shades or mutually exclusive triggers.");
         }
     }
 }
 inline Document Decode(const Json& j) {
     if(!j.is_object() || j.at("format")!="skullgirls-palette")
         throw std::runtime_error("Unsupported palette file format or version.");
-    const int version=Integer(j.at("version"),1,4,"palette version");
+    const int version=Integer(j.at("version"),1,5,"palette version");
     Document d; d.character=j.at("character").get<std::string>();
     if(d.character.empty() || d.character.size()>32 || !std::all_of(d.character.begin(),d.character.end(),[](unsigned char c){return (c>='A'&&c<='Z')||(c>='a'&&c<='z')||(c>='0'&&c<='9');}))
         throw std::runtime_error("Invalid character identifier.");
@@ -141,11 +143,18 @@ inline Document Decode(const Json& j) {
         if(e.contains("predicate")) {
             if(version<4)throw std::runtime_error("Resource predicates require palette schema version 4.");
             const auto& predicate=e.at("predicate");
-            if(!predicate.is_object() || predicate.size()!=2 || predicate.at("provider")!="beowulf-hype")throw std::runtime_error("Unsupported resource predicate provider.");
-            if(d.character!="Beowulf")throw std::runtime_error("Beowulf Hype predicates are unsupported for this character.");
-            value.hypeLevel=Integer(predicate.at("level"),0,3,"Beowulf Hype level");
+            if(!predicate.is_object() || predicate.size()!=2)throw std::runtime_error("Unsupported predicate provider.");
+            if(predicate.at("provider")=="character-move") {
+                if(version<5)throw std::runtime_error("Character moves require palette schema version 5.");
+                value.moveId=predicate.at("move").get<std::string>();
+                const auto move=FindCharacterMove(value.moveId);
+                if(!move || move->character!=d.character)throw std::runtime_error("Unsupported move for this character.");
+            } else if(predicate.at("provider")=="beowulf-hype") {
+                if(d.character!="Beowulf")throw std::runtime_error("Beowulf Hype predicates are unsupported for this character.");
+                value.hypeLevel=Integer(predicate.at("level"),0,3,"Beowulf Hype level");
+            } else throw std::runtime_error("Unsupported predicate provider.");
         }
-        if(value.hypeLevel<0 && value.previewMode==0 && value.activationTag.empty() && (value.legacyTrigger.empty() || value.legacyTrigger=="preview-only"))
+        if(value.moveId.empty() && value.hypeLevel<0 && value.previewMode==0 && value.activationTag.empty() && (value.legacyTrigger.empty() || value.legacyTrigger=="preview-only"))
             throw std::runtime_error("Automatic transformation has no trigger.");
         return value;
     };
@@ -183,12 +192,13 @@ inline Json Encode(const Document& d) {
     if(d.rainbow) effects["rainbow"]={{"bands",d.rainbow->bands},{"speed",d.rainbow->speed},{"interval",d.rainbow->interval}};
     if(d.colorLinks) effects["colorLinks"]={{"links",d.colorLinks->links},{"shadeMask",d.colorLinks->shadeMask}};
     effects.erase("transformation"); effects["transformations"]=Json::array();
-    bool resources=false;
+    bool resources=false,moves=false;
     for(const auto& rule:d.transformations) { effects["transformations"].push_back({{"id",rule.id},{"name",rule.name},{"enabled",rule.enabled},
         {"links",rule.links},{"shadeMask",rule.shadeMask},{"previewMode",rule.previewMode},{"activationTag",rule.activationTag},{"legacyTrigger",rule.legacyTrigger}});
         if(rule.hypeLevel>=0){resources=true;effects["transformations"].back()["predicate"]={{"provider","beowulf-hype"},{"level",rule.hypeLevel}};}
+        if(!rule.moveId.empty()){moves=true;effects["transformations"].back()["predicate"]={{"provider","character-move"},{"move",rule.moveId}};}
     }
-    Json j={{"format","skullgirls-palette"},{"version",resources?4:3},{"character",d.character},{"groupSizes",d.groupSizes},
+    Json j={{"format","skullgirls-palette"},{"version",moves?5:resources?4:3},{"character",d.character},{"groupSizes",d.groupSizes},
         {"colors",d.colors},{"lineColor",d.lineColor},{"superShadowColors",{d.shadow1,d.shadow2}},{"effects",effects}};
     Decode(j); return j;
 }

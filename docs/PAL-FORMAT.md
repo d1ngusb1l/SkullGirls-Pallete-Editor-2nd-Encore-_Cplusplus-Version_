@@ -131,3 +131,30 @@ The native provider is restricted to researched build 26588330, with actor-bound
 availability validation before Apply. Sampled amounts, entity pointers and local
 viewer Hype simulation are never serialized. Viewer simulation uses one local
 level selector so two mutually exclusive levels cannot be forced on together.
+
+## V5 character-move predicates
+
+A document containing a mapped move saves as schema **5**; tag-only and Hype-only
+documents retain their V3/V4 versions. V1–V4 remain readable. The binary prefix,
+effects envelope, overlays, rule metadata and original Autoload settings are unchanged.
+
+```json
+"predicate": {"provider": "character-move", "move": "beowulf/chair-toss"}
+```
+
+The initial allowlist contains `beowulf/chair-toss` (all strengths, root states
+191–198) and `beowulf/organic-arm` (Gigantic Arm, states 234–236), restricted to
+Beowulf and researched game build 26588330. These authored-data mappings await
+user gameplay tests. Runtime IDs/ranges come from the compiled catalogue, not the
+palette file. Unknown IDs, wrong characters, arbitrary state/offset fields, mixed
+predicates, forced modes and downgrade to V1–V4 reject. Legacy transformation
+presets cannot carry move predicates; use a .pal save or explicit colors-only export.
+
+Mapped moves may share source/shades only when their compiled state sets are
+disjoint. Duplicate/overlapping moves, move/Hype and move/general-tag overlaps
+reject, including disabled rules. Every range gets a native animation predicate;
+range records compose through the same single table owner. No resource writes,
+move forcing or per-frame redirect-table rebuilds are added.
+
+The isolated viewer uses one manual local move selector. It never follows the
+displayed pose or reads the live animation, and its choice is never serialized.

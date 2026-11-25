@@ -97,6 +97,43 @@ int main(){try {
     writeWord(entity+0x330,0x1111);Check(ReadHypeProvider(c,context).availability==HypeAvailability::Unavailable,"Wrong actor resource was accepted");writeWord(entity+0x330,context.actor);
     writeWord(base+0x80+8,0);Check(ReadHypeProvider(c,context).availability==HypeAvailability::Unsupported,"Unsupported build accepted");writeWord(base+0x80+8,0x6af3723f);
     c.Char_Name="Annie";Check(ReadHypeProvider(c,context).availability==HypeAvailability::Unsupported,"Hype leaked to another character");Reject([&]{ApplyTransformation(c,resource);});c.Char_Name="Beowulf";
+    auto clean=CurrentColorAssignment(c,context);clean.transformations.clear();CommitColorAssignment(c,context,clean);
+    auto writeAnimation=[&](DWORD target,float value){Bytes bytes(4);memcpy(bytes.data(),&value,4);Write(target+4*0x27,bytes);};
+    writeAnimation(entity,21);writeAnimation(otherEntity,234);
+    auto chair=b;chair.id="chair";chair.name="Chair Toss";chair.activationTag.clear();chair.links={{1,2}};chair.moveId="beowulf/chair-toss";
+    auto arm=chair;arm.id="arm";arm.name="Gigantic Arm";arm.moveId="beowulf/organic-arm";arm.links={{1,4}};
+    ApplyTransformation(c,chair);ApplyTransformation(c,arm);
+    Check(Word(address+4)-Word(address)==88,"Exclusive mapped moves could not share a source");
+    const int stableMoveAllocations=allocations;ApplyTransformation(c,arm);Check(allocations==stableMoveAllocations,"Repeated move Apply allocated memory");
+    auto evaluateMove=[&](DWORD node,float animation) {
+        bool active=true;int nodes=0;
+        while(node){Check(++nodes<=2,"Unbounded move predicate");Check(Word(node+4)==0x27 && Read(node,1)[0]==1 && Read(node+16,1)[0]==0 && Read(node+24,1)[0]==1,"Move condition operand shape changed");
+            float rhs=0;auto raw=Read(node+20,4);memcpy(&rhs,raw.data(),4);const auto opcode=Read(node+32,1)[0];
+            Check(opcode==(nodes==1?0x13:0x14),"Move bounds use the wrong native comparisons");
+            active=active && (opcode==0x13?animation>=rhs:animation<=rhs);node=Word(node+28);
+        }
+        Check(nodes==2,"Move graph lost a bound");return active;
+    };
+    for(int animation=0;animation<688;++animation) {
+        const auto start=Word(address);const bool chairActive=evaluateMove(Word(start+12),(float)animation),armActive=evaluateMove(Word(start+44+12),(float)animation);
+        Check(chairActive==(animation>=191 && animation<=198),"Chair startup/recovery or interruption boundary failed");
+        Check(armActive==(animation>=234 && animation<=236),"Arm startup/loop/end or interruption boundary failed");
+        Check(!(chairActive && armActive),"Mapped moves overlap");
+    }
+    for(float invalid:{std::numeric_limits<float>::quiet_NaN(),std::numeric_limits<float>::infinity(),-1.f})Check(!evaluateMove(Word(Word(address)+12),invalid),"Move condition accepts invalid animation");
+    ValidateCharacterMoveSupport(mirror,mirrorContext,chair.moveId);
+    const auto moveHeader=Read(address,12);const int moveAllocations=allocations;
+    auto unknown=chair;unknown.moveId="other/move";Reject([&]{ApplyTransformation(c,unknown);});
+    auto mixed=chair;mixed.hypeLevel=1;Reject([&]{ApplyTransformation(c,mixed);});
+    c.Char_Name="Annie";Reject([&]{ApplyTransformation(c,chair);});c.Char_Name="Beowulf";
+    writeWord(entity+0x330,otherActor);Reject([&]{ApplyTransformation(c,chair);});writeWord(entity+0x330,context.actor);
+    writeWord(base+0x80+8,0);Reject([&]{ApplyTransformation(c,chair);});writeWord(base+0x80+8,0x6af3723f);
+    for(float invalid:{-1.f,688.f,1.5f,std::numeric_limits<float>::quiet_NaN()}){writeAnimation(entity,invalid);Reject([&]{ApplyTransformation(c,chair);});}writeAnimation(entity,21);
+    Check(allocations==moveAllocations && Read(address,12)==moveHeader,"Invalid move provider mutated appearance");
+    auto changedArm=arm;changedArm.links={{1,3}};failWrite=true;Reject([&]{ApplyTransformation(c,changedArm);});
+    Check(Read(address,12)==moveHeader && colorAssignments.at(address).transformations[1]==arm,"Move rollback lost header or independent rules");
+    chair.enabled=false;ApplyTransformation(c,chair);Check(Word(address+4)-Word(address)==44 && colorAssignments.at(address).transformations[1]==arm,"Disabling Chair Toss changed Arm");
+    ResetTransformation(c,"chair");ResetTransformation(c,"arm");Check(Read(address,12)==original,"Removing moves failed to restore native header");
     const auto generation=ruleGeneration;ClearColorAssignments();Check(ruleGeneration!=generation && colorAssignments.empty(),"Match cleanup retained rules");
     std::cout<<"Native rule runtime checks passed: independent updates, idempotency, conflicts, partial writes, refresh rollback, reset rollback, restoration and stale identity.\n";
     return 0;

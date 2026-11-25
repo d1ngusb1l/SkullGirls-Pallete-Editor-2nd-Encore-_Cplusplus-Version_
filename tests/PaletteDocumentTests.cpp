@@ -55,7 +55,7 @@ int main() {
         corrupt=plain; corrupt[16]=0; corrupt[17]=corrupt[18]=corrupt[19]=0;
         Reject([&]{DecodePal(corrupt);},"Zero color-count legacy file accepted.");
         corrupt=plain; corrupt.push_back(1); Reject([&]{DecodePal(corrupt);},"Unknown legacy suffix silently ignored.");
-        auto bad=json; bad["version"]=5; Reject([&]{Decode(bad);},"Unknown schema version accepted.");
+        auto bad=json; bad["version"]=6; Reject([&]{Decode(bad);},"Unknown schema version accepted.");
         bad=json; bad["colors"][1]=-1; Reject([&]{Decode(bad);},"Negative packed color accepted.");
         bad=json; bad["colors"][1]=4294967296ULL; Reject([&]{Decode(bad);},"Overflowing packed color accepted.");
         bad=json; bad["effects"]["rainbow"]["speed"]=1.5; Reject([&]{Decode(bad);},"Fractional timing accepted.");
@@ -161,6 +161,34 @@ int main() {
             Require(matches==1,"Hype levels are not mutually exclusive and exhaustive.");
         }
         for(float invalid:{-1.f,3.001f,std::numeric_limits<float>::quiet_NaN(),std::numeric_limits<float>::infinity()})Require(BeowulfHypeLevel(invalid)==-1,"Invalid Hype sample reported an inactive/success state.");
+        auto moves=hype;moves.transformations.clear();
+        for(const auto& entry:CharacterMoves()) {
+            Transformation rule{{{1,2}},255,0,"","","move-"+std::to_string(moves.transformations.size()),entry.label,true,-1,entry.id};
+            moves.transformations.push_back(rule);
+        }
+        const auto movesJson=Encode(moves);
+        Require(movesJson["version"]==5 && Encode(DecodePal(EncodePal(moves)))==movesJson,"Whole-move predicates did not round-trip.");
+        auto badMove=movesJson;badMove["version"]=4;
+        Reject([&]{Decode(badMove);},"Move predicate silently downgraded to V4.");
+        badMove=movesJson;badMove["character"]="Annie";
+        Reject([&]{Decode(badMove);},"Character move applied to another fighter.");
+        badMove=movesJson;badMove["effects"]["transformations"][0]["predicate"]["move"]="not-a-move";
+        Reject([&]{Decode(badMove);},"Unknown move accepted.");
+        badMove=movesJson;badMove["effects"]["transformations"][0]["predicate"]["states"]={191,192};
+        Reject([&]{Decode(badMove);},"Arbitrary move states accepted.");
+        badMove=movesJson;badMove["effects"]["transformations"][1]["predicate"]=badMove["effects"]["transformations"][0]["predicate"];
+        Reject([&]{Decode(badMove);},"Duplicate overlapping moves accepted.");
+        badMove=movesJson;badMove["effects"]["transformations"][0]["activationTag"]="SPECIAL";
+        Reject([&]{Decode(badMove);},"Mixed tag/move accepted.");
+        badMove=movesJson;badMove["effects"]["transformations"][0]["previewMode"]=2;
+        Reject([&]{Decode(badMove);},"Forced move mode broke exclusivity.");
+        auto mixedMove=moves;mixedMove.transformations[0].hypeLevel=1;
+        Reject([&]{Encode(mixedMove);},"Internal mixed Hype/move accepted.");
+        auto movePlan=BuildRedirectPlan({}, {},255,moves.transformations);
+        Require(movePlan.size()==2 && movePlan[0].conditionRule==0 && movePlan[1].conditionRule==1,"Move composition lost independent conditions.");
+        auto moveAndHype=moves;moveAndHype.transformations.push_back(hype.transformations[0]);
+        Reject([&]{Encode(moveAndHype);},"Move/Hype overlap was treated as exclusive.");
+        Require(DecodePal(EncodePal(moves,true)).transformations.empty(),"Explicit colors-only move export retained predicates.");
         auto folder=std::filesystem::current_path()/"document-test-files";
         std::filesystem::create_directories(folder);
         auto path=folder/L"palette-unicode-\u03A9.pal";

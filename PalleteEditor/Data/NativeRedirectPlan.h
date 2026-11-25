@@ -6,6 +6,7 @@ namespace PaletteData {
 struct RedirectRecord {
     std::array<unsigned char,44> bytes{};
     int conditionRule=-1;
+    int conditionRange=0;
 };
 inline uint32_t RedirectWord(const unsigned char* bytes) {
     return uint32_t(bytes[0]) | uint32_t(bytes[1])<<8 | uint32_t(bytes[2])<<16 | uint32_t(bytes[3])<<24;
@@ -25,15 +26,18 @@ inline std::vector<RedirectRecord> BuildRedirectPlan(const std::vector<unsigned 
         if(links.count((int)RedirectWord(record.bytes.data())))record.bytes[8]&=static_cast<unsigned char>(~mask);
         if(record.bytes[8])result.push_back(record);
     }
-    auto append=[&](int source,int destination,int shades,int condition) {
+    auto append=[&](int source,int destination,int shades,int condition,int range=0) {
         RedirectRecord record;RedirectPut(record.bytes.data(),source);RedirectPut(record.bytes.data()+4,destination);
         record.bytes[8]=static_cast<unsigned char>(shades);RedirectPut(record.bytes.data()+40,15);record.conditionRule=condition;
-        result.push_back(record);
+        record.conditionRange=range;result.push_back(record);
     };
     for(const auto& link:links)append(link.first,link.second,mask,-1);
     for(int i=0;i<(int)rules.size();++i) {
         const auto& rule=rules[i];if(!rule.enabled || rule.previewMode==1)continue;
-        for(const auto& link:rule.links)append(link.first,link.second,rule.shadeMask,rule.previewMode==0?i:-1);
+        const auto move=FindCharacterMove(rule.moveId);
+        const int rangeCount=move?(int)move->ranges.size():1;
+        for(int range=0;range<rangeCount;++range)
+            for(const auto& link:rule.links)append(link.first,link.second,rule.shadeMask,rule.previewMode==0?i:-1,range);
     }
     if(result.size()>2048)throw std::runtime_error("Composed native color-link table is too large.");
     return result;
