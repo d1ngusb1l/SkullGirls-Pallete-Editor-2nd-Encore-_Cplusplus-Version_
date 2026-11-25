@@ -175,8 +175,17 @@ DLL network inspection again reported all four exclusion checks False.
 New validation DLL SHA-256:
 `74B97F796E34F0571F9F92F732D597D3E03D9F77F2C7E1AA7E92AEB822D66450`.
 Installed with no SkullGirls process running; the previous `2FC9D278...` validation
-DLL was backed up by its complete hash. Native appearance tests on the new DLL are
-pending. The reversible local test palette uses four mutually exclusive hair
+DLL was backed up by its complete hash. Native appearance tests passed with
+user-controlled gameplay: all four colors, V4 save/reload and palette-switch
+Autoload, independent player-2 resource appearance, and player-1 tag/assist return. The reversible local test palette uses four mutually exclusive hair
 redirects (tan/pink/white/gold at levels 0/1/2/3) and retains the independent
 JUMPING shirt rule. No palette colors, resource samples or runtime pointers are
 included in Git.
+
+The four-level native trace contained 311 samples, each with exactly one active
+Hype redirect matching the completed resource level. Table headers remained
+unchanged during the cycle; all loaded fighters retained their base color arrays.
+Player 2 independently changed blond -> white at 3 -> blond below 3 while player 1
+was unchanged. The user also confirmed gold hair persisted through a tag to Annie,
+tag back and assist call at Hype 3. Fresh-match V4 Autoload and device transitions
+remain separate checks; the earlier animation-rule fresh-match test passed.

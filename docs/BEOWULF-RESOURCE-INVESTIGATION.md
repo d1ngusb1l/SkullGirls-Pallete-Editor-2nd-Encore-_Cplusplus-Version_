@@ -114,11 +114,11 @@ mixtures and duplicate levels must still reject overlap.
 Further native-predicate visual tests, mirror ownership and resource tag-out/return
 remain prerequisites to claiming the new runtime appearance workflow verified.
 The read-only collector is `scripts/read-beowulf-resource-candidates.ps1` and still
-reports runtime trigger support as Unsupported; it is an evidence tool, not a
+does not query runtime trigger support; it is an evidence tool, not a
 palette writer or production trigger provider.
 
 
-## Native amount-provider implementation (validation pending)
+## Native amount-provider implementation
 
 The reciprocal mirror trace confirmed player 1 at completed level 2 while player 2
 changed 0 -> 3. Player 1's raw value also showed fractional progress (for example
@@ -145,6 +145,9 @@ Offline verification includes V4 migration/round trips, unknown-provider and los
 downgrade rejection, all interval boundaries and invalid samples, mutual exclusion,
 encoded native comparison shapes, independent fake mirror owners, invalid-owner
 and build cases, rollback, repeated Apply, and isolated export snapshot behavior.
-Actual native-predicate appearance, mirror behavior and tag/match reset still need
-the new validation DLL installed and tested with user-controlled gameplay.
+The installed validation DLL passed user-controlled four-level native appearance,
+independent player-2 appearance, tag-out/back and assist checks. A 311-sample trace
+matched completed Hype levels with exactly one active resource condition per sample.
+V4 save/reload and palette-switch Autoload passed; fresh-match V4 reload and device
+transitions have not yet been repeated.
 Persistent modes after spending and other characters' resources remain unsupported.

@@ -377,7 +377,13 @@ std::string GroupEffects(const ColorGroup& group) {
         auto add=[&](const auto& effect,const std::string& name) {if(effect && std::any_of(bands.begin(),bands.end(),[&](int band){return effect->bands.count(band);})) {if(!result.empty())result+=", ";result+=name;}};
         add(d.overlay,d.overlay?d.overlay->texture:"");add(d.secondOverlay,d.secondOverlay?d.secondOverlay->texture:"");add(d.rainbow,"Rainbow");
         if(d.colorLinks)for(int b:bands)if(d.colorLinks->links.count(b)){result+=" Borrow colors";break;}
-        for(const auto& rule:d.transformations)for(int b:bands)if(rule.links.count(b)){result+=rule.enabled?" Transformation":" Disabled rule";break;}
+        int ruleCount=0,enabledCount=0;
+        for(const auto& rule:d.transformations)for(int b:bands)if(rule.links.count(b)){++ruleCount;if(rule.enabled)++enabledCount;break;}
+        if(ruleCount) {
+            if(!result.empty())result+=", ";
+            result+=std::to_string(ruleCount)+(ruleCount==1?" rule":" rules");
+            if(enabledCount!=ruleCount)result+=" ("+std::to_string(enabledCount)+" enabled)";
+        }
         return result.empty()?"No applied effects":result;
     }catch(...) {return "Native band controls in Advanced";}
 }
