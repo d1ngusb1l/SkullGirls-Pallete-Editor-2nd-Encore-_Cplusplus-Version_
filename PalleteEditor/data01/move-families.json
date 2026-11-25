@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "characters": [
+    {
+      "character": "Beowulf",
+      "foitSha256": "5302729ad0f055f1c89008c189f69ce2ce167f508ba77e619a889bbe59540411",
+      "moves": [
+        {
+          "id": "chair-toss",
+          "label": "Chair Toss (all strengths)",
+          "states": [
+            "s.ChairToss_L",
+            "s.ChairToss_L_ForReal",
+            "s.ChairToss_L_ReversalWindow",
+            "s.ChairToss_M",
+            "s.ChairToss_H",
+            "s.ChairToss_M_H_Check",
+            "s.ChairToss_M_H_ForReal",
+            "s.ChairToss_M_H_ReversalWindow"
+          ]
+        },
+        {
+          "id": "organic-arm",
+          "label": "Gigantic Arm",
+          "states": ["s.OrganicArm", "s.OrganicArm_Loop", "s.OrganicArm_End"]
+        }
+      ]
+    }
+  ]
+}

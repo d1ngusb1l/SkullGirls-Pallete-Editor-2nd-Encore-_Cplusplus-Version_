@@ -31,3 +31,7 @@ Beowulf Hype is the first typed amount provider here: completed levels 0, 1, 2 a
 3 can be reused by arbitrary rules. Its validation is documented in
 [the investigation](BEOWULF-RESOURCE-INVESTIGATION.md). Other resources in this table
 are candidates only; they have not been enabled by this change.
+
+Whole-move selection is now a separate implementation track. Its local roster
+catalogue, explicit phase membership and remaining runtime/UI work are described
+in [Whole-move triggers](WHOLE-MOVE-TRIGGERS.md).

@@ -184,7 +184,7 @@ def read_animation_ticks(c,details=None):
         if not c.num(1):return ticks
         skip_condition(c)
 
-def read_move_table(c,file_size,sprite_count,read_children=False,validate_sprite_references=True):
+def read_move_table(c,file_size,sprite_count,read_children=False,validate_sprite_references=True,move_metadata=None):
     c.take(1);count=c.num(2)
     if count>(file_size-c.pos)//10:raise ValueError('Truncated FOIT animation table')
     animations=[];names=[str(i) for i in range(count)]
@@ -193,7 +193,7 @@ def read_move_table(c,file_size,sprite_count,read_children=False,validate_sprite
         if flags&~15:raise ValueError('Invalid FOIT animation flags')
         if flags&12:c.take(4)
         c.take(1)
-        if flags&2:c.take(4*c.num(1))
+        tags=[c.num(4) for _ in range(c.num(1))] if flags&2 else []
         transitions=c.num(2);successor=c.num(2)
         if successor>=count:raise ValueError('Invalid FOIT animation successor')
         frames=c.num(2)
@@ -208,11 +208,16 @@ def read_move_table(c,file_size,sprite_count,read_children=False,validate_sprite
         if c.num(1):
             skip_condition(c);read_animation_ticks(c)
         if c.num(1):skip_expression(c)
+        targets=[]
         for _ in range(transitions):
             target=c.num(2)
             if target>=count:raise ValueError('Invalid FOIT animation link')
+            targets.append(target)
             skip_condition(c)
         animations.append(animation)
+        if move_metadata is not None:
+            move_metadata.append({'id':i,'tags':tags,'successor':successor,
+                                  'conditionalTargets':targets,'sourceFrames':frames})
     if not read_children:
         return animations,names
     c.take(4)
