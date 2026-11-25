@@ -19,7 +19,7 @@ using Links=std::map<int,int>;
 struct Overlay { std::string texture; std::set<int> bands; int lighting=0,tintBand=0; };
 struct Rainbow { std::set<int> bands; int speed=4,interval=8; };
 struct ColorLinks { Links links; int shadeMask=255; };
-struct Transformation { Links links; int shadeMask=255,previewMode=0; std::string activationTag,legacyTrigger; };
+struct Transformation { Links links; int shadeMask=255,previewMode=0; std::string activationTag,legacyTrigger; std::string id="legacy",name="Imported transformation"; bool enabled=true; };
 struct Document {
     std::string character;
     std::vector<uint32_t> colors;
@@ -29,7 +29,7 @@ struct Document {
     std::optional<Overlay> secondOverlay;
     std::optional<Rainbow> rainbow;
     std::optional<ColorLinks> colorLinks;
-    std::optional<Transformation> transformation;
+    std::vector<Transformation> transformations;
     bool legacy=false;
     int legacyHueSpeed=0,legacyHueInterval=0;
 };
@@ -68,10 +68,25 @@ inline bool SupportedTag(const std::string& tag) {
         "ASSIST","BURST","OTG","WALLBOUNCE","DEAD"}) if(tag==value) return true;
     return false;
 }
+// Disabled rules reserve their shades too: enabling cannot silently mask another rule.
+inline void ValidateRuleConflicts(const std::vector<Transformation>& rules) {
+    if(rules.size()>32)throw std::runtime_error("Expected at most 32 transformation rules.");
+    std::set<std::string> ids;
+    std::map<int,int> occupied;
+    for(const auto& rule:rules) {
+        if(rule.id.empty() || rule.id.size()>64 || !std::all_of(rule.id.begin(),rule.id.end(),[](unsigned char c){return (c>='a'&&c<='z') || (c>='A'&&c<='Z') || (c>='0'&&c<='9') || c=='-' || c=='_';}) || !ids.insert(rule.id).second)throw std::runtime_error("Rule IDs must be unique ASCII identifiers (64 bytes maximum).");
+        if(rule.name.empty() || rule.name.size()>96 || std::any_of(rule.name.begin(),rule.name.end(),[](unsigned char c){return c<32 || c==127;}))throw std::runtime_error("Rule names require 1 to 96 bytes of printable text.");
+        if(rule.links.empty() || rule.shadeMask<1 || rule.shadeMask>255)throw std::runtime_error("Each rule needs links and at least one shader shade.");
+        for(const auto& link:rule.links) {
+            if(occupied[link.first]&rule.shadeMask) throw std::runtime_error("Transformation rules overlap on native band "+std::to_string(link.first)+". Choose disjoint shader shades or remove the conflicting link.");
+            occupied[link.first]|=rule.shadeMask;
+        }
+    }
+}
 inline Document Decode(const Json& j) {
     if(!j.is_object() || j.at("format")!="skullgirls-palette")
         throw std::runtime_error("Unsupported palette file format or version.");
-    const int version=Integer(j.at("version"),1,2,"palette version");
+    const int version=Integer(j.at("version"),1,3,"palette version");
     Document d; d.character=j.at("character").get<std::string>();
     if(d.character.empty() || d.character.size()>32 || !std::all_of(d.character.begin(),d.character.end(),[](unsigned char c){return (c>='A'&&c<='Z')||(c>='a'&&c<='z')||(c>='0'&&c<='9');}))
         throw std::runtime_error("Invalid character identifier.");
@@ -95,7 +110,7 @@ inline Document Decode(const Json& j) {
         value.tintBand=Integer(e.at("tintBand"),0,255,"overlay tint group"); return value;
     };
     if(!effects.at("overlay").is_null()) d.overlay=readOverlay(effects.at("overlay"));
-    if(version==2) {
+    if(version==2 || (version==3 && effects.contains("secondOverlay"))) {
         if(!d.overlay)throw std::runtime_error("Two-texture palettes require a primary overlay.");
         d.secondOverlay=readOverlay(effects.at("secondOverlay"));
         for(int target:d.secondOverlay->bands)
@@ -110,8 +125,8 @@ inline Document Decode(const Json& j) {
     if(!effects.at("colorLinks").is_null()) {
         auto& e=effects.at("colorLinks"); d.colorLinks=ColorLinks{ReadLinks(e.at("links")),Integer(e.at("shadeMask"),1,255,"color-link shade mask")};
     }
-    if(!effects.at("transformation").is_null()) {
-        auto& e=effects.at("transformation"); Transformation value;
+    auto readTransformation=[&](const Json& e) {
+        Transformation value;
         value.links=ReadLinks(e.at("links")); value.shadeMask=Integer(e.at("shadeMask"),1,255,"transformation shade mask");
         value.previewMode=Integer(e.at("previewMode"),0,2,"transformation preview mode");
         value.activationTag=e.at("activationTag").get<std::string>(); value.legacyTrigger=e.at("legacyTrigger").get<std::string>();
@@ -121,14 +136,29 @@ inline Document Decode(const Json& j) {
         if(!value.activationTag.empty() && !value.legacyTrigger.empty()) throw std::runtime_error("Ambiguous transformation trigger.");
         if(value.previewMode==0 && value.activationTag.empty() && (value.legacyTrigger.empty() || value.legacyTrigger=="preview-only"))
             throw std::runtime_error("Automatic transformation has no trigger.");
-        d.transformation=value;
+        return value;
+    };
+    if(version<3) {
+        if(effects.contains("transformations")) throw std::runtime_error("Rule collections require schema version 3.");
+        if(!effects.at("transformation").is_null()) d.transformations.push_back(readTransformation(effects.at("transformation")));
+    } else {
+        if(effects.contains("transformation")) throw std::runtime_error("Version 3 requires a rule collection, not a single transformation.");
+        const auto& rules=effects.at("transformations");
+        if(!rules.is_array() || rules.size()>32) throw std::runtime_error("Expected at most 32 transformation rules.");
+        for(const auto& e:rules) {
+            auto value=readTransformation(e);
+            value.id=e.at("id").get<std::string>(); value.name=e.at("name").get<std::string>();
+            if(!e.at("enabled").is_boolean()) throw std::runtime_error("Rule enabled must be boolean.");
+            value.enabled=e.at("enabled").get<bool>(); d.transformations.push_back(value);
+        }
     }
     auto band=[&](int value) { if(value<1 || value>=(int)d.groupSizes.size() || !d.groupSizes[value]) throw std::runtime_error("Effect refers to an absent group."); };
     if(d.overlay) { for(int value:d.overlay->bands) band(value); if(d.overlay->tintBand) band(d.overlay->tintBand); }
     if(d.secondOverlay) { for(int value:d.secondOverlay->bands) band(value); if(d.secondOverlay->tintBand) band(d.secondOverlay->tintBand); }
     if(d.rainbow) for(int value:d.rainbow->bands) band(value);
     if(d.colorLinks) for(auto& rule:d.colorLinks->links) { band(rule.first); band(rule.second); }
-    if(d.transformation) for(auto& rule:d.transformation->links) { band(rule.first); band(rule.second); }
+    for(const auto& transformation:d.transformations) for(auto& rule:transformation.links) { band(rule.first); band(rule.second); }
+    ValidateRuleConflicts(d.transformations);
     return d;
 }
 inline Json Encode(const Document& d) {
@@ -140,9 +170,10 @@ inline Json Encode(const Document& d) {
     }
     if(d.rainbow) effects["rainbow"]={{"bands",d.rainbow->bands},{"speed",d.rainbow->speed},{"interval",d.rainbow->interval}};
     if(d.colorLinks) effects["colorLinks"]={{"links",d.colorLinks->links},{"shadeMask",d.colorLinks->shadeMask}};
-    if(d.transformation) effects["transformation"]={{"links",d.transformation->links},{"shadeMask",d.transformation->shadeMask},
-        {"previewMode",d.transformation->previewMode},{"activationTag",d.transformation->activationTag},{"legacyTrigger",d.transformation->legacyTrigger}};
-    Json j={{"format","skullgirls-palette"},{"version",d.secondOverlay?2:1},{"character",d.character},{"groupSizes",d.groupSizes},
+    effects.erase("transformation"); effects["transformations"]=Json::array();
+    for(const auto& rule:d.transformations) effects["transformations"].push_back({{"id",rule.id},{"name",rule.name},{"enabled",rule.enabled},
+        {"links",rule.links},{"shadeMask",rule.shadeMask},{"previewMode",rule.previewMode},{"activationTag",rule.activationTag},{"legacyTrigger",rule.legacyTrigger}});
+    Json j={{"format","skullgirls-palette"},{"version",3},{"character",d.character},{"groupSizes",d.groupSizes},
         {"colors",d.colors},{"lineColor",d.lineColor},{"superShadowColors",{d.shadow1,d.shadow2}},{"effects",effects}};
     Decode(j); return j;
 }

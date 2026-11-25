@@ -1,4 +1,4 @@
-# V1 `.pal` format
+# Versioned `.pal` format (V1/V2/V3)
 
 V1 retains the existing `.pal` extension and binary prefix. The new reader accepts plain legacy files and files with the optional V1 effect block. Existing readers can read the colors from an extended file, because the added block follows the fields they already read. Saving through an older editor strips the extra block and loses its advanced assignments.
 
@@ -55,3 +55,48 @@ Saves use a temporary file beside the destination, flush its contents, and repla
 ## Compatibility changes
 
 Do not change the legacy prefix. Any incompatible extension change needs a new marker or schema version and explicit migration tests. Run `tests/PaletteDocumentTests.vcxproj` and the opt-in runner `/persistence-smoke` test for changes to this format or its runtime application.
+
+
+## V3 transformation rule collection
+
+New saves use JSON schema version **3**, retaining the exact legacy prefix and
+`SGPEFX1` envelope. The envelope identifies the extension family; the JSON version
+identifies its schema. Readers accept V1, V2 and V3; unknown versions fail explicitly.
+V2 requires two overlays. V3 supports either zero, one or two overlays, using the
+existing `overlay` and optional `secondOverlay` objects and disjoint overlay bands.
+
+V3 replaces `effects.transformation` with `effects.transformations`, an array of
+at most 32 rules. A V3 file containing the old single-rule key is rejected; V1/V2
+files containing the collection key are rejected to prevent a lossy downgrade.
+Every rule has:
+
+| Field | Meaning |
+| --- | --- |
+| `id` | Unique stable ASCII identifier, 1–64 bytes (`A-Z`, `a-z`, digits, `_`, `-`). |
+| `name` | User name, 1–96 bytes, no control characters. |
+| `enabled` | Boolean. Disabled rules remain configured and reserve their shades. |
+| `links` | Nonempty native source/destination band pairs. |
+| `shadeMask` | Nonzero 8-bit mask shared by this rule's links. |
+| `activationTag`, `legacyTrigger` | Same allowlisted predicate as V1; unknown or ambiguous predicates are rejected. |
+| `previewMode` | Compatibility **live** mode: 0 automatic, 1 forced normal, 2 forced transformed. This is not isolated-viewer simulation. |
+
+A V1/V2 transformation migrates to exactly one enabled rule with ID `legacy`,
+name `Imported transformation`, and identical links, mask, predicate and live mode.
+An absent transformation becomes an empty collection. Existing forced modes remain
+visible in the UI with an explicit action to switch to automatic activation.
+New UI rules start automatic. Save/Load and Autoload use the same codec and validator.
+Original-mod Autoload settings retain their existing JSON assignment/import format;
+the referenced palette file uses this versioned codec.
+
+Two rules may share a source only when their shader shade masks are disjoint.
+Conflicts are rejected before native allocation or mutation, including disabled
+rules. There are no priorities or ties. Native records are retained first; static
+links replace their selected source shades only; active rules override the static
+or native baseline for their selected shades. Destinations borrow their original
+palette ramps in one hop: `A -> B`, `B -> C` does not redirect A recursively to C.
+The native precedence evidence and limits are recorded in MULTIPLE-TRANSFORMATIONS.md.
+
+No runtime pointer, condition graph, actor sample, allocation or viewer override is
+serialized. `Export legacy colors only` explicitly discards all effect configuration.
+Opening a V3 palette in an older editor is unsupported and may strip its extension;
+there is no editor-provided silent downgrade.
