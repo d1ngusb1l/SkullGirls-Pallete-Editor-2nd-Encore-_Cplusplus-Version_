@@ -10,7 +10,7 @@ void RunDllSmoke() {
         expected.overlay=PaletteData::Overlay{"Fire",{13},1,0};
         expected.rainbow=PaletteData::Rainbow{{14},6,12};
         expected.colorLinks=PaletteData::ColorLinks{{{3,4}},255};
-        expected.transformation=PaletteData::Transformation{{{4,3}},255,0,"SUPER",""};
+        expected.transformations={PaletteData::Transformation{{{4,3}},255,0,"SUPER",""}};
         ApplyPalette(c,expected);
         auto path=std::filesystem::path("dll-smoke-palette.pal");
         PaletteData::AtomicWrite(path,PaletteData::EncodePal(CapturePalette(c)));

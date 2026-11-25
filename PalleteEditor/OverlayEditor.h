@@ -12,6 +12,7 @@
 #include <cstring>
 #include <functional>
 #include "Data/PaletteDocument.h"
+#include "Data/NativeRedirectPlan.h"
 
 // Phase 1 overlay prototype. Native layouts are guarded to the researched build.
 namespace OverlayEditor {

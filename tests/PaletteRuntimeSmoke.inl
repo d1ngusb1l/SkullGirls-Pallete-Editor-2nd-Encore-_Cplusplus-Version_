@@ -22,7 +22,7 @@ inline nlohmann::json RunPalettePersistenceSmoke(Character& c) {
         expected.overlay=PaletteData::Overlay{"Fire",{13},1,0}; expected.rainbow=PaletteData::Rainbow{{14},6,12};
         expected.secondOverlay=PaletteData::Overlay{"Water",{14},1,0};
         expected.colorLinks=PaletteData::ColorLinks{{{3,4}},255};
-        expected.transformation=PaletteData::Transformation{{{4,3}},0xa5,0,"SUPER",""};
+        expected.transformations={PaletteData::Transformation{{{4,3}},0xa5,0,"SUPER",""}};
         ApplyPalette(c,expected,true);
         const auto overlayAddress=Word(context.palette+0x14)+12*c.Current_Pallete_Num;
         if(Word(overlayAddress+4)-Word(overlayAddress)!=120)

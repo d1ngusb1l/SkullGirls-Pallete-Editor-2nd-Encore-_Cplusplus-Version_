@@ -7,16 +7,20 @@ struct TransformSettings {
     std::string activationTag; // empty retains version-1 character profiles
     int shadeMask=255;
     TransformMode mode=TransformMode::NormalPreview;
+    std::string id="legacy",name="Imported transformation";
+    bool enabled=true;
+    bool operator==(const TransformSettings&) const = default;
 };
 struct ColorAssignment {
     Original original;
     std::map<int,int> staticLinks;
     int staticMask=255;
-    bool hasTransformation=false;
-    TransformSettings transformation;
+    std::vector<TransformSettings> transformations;
+    Bytes installedHeader;
 };
 inline std::map<DWORD,ColorAssignment> colorAssignments;
-inline void ClearColorAssignments() { colorAssignments.clear(); }
+inline unsigned long long ruleGeneration=0;
+inline void ClearColorAssignments() { colorAssignments.clear(); ++ruleGeneration; }
 inline std::string TransformTrigger(const Character& c) {
     if(c.Char_Name=="Annie") return "annie-supers";
     if(c.Char_Name=="Filia" && c.Current_Pallete_Num==29) return "filia-color30-flag20";
@@ -73,42 +77,60 @@ inline ColorAssignment CurrentColorAssignment(const Character& c,const Appearanc
 }
 inline void CommitColorAssignment(const Character& c,const AppearanceContext& data,const ColorAssignment& assignment) {
     DWORD address=assignment.original.address;
-    if(assignment.staticLinks.empty() && !assignment.hasTransformation) {
-        Remove(address); colorAssignments.erase(address); return;
+    if(!Valid(assignment.original)) throw std::runtime_error("Match changed; retry in the new match.");
+    std::vector<PaletteData::Transformation> rules;
+    for(const auto& settings:assignment.transformations) {
+        ValidateTransformation(c,data,settings);
+        rules.push_back({settings.links,settings.shadeMask,(int)settings.mode,settings.activationTag,"",settings.id,settings.name,settings.enabled});
     }
+    PaletteData::ValidateRuleConflicts(rules);
+    ValidateLinks(data,assignment.staticLinks,assignment.staticMask);
+    const auto current=colorAssignments.find(address);
+    if(current!=colorAssignments.end() && current->second.staticLinks==assignment.staticLinks && current->second.staticMask==assignment.staticMask &&
+        current->second.transformations==assignment.transformations && Read(address,12)==current->second.installedHeader) return;
+    const bool restoring=assignment.staticLinks.empty() && assignment.transformations.empty();
     DWORD begin=0,end=0;
     memcpy(&begin,assignment.original.header.data(),4); memcpy(&end,assignment.original.header.data()+4,4);
     if(end<begin || (end-begin)%44 || end-begin>44*1024) throw std::runtime_error("Unsupported native color-link vector.");
-    auto native=Read(begin,end-begin); Bytes records;
-    for(size_t offset=0;offset<native.size();offset+=44) {
-        DWORD source=0; memcpy(&source,native.data()+offset,4);
-        if(!assignment.staticLinks.count((int)source)) records.insert(records.end(),native.begin()+offset,native.begin()+offset+44);
-    }
-    auto append=[&](int source,int destination,int mask,DWORD condition) {
-        Bytes record(44); Put(record,0,source); Put(record,4,destination);
-        record[8]=(unsigned char)mask; Put(record,12,condition); record[16]=condition?1:0; Put(record,40,15);
-        records.insert(records.end(),record.begin(),record.end());
-    };
-    for(auto& rule:assignment.staticLinks) append(rule.first,rule.second,assignment.staticMask,0);
-    if(assignment.hasTransformation && assignment.transformation.mode!=TransformMode::NormalPreview) {
-        for(auto& rule:assignment.transformation.links) {
-            DWORD condition=assignment.transformation.mode==TransformMode::Automatic?TransformCondition(c,assignment.transformation):0;
-            append(rule.first,rule.second,assignment.transformation.shadeMask,condition);
+    const auto plan=PaletteData::BuildRedirectPlan(Read(begin,end-begin),assignment.staticLinks,assignment.staticMask,rules);
+    Bytes records;std::map<int,DWORD> conditions;
+    for(auto entry:plan) {
+        if(entry.conditionRule>=0) {
+            auto& condition=conditions[entry.conditionRule];
+            if(!condition)condition=TransformCondition(c,assignment.transformations.at(entry.conditionRule));
+            PaletteData::RedirectPut(entry.bytes.data()+12,condition);entry.bytes[16]=1;
         }
+        records.insert(records.end(),entry.bytes.begin(),entry.bytes.end());
     }
     // A normal preview can contain no records on palettes without native links.
     Bytes header(12);
-    if(!records.empty()) {
+    if(restoring)header=assignment.original.header;
+    else if(!records.empty()) {
         DWORD memory=Allocate(records.size()); Write(memory,records);
         Put(header,0,memory); Put(header,4,memory+(DWORD)records.size()); Put(header,8,memory+(DWORD)records.size());
     }
-    AppearanceTransaction(assignment.original,[&]() {
-        if(Word(data.actor+0x328)!=data.palette) throw std::runtime_error("Character palette data changed.");
-        originals[address]=assignment.original; Write(address,header);
-        if(Read(address,12)!=header) throw std::runtime_error("Color-link write verification failed.");
-        colorAssignments[address]=assignment;
-    });
-    Refresh();
+    const auto previousHeader=Read(address,12);
+    auto previousOriginals=originals; auto previousAssignments=colorAssignments;
+    try {
+        AppearanceTransaction(assignment.original,[&]() {
+            if(Word(data.actor+0x328)!=data.palette || Read(data.actor+0x330,1)[0]!=c.Current_Pallete_Num) throw std::runtime_error("Character palette data changed.");
+            Write(address,header);
+            if(Read(address,12)!=header) throw std::runtime_error("Color-link write verification failed.");
+            if(restoring){originals.erase(address);colorAssignments.erase(address);}
+            else {
+                originals[address]=assignment.original;
+                auto installed=assignment; installed.installedHeader=header; colorAssignments[address]=installed;
+            }
+        });
+        Refresh();
+    } catch(const std::exception& error) {
+        auto message=std::string(error.what());
+        try {
+            AppearanceTransaction(assignment.original,[&]() { Write(address,previousHeader); if(Read(address,12)!=previousHeader)throw std::runtime_error("Restore verification failed."); });
+            originals=previousOriginals; colorAssignments=previousAssignments; Refresh();
+        } catch(...) { throw std::runtime_error(message+" Color-link restoration also failed; match may have ended."); }
+        throw std::runtime_error(message+" Previous color links restored.");
+    }
 }
 inline void ApplyColorLinks(const Character& c) {
     auto data=AppearanceData(c);
@@ -124,10 +146,12 @@ inline void ResetColorLinks(const Character& c) {
 }
 inline void ApplyTransformation(const Character& c,const TransformSettings& settings) {
     auto data=AppearanceData(c); ValidateTransformation(c,data,settings);
-    auto assignment=CurrentColorAssignment(c,data); assignment.hasTransformation=true; assignment.transformation=settings;
+    auto assignment=CurrentColorAssignment(c,data);
+    auto found=std::find_if(assignment.transformations.begin(),assignment.transformations.end(),[&](const auto& rule){return rule.id==settings.id;});
+    if(found==assignment.transformations.end()) assignment.transformations.push_back(settings); else *found=settings;
     CommitColorAssignment(c,data,assignment);
 }
-inline void ResetTransformation(const Character& c) {
+inline void ResetTransformation(const Character& c,const std::string& id="legacy") {
     auto data=AppearanceData(c); auto assignment=CurrentColorAssignment(c,data);
-    assignment.hasTransformation=false; CommitColorAssignment(c,data,assignment);
+    assignment.transformations.erase(std::remove_if(assignment.transformations.begin(),assignment.transformations.end(),[&](const auto& rule){return rule.id==id;}),assignment.transformations.end()); CommitColorAssignment(c,data,assignment);
 }
