@@ -780,6 +780,21 @@ void Drawing::DrawFileDialog() {
 
 	ImGui::SetNextWindowSize(vFileDialogSize, ImGuiCond_Once);
     PollSpritePreparation();
+    SpriteViewer::PollAnimationExport();
+
+    if(ImGuiFileDialog::Instance()->Display("ExportSpriteAnimation")) {
+        if(ImGuiFileDialog::Instance()->IsOk()) {
+            try {SpriteViewer::StartAnimationExport(PathFromUtf8(ImGuiFileDialog::Instance()->GetFilePathName()));}
+            catch(const std::exception& e){SpriteViewer::animationStatus=std::string("Animation export failed: ")+e.what();}
+        }else {SpriteViewer::pendingAnimationExport.reset();SpriteViewer::animationStatus="Animation export cancelled.";}
+        ImGuiFileDialog::Instance()->Close();
+    }
+
+    if(ImGuiFileDialog::Instance()->Display("ExportSpritePNG")) {
+        if(ImGuiFileDialog::Instance()->IsOk())SpriteViewer::SavePngExport(PathFromUtf8(ImGuiFileDialog::Instance()->GetFilePathName()));
+        else {SpriteViewer::pendingPngExport.reset();SpriteViewer::exportStatus="PNG export cancelled.";}
+        ImGuiFileDialog::Instance()->Close();
+    }
 
     if(ImGuiFileDialog::Instance()->Display("ChoosePreviewPython")) {
         if(ImGuiFileDialog::Instance()->IsOk())SpriteViewer::preparationPython=PathFromUtf8(ImGuiFileDialog::Instance()->GetFilePathName());

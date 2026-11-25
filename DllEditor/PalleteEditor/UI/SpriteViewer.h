@@ -6,6 +6,13 @@
 #include "Tools/Colors.hpp"
 #include "SpritePreviewGeometry.h"
 #include "SpritePreviewPixel.h"
+#include "SpritePng.h"
+#include "SpriteAnimation.h"
+#include <future>
+#include <atomic>
+#include <chrono>
+#include <map>
+#include <memory>
 
 namespace SpriteViewer {
 struct PixelLayer {
@@ -55,6 +62,8 @@ inline std::vector<AnimationAsset> animations;
 inline SpriteFrameAsset decodedFrame;
 inline unsigned decodedSprite=(std::numeric_limits<unsigned>::max)();
 inline int selectedAnimation=-1,frameIndex=0;
+inline int exportStart=1,exportEnd=1;
+inline int rangeHandle=0;
 inline char animationSearch[128]={};
 
 inline void LostDevice() {if(texture){texture->Release();texture=nullptr;}}
@@ -64,10 +73,12 @@ inline void ForgetMatch() {
 inline void ResetAsset() {
     centerCanvas=true;LostDevice();pixels.clear();defaultRows.clear();frames.clear();animations.clear();decodedFrame={};
     decodedSprite=(std::numeric_limits<unsigned>::max)();attempted=false;legacyFixedOnly=false;
-    error.clear();loadedCharacter.clear();fallbackSprite=2;selectedAnimation=-1;frameIndex=0;
+    error.clear();loadedCharacter.clear();fallbackSprite=2;selectedAnimation=-1;frameIndex=0;exportStart=exportEnd=1;
     canvasLeft=canvasTop=canvasWidth=canvasHeight=0;
 }
+inline void CancelAnimationAndWait();
 inline void Shutdown() {
+    CancelAnimationAndWait();
     ForgetMatch();device=nullptr;ResetAsset();
     if(preparationPipe){CloseHandle(preparationPipe);preparationPipe=nullptr;}
     if(preparationProcess){CloseHandle(preparationProcess);preparationProcess=nullptr;}
@@ -153,40 +164,40 @@ inline void Load(const char* character) {
         } else if(!legacyFile) {
             if(_stricmp(character,"Cerebella")!=0)throw std::runtime_error("Unsupported combined preview asset format.");
             const bool knownPose=memcmp(magic,"SGPOSE1\0",8)==0 || memcmp(magic,"SGPOSE2\0",8)==0 ||
-                memcmp(magic,"SGPOSE3\0",8)==0 || memcmp(magic,"SGPOSE4\0",8)==0 || memcmp(magic,"SGPOSE5\0",8)==0;
+                memcmp(magic,"SGPOSE3\0",8)==0 || memcmp(magic,"SGPOSE4\0",8)==0 || memcmp(magic,"SGPOSE5\0",8)==0 || memcmp(magic,"SGPOSE6\0",8)==0;
             if(!knownPose)throw std::runtime_error("Unsupported preview asset format.");
         }
         if(sectionLength<24 || sectionLength>128ull*1024*1024)throw std::runtime_error("Unsupported character preview section size.");
         unsigned paletteBytes=0,fallback=0,frameCount=0,animationCount=0;
         f.read(reinterpret_cast<char*>(&paletteBytes),4);f.read(reinterpret_cast<char*>(&fallback),4);f.read(reinterpret_cast<char*>(&frameCount),4);f.read(reinterpret_cast<char*>(&animationCount),4);
         fallbackSprite=fallback;
-        if(memcmp(magic,"SGPOSE2\0",8)==0 || memcmp(magic,"SGPOSE3\0",8)==0 || memcmp(magic,"SGPOSE4\0",8)==0)throw std::runtime_error("This preview asset uses an outdated sprite mapping or layer format. Regenerate it with the current scripts/prepare-dll-preview.py.");
-        if(memcmp(magic,"SGPOSE5\0",8)==0) {
-            if(paletteBytes<64 || paletteBytes>16384 || paletteBytes%64 || frameCount<1 || frameCount>4096 || animationCount>1000)throw std::runtime_error("Malformed SGPOSE5 preview asset.");
-            if(sectionLength<24+paletteBytes)throw std::runtime_error("Truncated SGPOSE5 palette.");
-            defaultRows.resize(paletteBytes);if(!ReadExactly(f,reinterpret_cast<char*>(defaultRows.data()),paletteBytes))throw std::runtime_error("Truncated SGPOSE5 palette.");
+        if(memcmp(magic,"SGPOSE2\0",8)==0 || memcmp(magic,"SGPOSE3\0",8)==0 || memcmp(magic,"SGPOSE4\0",8)==0 || memcmp(magic,"SGPOSE5\0",8)==0)throw std::runtime_error("This preview asset has outdated timeline indexing/timing. Use Prepare combined sprite asset to regenerate it.");
+        if(memcmp(magic,"SGPOSE6\0",8)==0) {
+            if(paletteBytes<64 || paletteBytes>16384 || paletteBytes%64 || frameCount<1 || frameCount>4096 || animationCount>1000)throw std::runtime_error("Malformed SGPOSE6 preview asset.");
+            if(sectionLength<24+paletteBytes)throw std::runtime_error("Truncated SGPOSE6 palette.");
+            defaultRows.resize(paletteBytes);if(!ReadExactly(f,reinterpret_cast<char*>(defaultRows.data()),paletteBytes))throw std::runtime_error("Truncated SGPOSE6 palette.");
             bool fallbackFound=false;
             for(unsigned r=0;r<frameCount;++r) {
                 unsigned id=0,layerCount=0;int originX=0,originY=0;
                 f.read(reinterpret_cast<char*>(&id),4);f.read(reinterpret_cast<char*>(&originX),4);f.read(reinterpret_cast<char*>(&originY),4);f.read(reinterpret_cast<char*>(&layerCount),4);
-                if(!f || layerCount<1 || layerCount>8)throw std::runtime_error("Malformed SGPOSE5 sprite record.");
+                if(!f || layerCount<1 || layerCount>8)throw std::runtime_error("Malformed SGPOSE6 sprite record.");
                 SpriteFrameAsset frame;frame.id=id;
                 SpritePreviewGeometry::Bounds bounds;
                 for(unsigned l=0;l<layerCount;++l) {
                     unsigned slot=0,used=0;unsigned short columns=0,rows=0,flags=0;int x=0,y=0;unsigned channelBytes[3]={};
                     f.read(reinterpret_cast<char*>(&slot),4);f.read(reinterpret_cast<char*>(&x),4);f.read(reinterpret_cast<char*>(&y),4);f.read(reinterpret_cast<char*>(&columns),2);f.read(reinterpret_cast<char*>(&rows),2);f.read(reinterpret_cast<char*>(&flags),2);f.read(reinterpret_cast<char*>(&used),2);f.read(reinterpret_cast<char*>(&channelBytes[0]),4);f.read(reinterpret_cast<char*>(&channelBytes[1]),4);f.read(reinterpret_cast<char*>(&channelBytes[2]),4);
                     unsigned layerWidth=BoundDimension(columns*16),layerHeight=BoundDimension(rows*16);
-                    if(slot>7 || used==0 || used>columns*rows || (flags&~64u) || size_t(layerWidth)*layerHeight*3>16*1024*1024)throw std::runtime_error("Malformed or oversized SGPOSE5 sprite layer.");
+                    if(slot>7 || used==0 || used>columns*rows || (flags&~64u) || size_t(layerWidth)*layerHeight*3>16*1024*1024)throw std::runtime_error("Malformed or oversized SGPOSE6 sprite layer.");
                     long long relativeX=static_cast<long long>(x)-originX,relativeY=static_cast<long long>(y)-originY;
                     if(relativeX<-8192 || relativeX>8192 || relativeY<-8192 || relativeY>8192)throw std::runtime_error("Sprite layer origin offset exceeds bounds.");
                     PixelLayer layer;layer.slot=slot;layer.x=static_cast<int>(relativeX);layer.y=static_cast<int>(relativeY);layer.width=layerWidth;layer.height=layerHeight;layer.flags=flags;layer.tiles.resize(used);
-                    if(!ReadExactly(f,reinterpret_cast<char*>(layer.tiles.data()),used*sizeof(unsigned short)))throw std::runtime_error("Truncated SGPOSE5 sprite tile list.");
+                    if(!ReadExactly(f,reinterpret_cast<char*>(layer.tiles.data()),used*sizeof(unsigned short)))throw std::runtime_error("Truncated SGPOSE6 sprite tile list.");
                     std::set<unsigned short> uniqueTiles;
-                    for(auto tile:layer.tiles)if(tile>=columns*rows || !uniqueTiles.insert(tile).second)throw std::runtime_error("Invalid SGPOSE5 tile position.");
+                    for(auto tile:layer.tiles)if(tile>=columns*rows || !uniqueTiles.insert(tile).second)throw std::runtime_error("Invalid SGPOSE6 tile position.");
                     for(unsigned channel=0;channel<3;++channel) {
-                        if(channelBytes[channel]==0 || channelBytes[channel]>16*1024*1024 || static_cast<unsigned long long>(f.tellg())>f.limit || channelBytes[channel]>f.limit-static_cast<unsigned long long>(f.tellg()))throw std::runtime_error("Malformed SGPOSE5 channel length.");
+                        if(channelBytes[channel]==0 || channelBytes[channel]>16*1024*1024 || static_cast<unsigned long long>(f.tellg())>f.limit || channelBytes[channel]>f.limit-static_cast<unsigned long long>(f.tellg()))throw std::runtime_error("Malformed SGPOSE6 channel length.");
                         layer.channels[channel].resize(channelBytes[channel]);
-                        if(!ReadExactly(f,reinterpret_cast<char*>(layer.channels[channel].data()),channelBytes[channel]))throw std::runtime_error("Truncated SGPOSE5 sprite channel.");
+                        if(!ReadExactly(f,reinterpret_cast<char*>(layer.channels[channel].data()),channelBytes[channel]))throw std::runtime_error("Truncated SGPOSE6 sprite channel.");
                     }
                     bounds.Add(layer.x,layer.y,layerWidth,layerHeight);
                     frame.layers.push_back(std::move(layer));
@@ -196,25 +207,25 @@ inline void Load(const char* character) {
                 for(auto& layer:frame.layers){layer.offsetX=bounds.OffsetX(layer.x);layer.offsetY=bounds.OffsetY(layer.y);}
                 frames.push_back(std::move(frame));if(id==fallback)fallbackFound=true;
             }
-            if(!fallbackFound)throw std::runtime_error("SGPOSE5 is missing the fixed-pose fallback sprite.");
+            if(!fallbackFound)throw std::runtime_error("SGPOSE6 is missing the fixed-pose fallback sprite.");
             unsigned long long totalTimelineFrames=0;
             for(unsigned a=0;a<animationCount;++a) {
                 unsigned id=0,nameBytes=0,frameCount=0;f.read(reinterpret_cast<char*>(&id),4);f.read(reinterpret_cast<char*>(&nameBytes),4);
-                if(nameBytes<1 || nameBytes>1024)throw std::runtime_error("Malformed SGPOSE5 animation name.");
-                std::string name(nameBytes,'\0');if(!ReadExactly(f,name.data(),nameBytes))throw std::runtime_error("Truncated SGPOSE5 animation name.");
-                f.read(reinterpret_cast<char*>(&frameCount),4);if(!f || frameCount<1 || frameCount>65535 || totalTimelineFrames+frameCount>100000)throw std::runtime_error("Malformed or oversized SGPOSE5 timeline.");
+                if(nameBytes<1 || nameBytes>1024)throw std::runtime_error("Malformed SGPOSE6 animation name.");
+                std::string name(nameBytes,'\0');if(!ReadExactly(f,name.data(),nameBytes))throw std::runtime_error("Truncated SGPOSE6 animation name.");
+                f.read(reinterpret_cast<char*>(&frameCount),4);if(!f || frameCount<1 || frameCount>65535 || totalTimelineFrames+frameCount>100000)throw std::runtime_error("Malformed or oversized SGPOSE6 timeline.");
                 totalTimelineFrames+=frameCount;
                 AnimationAsset animation;animation.id=id;animation.name=name;
                 for(unsigned t=0;t<frameCount;++t) {
                     unsigned short sprite=0,sprite1=0,sprite2=0,duration=0;
                     f.read(reinterpret_cast<char*>(&sprite),2);f.read(reinterpret_cast<char*>(&sprite1),2);f.read(reinterpret_cast<char*>(&sprite2),2);f.read(reinterpret_cast<char*>(&duration),2);
-                    if(!f || duration<1 || duration>65535)throw std::runtime_error("Malformed SGPOSE5 timeline frame.");
+                    if(!f || duration<1 || duration>65535)throw std::runtime_error("Malformed SGPOSE6 timeline frame.");
                     bool known=false;for(const auto& frame:frames)if(frame.id==sprite){known=true;break;}if(!known)throw std::runtime_error("Animation timeline references an invalid sprite record.");
                     animation.frames.push_back({sprite,duration,sprite1,sprite2});
                 }
                 animations.push_back(std::move(animation));
             }
-            if(static_cast<unsigned long long>(f.tellg())!=static_cast<unsigned long long>(sectionOffset)+sectionLength)throw std::runtime_error("Trailing or malformed SGPOSE5 preview data.");
+            if(static_cast<unsigned long long>(f.tellg())!=static_cast<unsigned long long>(sectionOffset)+sectionLength)throw std::runtime_error("Trailing or malformed SGPOSE6 preview data.");
         } else if(memcmp(magic,"SGPOSE1\0",8)==0) {
             legacyFixedOnly=true;
             unsigned count=paletteBytes;
@@ -233,16 +244,17 @@ inline void Load(const char* character) {
     }catch(const std::exception& e){error=e.what();pixels.clear();frames.clear();animations.clear();}
 }
 
-inline ImU32 Sample(int band,int shade,const std::vector<ImU32>& colors) {
-    if(band<0 || band>=sizes.size() || !sizes[band])return 0;
-    int start=0;for(int b=0;b<band;++b)start+=sizes[b];
-    const float index=(sizes[band]-1)*(1.0f-(shade&31)/31.0f);
-    int low=static_cast<int>(index),high=(std::min)(low+1,sizes[band]-1);
+inline ImU32 Sample(int band,int shade,const std::vector<ImU32>& colors,const std::vector<int>& layout) {
+    if(band<0 || band>=layout.size() || !layout[band])return 0;
+    int start=0;for(int b=0;b<band;++b)start+=layout[b];
+    const float index=(layout[band]-1)*(1.0f-(shade&31)/31.0f);
+    int low=static_cast<int>(index),high=(std::min)(low+1,layout[band]-1);
     if(start+high>=colors.size())return 0;
     float t=index-low,black=(shade>>5)/7.0f;ImU32 result=0;
     for(int ch=0;ch<4;++ch){float a=(colors[start+low]>>(8*ch))&255,b=(colors[start+high]>>(8*ch))&255;float v=a+(b-a)*t;v=ch==3?(std::max)(v,black*255):v*(1-black);result|=static_cast<ImU32>(v)<<(8*ch);}
     return result;
 }
+inline ImU32 Sample(int band,int shade,const std::vector<ImU32>& colors){return Sample(band,shade,colors,sizes);}
 inline std::vector<unsigned char> DecodeArtChannel(const std::vector<unsigned char>& input,unsigned expected) {
     if(expected>16*1024*1024 || input.empty())throw std::runtime_error("Sprite channel exceeds decode bounds.");
     std::vector<unsigned char> output;output.reserve(expected);size_t pos=0;
@@ -315,33 +327,174 @@ inline const SpriteFrameAsset* ActiveFrame() {
     }
     return &decodedFrame;
 }
+inline std::vector<ImU32> RenderFrame(const SpriteFrameAsset& frame,const std::vector<ImU32>& colors,const std::set<int>& selected,bool focus,bool transparent,const std::vector<int>& layout=sizes) {
+    const unsigned outputWidth=BoundDimension(frame.width),outputHeight=BoundDimension(frame.height);
+    std::vector<ImU32> lookup(256*256),output(size_t(outputWidth)*outputHeight);
+    for(int b=0;b<(int)layout.size();++b)for(int shade=0;shade<256;++shade)lookup[b*256+shade]=Sample(b,shade,colors,layout);
+    for(unsigned y=0;y<outputHeight;++y)for(unsigned x=0;x<outputWidth;++x) {
+        SpritePreviewPixel pixel(transparent);
+        for(const auto& layer:frame.layers) {
+            if(x<layer.offsetX || y<layer.offsetY || x>=layer.offsetX+layer.width || y>=layer.offsetY+layer.height)continue;
+            const unsigned lx=x-layer.offsetX,ly=y-layer.offsetY;
+            const auto offset=(size_t(ly)*layer.width+lx)*3;
+            if(offset+2>=layer.pixels.size())continue;
+            const int band=layer.pixels[offset+2],shade=layer.pixels[offset+1];
+            pixel.Blend(lookup[band*256+(shade&255)],selected.count(band)>0);
+        }
+        output[size_t(y)*outputWidth+x]=transparent?pixel.PackTransparent():pixel.Pack(focus,!selected.empty());
+    }
+    return output;
+}
+struct AnimationExport {
+    AnimationAsset animation;
+    std::map<unsigned,SpriteFrameAsset> sprites;
+    std::vector<ImU32> colors;
+    std::vector<int> layout;
+    SpritePreviewGeometry::Bounds bounds;
+    bool gif=false;unsigned plays=0;
+    std::string name;
+};
+struct AnimationProgress {std::atomic<size_t> frame{0};size_t total=0;std::atomic<bool> cancel{false};};
+inline std::optional<AnimationExport> pendingAnimationExport;
+inline std::shared_ptr<AnimationProgress> animationProgress;
+inline std::future<std::string> animationWorker;
+inline std::string animationStatus;
+inline int animationPlays=0;
+inline bool AnimationBusy(){return animationWorker.valid();}
+inline void DrawExportRange(int count) {
+    exportStart=std::clamp(exportStart,1,count);exportEnd=std::clamp(exportEnd,exportStart,count);
+    ImGui::TextUnformatted("Export frame range (inclusive)");
+    const float width=ImGui::GetContentRegionAvail().x;
+    ImGui::SetNextItemWidth((std::max)(60.0f,(width-110)*0.5f));
+    if(ImGui::InputInt("Start",&exportStart,0))exportStart=std::clamp(exportStart,1,exportEnd);
+    ImGui::SameLine();ImGui::SetNextItemWidth((std::max)(60.0f,(width-110)*0.5f));
+    if(ImGui::InputInt("End",&exportEnd,0))exportEnd=std::clamp(exportEnd,exportStart,count);
+    const ImVec2 pos=ImGui::GetCursorScreenPos();const float height=30.0f,pad=9.0f;
+    ImGui::InvisibleButton("##Export range",ImVec2((std::max)(60.0f,width),height));
+    const float left=pos.x+pad,right=pos.x+(std::max)(60.0f,width)-pad;
+    auto x=[&](int frame){return left+(right-left)*float(frame-1)/float((std::max)(1,count-1));};
+    if(ImGui::IsItemActivated()) {
+        const float mouse=ImGui::GetIO().MousePos.x;
+        const float a=fabsf(mouse-x(exportStart)),b=fabsf(mouse-x(exportEnd));
+        rangeHandle=a==b?(mouse<x(exportStart)?0:1):(a<b?0:1);
+    }
+    if(ImGui::IsItemActive()) {
+        int frame=1+int(std::round(std::clamp((ImGui::GetIO().MousePos.x-left)/(right-left),0.0f,1.0f)*(count-1)));
+        if(rangeHandle==0)exportStart=std::clamp(frame,1,exportEnd);else exportEnd=std::clamp(frame,exportStart,count);
+    }
+    auto* draw=ImGui::GetWindowDrawList();const float y=pos.y+height*0.5f;
+    draw->AddLine(ImVec2(left,y),ImVec2(right,y),ImGui::GetColorU32(ImGuiCol_FrameBg),5);
+    draw->AddLine(ImVec2(x(exportStart),y),ImVec2(x(exportEnd),y),ImGui::GetColorU32(ImGuiCol_SliderGrabActive),5);
+    for(int value:{exportStart,exportEnd})draw->AddCircleFilled(ImVec2(x(value),y),7,ImGui::GetColorU32(ImGuiCol_SliderGrab));
+    if(ImGui::IsItemHovered())ImGui::SetTooltip("Drag either endpoint. Start and End are inclusive; original frame durations are preserved.");
+    if(ImGui::Button("Whole animation")){exportStart=1;exportEnd=count;}
+    unsigned ticks=0;for(int i=exportStart-1;i<exportEnd;++i)ticks+=animations[selectedAnimation].frames[i].duration;
+    ImGui::SameLine();ImGui::Text("%d frames, %.2f s",exportEnd-exportStart+1,ticks/60.0f);
+}
+
+inline AnimationExport CaptureAnimationExport(bool gif,unsigned plays,int first=1,int last=0) {
+    if(selectedAnimation<0 || selectedAnimation>=int(animations.size()) || original.empty())throw std::runtime_error("Select an animation first.");
+    AnimationExport capture;capture.animation=animations[selectedAnimation];capture.gif=gif;capture.plays=plays;
+    const int count=int(capture.animation.frames.size());
+    if(last==0)last=count;
+    if(first<1 || last<first || last>count)throw std::runtime_error("Choose a valid inclusive frame range.");
+    capture.animation.frames=decltype(capture.animation.frames)(capture.animation.frames.begin()+first-1,capture.animation.frames.begin()+last);
+    if(capture.animation.frames.empty() || capture.animation.frames.size()>2000)throw std::runtime_error("Animation export supports 1 to 2000 timeline frames.");
+    capture.colors=showOriginal?original:edited;capture.layout=sizes;size_t bytes=0;
+    for(const auto& entry:capture.animation.frames) {
+        if(capture.sprites.count(entry.sprite))continue;
+        auto found=std::find_if(frames.begin(),frames.end(),[&](const auto& f){return f.id==entry.sprite;});
+        if(found==frames.end())throw std::runtime_error("Animation references an unavailable sprite.");
+        for(const auto& layer:found->layers){bytes+=layer.pixels.size()+layer.tiles.size()*2;for(const auto& channel:layer.channels)bytes+=channel.size();}
+        if(bytes>64ull*1024*1024)throw std::runtime_error("Animation source exceeds the 64 MiB export limit.");
+        capture.bounds.Add(-found->originX,-found->originY,found->width,found->height);capture.sprites.emplace(found->id,*found);
+    }
+    capture.name=snapshotCharacter+"-animation-"+std::to_string(capture.animation.id)+"-frames-"+std::to_string(first)+"-"+std::to_string(last)+(showOriginal?"-original":"-edited")+(gif?".gif":".apng");
+    return capture;
+}
+inline SpriteAnimation::Bytes EncodeAnimation(const AnimationExport& capture,const std::shared_ptr<AnimationProgress>& progress) {
+    const unsigned w=unsigned(capture.bounds.right-capture.bounds.left),h=unsigned(capture.bounds.bottom-capture.bounds.top);
+    const auto cancel=[&](){if(progress->cancel)throw std::runtime_error("Animation export cancelled.");};
+    std::optional<SpriteFrameAsset> decoded;
+    auto get=[&](size_t i) {
+        cancel();progress->frame=i;const auto& entry=capture.animation.frames.at(i);
+        if(!decoded || decoded->id!=entry.sprite) {
+            decoded=capture.sprites.at(entry.sprite);size_t decodedBytes=0;
+            for(auto& layer:decoded->layers) {
+                decodedBytes+=size_t(layer.width)*layer.height*3;
+                if(decodedBytes>64ull*1024*1024)throw std::runtime_error("Decoded animation frame exceeds 64 MiB.");
+                if(!layer.channels[0].empty()){DecodePixelLayer(layer);for(auto& channel:layer.channels)channel.clear();layer.tiles.clear();}
+            }
+        }
+        const auto pixels=RenderFrame(*decoded,capture.colors,{},false,true,capture.layout);
+        std::vector<uint32_t> canvas(size_t(w)*h,0);
+        const unsigned x=capture.bounds.OffsetX(-decoded->originX),y=capture.bounds.OffsetY(-decoded->originY);
+        for(unsigned row=0;row<decoded->height;++row)memcpy(canvas.data()+size_t(y+row)*w+x,pixels.data()+size_t(row)*decoded->width,decoded->width*4);
+        return SpriteAnimation::Frame{std::move(canvas),entry.duration};
+    };
+    if(!capture.gif)return SpriteAnimation::APNG(w,h,capture.animation.frames.size(),capture.plays,get,cancel);
+    std::vector<uint32_t> samples;for(int band=0;band<int(capture.layout.size());++band)for(int shade=0;shade<256;++shade)samples.push_back(Sample(band,shade,capture.colors,capture.layout));
+    return SpriteAnimation::GIF(w,h,capture.animation.frames.size(),capture.plays,samples,get,cancel);
+}
+inline void StartAnimationExport(const std::filesystem::path& path) {
+    if(AnimationBusy() || !pendingAnimationExport)throw std::runtime_error("No animation capture is ready, or an export is already running.");
+    auto capture=std::move(*pendingAnimationExport);pendingAnimationExport.reset();
+    const auto destination=std::filesystem::absolute(path);
+    animationProgress=std::make_shared<AnimationProgress>();animationProgress->total=capture.animation.frames.size();
+    animationStatus="Exporting animation in the background.";
+    animationWorker=std::async(std::launch::async,[capture=std::move(capture),path=destination,progress=animationProgress]() {
+        try {auto bytes=EncodeAnimation(capture,progress);if(progress->cancel)return std::string("Animation export cancelled.");
+            PaletteData::AtomicWrite(path,bytes);progress->frame=progress->total;
+            return std::string("Saved ")+(capture.gif?"GIF: ":"APNG: ")+PaletteData::PathText(path);
+        }catch(const std::exception& e){return std::string("Animation export: ")+e.what();}
+    });
+}
+inline void PollAnimationExport() {
+    if(!AnimationBusy() || animationWorker.wait_for(std::chrono::seconds(0))!=std::future_status::ready)return;
+    try {animationStatus=animationWorker.get();}catch(const std::exception& e){animationStatus=std::string("Animation export failed: ")+e.what();}
+    animationProgress.reset();
+}
+inline void CancelAnimationAndWait() {
+    if(animationProgress)animationProgress->cancel=true;
+    if(animationWorker.valid())try{animationWorker.get();}catch(...){}
+    animationProgress.reset();pendingAnimationExport.reset();
+}
+struct PngExport {
+    unsigned width=0,height=0;
+    std::vector<ImU32> pixels;
+    std::string name;
+};
+inline std::optional<PngExport> pendingPngExport;
+inline std::string exportStatus;
+inline void CapturePngExport() {
+    const auto* frame=ActiveFrame();if(!frame || original.empty())throw std::runtime_error("Choose a preview frame first.");
+    const auto& colors=showOriginal?original:edited;
+    std::string name=snapshotCharacter;
+    if(selectedAnimation>=0 && selectedAnimation<int(animations.size()))name+="-move-"+std::to_string(animations[selectedAnimation].id)+"-frame-"+std::to_string(frameIndex+1);
+    else name+="-sprite-"+std::to_string(frame->id);
+    name+=showOriginal?"-original.png":"-edited.png";
+    pendingPngExport=PngExport{frame->width,frame->height,RenderFrame(*frame,colors,{},false,true),name};
+}
+inline void SavePngExport(const std::filesystem::path& path) {
+    try {
+        if(!pendingPngExport)throw std::runtime_error("No captured frame is available. Choose Export PNG again.");
+        const auto& image=*pendingPngExport;SpritePng::Save(path,image.width,image.height,image.pixels);
+        exportStatus="Saved transparent PNG: "+PaletteData::PathText(path);
+    }catch(const std::exception& e){exportStatus=std::string("PNG export failed: ")+e.what();}
+    pendingPngExport.reset();
+}
 inline void Upload(const std::set<int>& selected) {
     if(!device || original.empty())return;
     auto frame=ActiveFrame();if(!frame)return;
     const auto& colors=showOriginal?original:edited;
     if(texture && uploaded==colors && uploadedBands==selected && uploadedHighlight==highlight && uploadedSprite==frame->id)return;
+    // Finish CPU work before locking the device texture, so errors never leave it locked.
+    const auto image=RenderFrame(*frame,colors,selected,highlight,false);
     if(texture && (width!=frame->width || height!=frame->height)){texture->Release();texture=nullptr;}
     if(!texture && FAILED(device->CreateTexture(frame->width,frame->height,1,D3DUSAGE_DYNAMIC,D3DFMT_A8R8G8B8,D3DPOOL_DEFAULT,&texture,nullptr)))throw std::runtime_error("Could not create preview texture.");
     D3DLOCKED_RECT lock{};if(FAILED(texture->LockRect(0,&lock,nullptr,D3DLOCK_DISCARD)))throw std::runtime_error("Could not upload preview texture.");
     width=frame->width;height=frame->height;
-    std::vector<ImU32> lookup(256*256);
-    for(int b=0;b<(int)sizes.size();++b)for(int s=0;s<256;++s)lookup[b*256+s]=Sample(b,s,colors);
-    for(unsigned y=0;y<height;++y) {
-        auto row=reinterpret_cast<ImU32*>(static_cast<unsigned char*>(lock.pBits)+y*lock.Pitch);
-        for(unsigned x=0;x<width;++x) {
-            SpritePreviewPixel pixel;
-            for(const auto& layer:frame->layers) {
-                if(x<layer.offsetX || y<layer.offsetY || x>=layer.offsetX+layer.width || y>=layer.offsetY+layer.height)continue;
-                unsigned lx=x-layer.offsetX,ly=y-layer.offsetY;
-                auto offset=(size_t(ly)*layer.width+lx)*3;
-                if(offset+2>=layer.pixels.size())continue;
-                int band=layer.pixels[offset+2],shade=layer.pixels[offset+1];
-                if(band<0 || band>=256)continue;
-                pixel.Blend(lookup[band*256+(shade&255)],selected.count(band)>0);
-            }
-            row[x]=pixel.Pack(highlight,!selected.empty());
-        }
-    }
+    for(unsigned y=0;y<height;++y)memcpy(static_cast<unsigned char*>(lock.pBits)+y*lock.Pitch,image.data()+size_t(y)*width,width*4);
     texture->UnlockRect(0);uploaded=colors;uploadedBands=selected;uploadedHighlight=highlight;uploadedSprite=frame->id;
 }
 
@@ -414,13 +567,13 @@ inline void Draw(int targetSlot,int targetPalette,const char* character,const st
         for(int i=0;i<(int)filtered.size();++i){
             int animationIndex=filtered[i];const auto& a=animations[animationIndex];
             std::string label=a.name.empty()?("Move "+std::to_string(a.id)):a.name+" ["+std::to_string(a.id)+"]";
-            if(ImGui::Selectable(label.c_str(),selectedAnimation==animationIndex)){selectedAnimation=animationIndex;frameIndex=0;centerCanvas=true;}
+            if(ImGui::Selectable(label.c_str(),selectedAnimation==animationIndex)){selectedAnimation=animationIndex;frameIndex=0;exportStart=1;exportEnd=int(animations[animationIndex].frames.size());centerCanvas=true;}
             if(selectedAnimation==animationIndex)ImGui::SetItemDefaultFocus();
         }
         ImGui::EndCombo();
     }
     ImGui::SameLine();
-    if(ImGui::Button("Fixed pose fallback")){selectedAnimation=-1;frameIndex=0;centerCanvas=true;}
+    if(ImGui::Button("Fixed pose fallback")){selectedAnimation=-1;frameIndex=0;exportStart=exportEnd=1;centerCanvas=true;}
     if(selectedAnimation>=0 && selectedAnimation<(int)animations.size()) {
         auto& animation=animations[selectedAnimation];
         frameIndex=std::clamp(frameIndex,0,(int)animation.frames.size()-1);
@@ -463,6 +616,41 @@ inline void Draw(int targetSlot,int targetPalette,const char* character,const st
     try {Upload(bands);}catch(const std::exception& e){LostDevice();ImGui::TextWrapped("%s",e.what());}
     if(ImGui::Button("Center current frame"))centerCanvas=true;
     ImGui::SameLine();if(ImGui::Button("Fit current frame"))fitCanvas=true;
+    ImGui::SameLine();
+    if(ImGui::Button("Export PNG")) {
+        try {
+            CapturePngExport();IGFD::FileDialogConfig config;config.path=".";config.fileName=pendingPngExport->name;
+            config.flags=ImGuiFileDialogFlags_ConfirmOverwrite;
+            ImGuiFileDialog::Instance()->OpenDialog("ExportSpritePNG","Export transparent sprite PNG",".png",config);
+        }catch(const std::exception& e){exportStatus=std::string("PNG export failed: ")+e.what();}
+    }
+    if(ImGui::IsItemHovered())ImGui::SetTooltip("Save this frame at native resolution with Original/Edited colors.\nTransparent background; no zoom, highlighting or unsupported effects.");
+    if(!exportStatus.empty())ImGui::TextWrapped("%s",exportStatus.c_str());
+    ImGui::BeginDisabled(AnimationBusy() || selectedAnimation<0 || ImGuiFileDialog::Instance()->IsOpened());
+    if(ImGui::Button("Export animation"))ImGui::OpenPopup("Animation export options");
+    ImGui::EndDisabled();
+    if(ImGui::BeginPopup("Animation export options")) {
+        if(selectedAnimation<0 || selectedAnimation>=int(animations.size()) || animations[selectedAnimation].frames.empty()){ImGui::CloseCurrentPopup();ImGui::EndPopup();return;}
+        DrawExportRange(int(animations[selectedAnimation].frames.size()));
+        ImGui::SetNextItemWidth(100);ImGui::InputInt("Plays (0 = forever)",&animationPlays);animationPlays=std::clamp(animationPlays,0,1000);
+        auto choose=[&](bool gif) {
+            try {
+                pendingAnimationExport=CaptureAnimationExport(gif,unsigned(animationPlays),exportStart,exportEnd);
+                IGFD::FileDialogConfig config;config.path=".";config.fileName=pendingAnimationExport->name;config.flags=ImGuiFileDialogFlags_ConfirmOverwrite;
+                ImGuiFileDialog::Instance()->OpenDialog("ExportSpriteAnimation",gif?"Export transparent GIF":"Export transparent APNG",gif?".gif":".apng",config);
+            }catch(const std::exception& e){animationStatus=std::string("Animation export failed: ")+e.what();}
+        };
+        if(ImGui::Selectable("APNG - full color and partial transparency"))choose(false);
+        if(ImGui::Selectable("GIF - 255 colors plus transparency"))choose(true);
+        ImGui::TextWrapped("GIF uses a 50%% alpha cutoff and 10 ms timing steps. Some viewers slow very short frames. APNG retains full alpha and authored timing.");
+        ImGui::EndPopup();
+    }
+    if(AnimationBusy() && animationProgress) {
+        const auto done=animationProgress->frame.load();
+        ImGui::ProgressBar(float(done)/float(animationProgress->total),ImVec2(-120,0));ImGui::SameLine();
+        if(ImGui::Button("Cancel export"))animationProgress->cancel=true;
+    }
+    if(!animationStatus.empty())ImGui::TextWrapped("%s",animationStatus.c_str());
     DrawCanvas();
 }
 }

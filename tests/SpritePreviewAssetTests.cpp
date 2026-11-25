@@ -25,6 +25,10 @@ int main(int argc,char** argv){
    for(const auto& layer:frame->layers)assert(layer.pixels.size()==size_t(layer.width)*layer.height*3);
   }
   if(std::string(name)=="Cerebella") {
+   auto idle=std::find_if(SpriteViewer::animations.begin(),SpriteViewer::animations.end(),[](const auto& a){return a.id==20;});
+   if(idle==SpriteViewer::animations.end() || idle->frames.size()!=26 || idle->frames.front().sprite!=8 || idle->frames.back().sprite!=7)throw std::runtime_error("Cerebella idle reference/same-tick regression");
+   for(const auto& entry:idle->frames)if(entry.duration!=4 || entry.sprite<1 || entry.sprite>15)throw std::runtime_error("Idle contains a fake hold or non-idle pose");
+
    SpriteViewer::selectedAnimation=-1;const auto fallback=SpriteViewer::fallbackSprite;
    std::set<unsigned> idleBands;
    for(const auto& layer:SpriteViewer::ActiveFrame()->layers)for(size_t i=2;i<layer.pixels.size();i+=3)idleBands.insert(layer.pixels[i]);

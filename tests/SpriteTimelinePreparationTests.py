@@ -17,8 +17,8 @@ class SpriteTimelinePreparationTests(unittest.TestCase):
             {"sprites": [0, 0, 0], "duration": 1},
             {"sprites": [0, 7, 0], "duration": 4},
         ]
-        mapped = preview.map_body_timeline(timeline, fallback_sprite=2)
-        self.assertEqual([entry["body_sprite"] for entry in mapped], [7, 7, 7])
+        mapped = preview.map_body_timeline(timeline, fallback_sprite=1)
+        self.assertEqual([entry["body_sprite"] for entry in mapped], [6, 6, 6])
         self.assertEqual([entry["duration"] for entry in mapped], [4, 1, 4])
 
     def test_repeated_sprite_records_remain_distinct_timeline_frames(self):
@@ -28,8 +28,43 @@ class SpriteTimelinePreparationTests(unittest.TestCase):
         ]
         mapped = preview.map_body_timeline(timeline)
         self.assertEqual(len(mapped), 2)
-        self.assertEqual([entry["body_sprite"] for entry in mapped], [7, 7])
+        self.assertEqual([entry["body_sprite"] for entry in mapped], [6, 6])
         self.assertEqual([entry["duration"] for entry in mapped], [4, 1])
+
+    def test_one_based_references_include_first_and_last_sprite(self):
+        timeline=[{"sprites":[0,1,0],"duration":2},{"sprites":[0,3,0],"duration":4}]
+        mapped=preview.map_body_timeline(timeline)
+        self.assertEqual([f["body_sprite"] for f in mapped],[0,2])
+        for frame in mapped:preview.validate_timeline_frame(frame,[{"bank":5}]*3)
+
+    def test_same_tick_command_updates_pose_without_adding_a_hold(self):
+        timeline=[{"sprites":[0,8,0],"duration":1,"advance_immediately":True},
+                  {"sprites":[0,0,0],"duration":4},
+                  {"sprites":[0,9,0],"duration":4}]
+        mapped=preview.map_body_timeline(timeline)
+        self.assertEqual([(f["body_sprite"],f["duration"]) for f in mapped],[(7,4),(8,4)])
+        self.assertEqual([f["source_record"] for f in mapped],[1,2])
+
+    def test_advance_flag_requires_unconditional_constant_assignment(self):
+        import struct
+        one=int.from_bytes(struct.pack('<f',1),'little')
+        node={"opcode":1,"comparison":False,"left":(0,one),"right":(0,0),"destination":(1,0x3a)}
+        self.assertTrue(preview.advances_immediately([node]))
+        self.assertFalse(preview.advances_immediately([{**node,"comparison":True}]))
+        self.assertFalse(preview.advances_immediately([{**node,"comparison":True},node]))
+        self.assertFalse(preview.advances_immediately([{**node,"destination":(1,0x3c)}]))
+        self.assertFalse(preview.advances_immediately([node,{**node,"left":(0,0)}]))
+
+    def test_serialized_same_tick_assignment_is_retained_as_metadata(self):
+        import struct
+        expression=bytes([0,0,1,0,1])+struct.pack('<ffB',1,0,0x3a)
+        details={}
+        duration=preview.read_animation_ticks(preview.Cursor(bytes([0,0,128])+expression+bytes([0,0])),details)
+        self.assertEqual(duration,1)
+        self.assertTrue(details["advance_immediately"])
+
+    def test_absent_duration_keeps_native_default_tick(self):
+        self.assertEqual(preview.read_animation_ticks(preview.Cursor(bytes([0,0,0,0,0]))),1)
 
     def test_timeline_boundaries(self):
         records = [{"bank": 5} for _ in range(3)]
@@ -42,7 +77,7 @@ class SpriteTimelinePreparationTests(unittest.TestCase):
     def test_invalid_sprite_reference_is_rejected(self):
         records = [{"bank": 5}, {"bank": 5}]
         with self.assertRaises(ValueError):
-            preview.validate_timeline_frame({"sprites": [2, 1, 0], "duration": 1}, records)
+            preview.validate_timeline_frame({"sprites": [3, 1, 0], "duration": 1}, records)
 
     def test_invalid_duration_is_rejected(self):
         records = [{"bank": 5}]
