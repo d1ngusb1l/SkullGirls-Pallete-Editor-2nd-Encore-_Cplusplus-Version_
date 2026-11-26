@@ -140,6 +140,9 @@ class RosterMoveMappingTests(unittest.TestCase):
         self.assertTrue(moves["first"]["contextual"] and moves["second"]["contextual"])
         self.assertFalse(moves["other"]["contextual"])
         self.assertIn((2,3),report["characters"][0]["routeEdges"])
+        origins={entry["move"]:entry for entry in report["characters"][0]["originReachabilityReview"]}
+        self.assertEqual(origins["first"]["unprovenSharedStates"],[])
+        self.assertEqual(origins["second"]["unprovenSharedStates"],[2,3])
 
 
 if __name__ == "__main__":

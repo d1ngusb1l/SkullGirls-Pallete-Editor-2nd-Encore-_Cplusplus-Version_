@@ -204,7 +204,31 @@ def context_routes(report, source):
             for target in [state["successor"], *state["conditionalTargets"]]:
                 if len(candidates[target])>1:
                     edges.add((state["id"],target))
-        characters.append({**reviewed, "moves": resolved, "routeEdges": sorted(edges)})
+        # Names are not proof that a helper belongs to its namesake move. Report
+        # shared members with no authored path from any unique route state.
+        # This is evidence for controlled gameplay review, not an auto-remapping.
+        origin_review = []
+        outgoing = collections.defaultdict(list)
+        for source_id, target_id in edges:
+            outgoing[source_id].append(target_id)
+        for move in resolved:
+            if not move["contextual"]:
+                continue
+            members = set(move["stateIds"])
+            unique = {i for i in members if len(candidates[i]) == 1}
+            shared = members - unique
+            reached = set(unique)
+            pending = list(unique)
+            while pending:
+                for target_id in outgoing[pending.pop()]:
+                    if target_id in members and target_id not in reached:
+                        reached.add(target_id)
+                        pending.append(target_id)
+            origin_review.append({"move": move["id"], "uniqueStateCount": len(unique),
+                                  "sharedStateCount": len(shared),
+                                  "unprovenSharedStates": sorted(shared - reached)})
+        characters.append({**reviewed, "moves": resolved, "routeEdges": sorted(edges),
+                           "originReachabilityReview": origin_review})
     return {"format":"skullgirls-context-route-review", "version":1,
             "runtimeSupport":"Requires synchronized DLL observer; gameplay validation pending", "characters":characters}
 

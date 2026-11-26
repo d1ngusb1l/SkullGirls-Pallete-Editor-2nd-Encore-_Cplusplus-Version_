@@ -176,3 +176,37 @@ was backed up and the installed file was hash-verified. The standalone build,
 2,520 compatibility checks, native owner/route/entry/service tests, 41 Python
 checks and networking-disabled inspection passed. This is installation evidence,
 not proof that every move or the synchronized observer works in gameplay.
+
+## User validation and cleanup crash (2026-11-26)
+
+Two live Filia palette-1 hair rules were applied through the editor: Trap Jaw
+copies Samson eye colors (gold), and Fenrir copies Samson mouth colors (pink).
+The editor reported both rules applied and the context status changed between
+Idle and Tracking move. Gold and pink appearances were observed during the
+user's actions, and the user confirmed the requested full-move behavior worked
+perfectly, including the previously requested shared fall/landing comparison.
+This verifies the Filia case, not every contextual family or match transition.
+
+The user also reports that ground and air Scalpels transformations work and end
+before ordinary falling. A source-only origin reachability audit flags the three
+DioScalpels-named helper states (216-218): Alpha Blade and Flat Line have authored
+routes to them, while Dio Scalpels has no such route in the extracted graph.
+The generator now reports these unproven origin memberships instead of treating
+their names as proof. No membership change has been made from this audit alone.
+
+Windows recorded an APPCRASH with exception `0xc0000374` (heap corruption) during
+native palette cleanup after the Filia test. The local dump's frame chain includes
+the native overlay condition destructor and palette cleanup routine. The dump
+does not contain the allocation contents needed to identify the corrupting write.
+A read-only audit of the reopened match found no shared condition nodes among
+its 68 native appearance records with predicates. This does not prove that the
+earlier match's allocation ownership was valid.
+
+An initial hypothesis that color-link records recursively free their predicate
+chains was contradicted by disassembly: their cleanup destroys the embedded
+string and record storage; overlay condition cleanup is a separate path. The
+speculative condition-sharing change was discarded. No crash fix is claimed,
+and no replacement DLL was installed into the reopened runner. Raw dump and
+read-only diagnostic output remain excluded in local build artifacts. Cleanup
+stability and reproducibility remain required before completing the all-attacks
+goal or treating the installed candidate as fully validated.
