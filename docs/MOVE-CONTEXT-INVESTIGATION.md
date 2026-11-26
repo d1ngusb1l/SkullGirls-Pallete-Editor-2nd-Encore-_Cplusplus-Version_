@@ -108,8 +108,8 @@ The palette updater starts with `53 8b dc 83 ec 08`: push EBX, move ESP into EBX
 and subtract eight from ESP. These are **six** complete bytes, not five; a five-byte
 trampoline copy would split the third instruction. The DLL now contains a guarded six-byte entry redirect and retained trampoline.
 It installs only when a shared-phase rule is applied and restores the original
-entry when the last such rule is removed. It has not yet been installed in the
-running test game.
+entry when the last such rule is removed. The candidate is now installed in the
+isolated runner; gameplay validation remains pending.
 
 
 ## Implemented synchronized host (gameplay validation pending)
@@ -165,3 +165,14 @@ Regression tests require exact ranges, full state counts, disjoint parent
 membership, explicit categories, and rejection of missing or invalid exceptions.
 Authored coverage is now 588 families. Attack tags and selection counts cannot
 alone establish all-attacks completion.
+
+## Installed candidate (2026-11-26)
+
+The 588-family validation DLL was installed after confirming no SkullGirls process
+was running. Its SHA-256 is
+`33986A144E30314983C6542393D46DFF16597061B7997066C0D3458E2B070FCA`.
+The previous DLL (`11105B9FDDB7280F25171A28C77C06A8393ECC745E167BCCF2DBB94A5086D51D`)
+was backed up and the installed file was hash-verified. The standalone build,
+2,520 compatibility checks, native owner/route/entry/service tests, 41 Python
+checks and networking-disabled inspection passed. This is installation evidence,
+not proof that every move or the synchronized observer works in gameplay.
