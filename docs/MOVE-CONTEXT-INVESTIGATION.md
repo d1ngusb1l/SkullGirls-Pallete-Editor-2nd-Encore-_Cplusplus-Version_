@@ -131,7 +131,9 @@ applicable gates. Child calls do not establish a root fighter route.
 
 The 15 additional definitions expand through explicitly reviewed shared helper
 loops and landing tails. Six generated route tables cover their owning fighters.
-The original 570 stateless mappings and native animation range bounds remain.
+The stateless mappings retain native animation range bounds; the boundary audit
+now exposes three additional Beowulf finishers independently (573 stateless
+plus 15 contextual families).
 A shared-phase predicate ANDs those bounds with its own route gate. Different
 contextual routes can safely share affected shades because a fighter has only
 one active route. Standalone hosts reject these rules before native allocation.
@@ -146,3 +148,20 @@ on the same group, their shared loop and landing, interruption, save/reload,
 match changes, and mirror/tag/assist behavior. Other roster families are authored
 data coverage, not individually verified attacks. Stance and substitution
 boundaries still require audit before claiming complete all-attacks support.
+
+
+## Untagged attack boundary correction
+
+The source audit found that the old catch-all Grab Mode mapping included Bulldog
+(319-329), Gringo Killa (330-337), and grab-mode snapback (285-289). Their native
+scripts have no ATTACK/NORMAL/SPECIAL/SUPER/THROW tags, so counting all tagged
+states had hidden this lack of individual selections. Explicit reviewed untagged
+exceptions now expose their complete bodies, including EX and ground/air
+variants, separately from holding/movement/release. The existing Grab Mode ID
+is retained with corrected narrower membership; files using that ID must select
+a finisher explicitly to affect that finisher. No new resource predicate is used.
+
+Regression tests require exact ranges, full state counts, disjoint parent
+membership, explicit categories, and rejection of missing or invalid exceptions.
+Authored coverage is now 588 families. Attack tags and selection counts cannot
+alone establish all-attacks completion.

@@ -1,5 +1,12 @@
 {
   "version": 1,
+  "reviewedUntaggedFamilies": {
+    "Beowulf": {
+      "grab-mode-bulldog": "Special",
+      "grab-mode-gringo-killa": "Special",
+      "grab-mode-snapback": "Attack"
+    }
+  },
   "families": {
     "Filia": [
       ["LoveDrill"], ["SpineDash"], ["TrapJaw"], ["RoachRush", "Roach"], ["Fenrir"], ["SkullBall"]
@@ -65,7 +72,9 @@
       ["OrganicArm"], ["HeavenlyBuster"], ["ThreeWolfMoonsault", "Moonsault"], ["Lv3"],
       ["GrabMode_Headbutt", "GrabMode_Double_Headbutt"], ["GrabMode_Knee"],
       ["GrabMode_Cossack", "GrabMode_EX_Cossack"], ["GrabMode_FrogSplash", "GrabMode_EX_FrogSplash"], ["GrabMode_FishermanSlam", "GrabMode_EX_FishermanSlam"],
-      ["GrabMode"]
+      ["GrabMode_Bulldog", "GrabMode_EX_Bulldog"],
+      ["GrabMode_GringoKilla", "GrabMode_EX_GringoKilla"],
+      ["GrabMode_Snapback", "GrabMode_KaraSnapback"], ["GrabMode"]
     ],
     "RoboFortune": [
       ["Laser", "Post_Laser"], ["HeadControl"], ["Spinny"], ["SuperLaser"], ["IronClaw"],

@@ -126,10 +126,11 @@ if(character=="Fukua")return MoveRouteTable(538,{
 {"fukua/ground-throw",{{120,127}}},
 },{{152,156},{155,156},{156,157}});
 if(character=="Beowulf")return MoveRouteTable(688,{
-{"beowulf/grab-mode",{{258,280},{284,289},{319,337}}},
+{"beowulf/grab-mode",{{258,280},{284,284}}},
 {"beowulf/grab-mode-frog-splash",{{298,310}}},
 {"beowulf/grab-mode-headbutt",{{281,282}}},
 {"beowulf/grab-mode-knee",{{283,283}}},
+{"beowulf/grab-mode-snapback",{{285,289}}},
 {"beowulf/snap-out",{{338,342}}},
 {"beowulf/snapback",{{231,233}}},
 {"beowulf/normal-c-hk",{{134,141}}},
@@ -153,8 +154,10 @@ if(character=="Beowulf")return MoveRouteTable(688,{
 {"beowulf/normal-s-mp",{{116,118}}},
 {"beowulf/chair-recall",{{187,190}}},
 {"beowulf/chair-toss",{{191,198}}},
+{"beowulf/grab-mode-bulldog",{{319,329}}},
 {"beowulf/grab-mode-cossack",{{290,297}}},
 {"beowulf/grab-mode-fisherman-slam",{{311,318}}},
+{"beowulf/grab-mode-gringo-killa",{{330,337}}},
 {"beowulf/pick-up-chair",{{184,186}}},
 {"beowulf/rush-grab",{{228,230}}},
 {"beowulf/tackle",{{199,227}}},

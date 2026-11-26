@@ -56,7 +56,7 @@ int main(){try {
             Check(generated.Contains(route,animation)==expected,"Compiled condition ranges differ from route membership");
         }
     }
-    Check(contextualCount==15 && PaletteData::CharacterMoves().size()==585,"Roster/shared coverage changed without review");
+    Check(contextualCount==15 && PaletteData::CharacterMoves().size()==588,"Roster/shared coverage changed without review");
     Reject([]{BuildCharacterMoveRoutes("UnknownCharacter");});
     Reject([]{MoveRouteTable bad(0,{{"a",{{0,0}}}},{});});
     Reject([]{MoveRouteTable bad(4,{{"a",{{0,4}}}},{});});

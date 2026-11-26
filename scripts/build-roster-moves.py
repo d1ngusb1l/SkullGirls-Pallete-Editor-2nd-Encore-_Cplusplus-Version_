@@ -66,7 +66,10 @@ def classify(state, families):
     return None
 
 
-def resolve_character(character, families):
+def resolve_character(character, families, untagged=None):
+    untagged = untagged or {}
+    if any(category not in {"Attack", "Special", "Super", "Throw"} for category in untagged.values()):
+        raise ValueError("Invalid reviewed untagged move category")
     states = character["states"]
     if not re.fullmatch(r"[0-9a-f]{64}", character["foitSha256"]):
         raise ValueError("Missing character archive digest")
@@ -84,17 +87,22 @@ def resolve_character(character, families):
         group = groups.setdefault(key, dict(id=key, label=label, kind=kind, stateIds=[]))
         group["stateIds"].append(state["id"])
         owners[state["id"]] = key
+    if set(untagged) - set(groups):
+        raise ValueError("Reviewed untagged family did not resolve")
     # A prefix alone does not turn a non-attack helper into a selectable attack.
+    # Reviewed exceptions are explicit: some grab finishers have no attack tags.
     for key in list(groups):
         group = groups[key]
         tags = set().union(*(set(states[i]["generalTags"]) for i in group["stateIds"]))
-        if not tags.intersection(ATTACK_TAGS) and group["kind"] != "attack":
+        if not tags.intersection(ATTACK_TAGS) and group["kind"] != "attack" and key not in untagged:
             for i in group["stateIds"]:
                 owners.pop(i)
             del groups[key]
             continue
         group["category"] = ("Normal" if group["kind"] == "normal" else "Throw" if group["kind"] == "throw"
                              else "Super" if "SUPER" in tags else "Special" if "SPECIAL" in tags else "Attack")
+        if key in untagged:
+            group["category"] = untagged[key]
         group["sharedPhases"] = []
     seen = set()
     for state in states:
@@ -147,7 +155,10 @@ def build(source, rules):
     expected = {label for label, _ in catalog.preview.PLAYABLE_CHARACTERS}
     if len(names) != len(set(names)) or set(names) != expected or set(names) != set(rules["families"]):
         raise ValueError("Roster and family rules differ")
-    result = [resolve_character(c, rules["families"][c["character"]]) for c in characters]
+    reviewed_untagged = rules.get("reviewedUntaggedFamilies", {})
+    if set(reviewed_untagged) - expected:
+        raise ValueError("Unknown reviewed untagged character")
+    result = [resolve_character(c, rules["families"][c["character"]], reviewed_untagged.get(c["character"])) for c in characters]
     return {"format": "skullgirls-roster-move-review", "version": 1, "characters": result}
 
 
@@ -256,7 +267,11 @@ def write_definitions(report, source):
     summary += ["", "Generic Normals/FlyingNormals dispatchers are accounted for separately, not exposed",
                 "as individual attacks. Input-cancel destinations are not recursively absorbed into",
                 "the current move. Untimed dispatchers do not establish visible shared-phase ownership.", "",
-                "## Remaining shared-phase families", ""]
+                "Attack-tag coverage is not a completeness proof: Beowulf's Bulldog, Gringo Killa",
+                "and grab-mode snapback have no attack tags. Explicit reviewed exceptions expose them",
+                "as separate complete-body selections. The existing Grab Mode ID now covers holding,",
+                "movement and release; its former accidental inclusion of these finishers is corrected.", "",
+                "## Shared-phase families requiring the DLL host", ""]
     for c in report["characters"]:
         names = [m["label"] for m in c["moves"] if not m["available"]]
         if names:
