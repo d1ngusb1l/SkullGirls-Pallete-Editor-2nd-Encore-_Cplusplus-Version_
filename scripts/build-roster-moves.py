@@ -66,7 +66,10 @@ def classify(state, families):
     return None
 
 
-def resolve_character(character, families):
+def resolve_character(character, families, untagged=None):
+    untagged = untagged or {}
+    if any(category not in {"Attack", "Special", "Super", "Throw"} for category in untagged.values()):
+        raise ValueError("Invalid reviewed untagged move category")
     states = character["states"]
     if not re.fullmatch(r"[0-9a-f]{64}", character["foitSha256"]):
         raise ValueError("Missing character archive digest")
@@ -84,17 +87,22 @@ def resolve_character(character, families):
         group = groups.setdefault(key, dict(id=key, label=label, kind=kind, stateIds=[]))
         group["stateIds"].append(state["id"])
         owners[state["id"]] = key
+    if set(untagged) - set(groups):
+        raise ValueError("Reviewed untagged family did not resolve")
     # A prefix alone does not turn a non-attack helper into a selectable attack.
+    # Reviewed exceptions are explicit: some grab finishers have no attack tags.
     for key in list(groups):
         group = groups[key]
         tags = set().union(*(set(states[i]["generalTags"]) for i in group["stateIds"]))
-        if not tags.intersection(ATTACK_TAGS) and group["kind"] != "attack":
+        if not tags.intersection(ATTACK_TAGS) and group["kind"] != "attack" and key not in untagged:
             for i in group["stateIds"]:
                 owners.pop(i)
             del groups[key]
             continue
         group["category"] = ("Normal" if group["kind"] == "normal" else "Throw" if group["kind"] == "throw"
                              else "Super" if "SUPER" in tags else "Special" if "SPECIAL" in tags else "Attack")
+        if key in untagged:
+            group["category"] = untagged[key]
         group["sharedPhases"] = []
     seen = set()
     for state in states:
@@ -147,8 +155,100 @@ def build(source, rules):
     expected = {label for label, _ in catalog.preview.PLAYABLE_CHARACTERS}
     if len(names) != len(set(names)) or set(names) != expected or set(names) != set(rules["families"]):
         raise ValueError("Roster and family rules differ")
-    result = [resolve_character(c, rules["families"][c["character"]]) for c in characters]
+    reviewed_untagged = rules.get("reviewedUntaggedFamilies", {})
+    if set(reviewed_untagged) - expected:
+        raise ValueError("Unknown reviewed untagged character")
+    result = [resolve_character(c, rules["families"][c["character"]], reviewed_untagged.get(c["character"])) for c in characters]
     return {"format": "skullgirls-roster-move-review", "version": 1, "characters": result}
+
+
+def context_routes(report, source):
+    """Expand only proven shared helper tails, never the general cancel graph."""
+    characters = []
+    for reviewed, raw in zip(report["characters"], source["characters"]):
+        if not any(m["sharedPhases"] for m in reviewed["moves"]):
+            continue
+        states = raw["states"]
+        moves = {m["id"]: {**m, "stateIds": set(m["stateIds"])} for m in reviewed["moves"]}
+        owners = {state: m["id"] for m in reviewed["moves"] for state in m["stateIds"]}
+        shared_edges = {(issue["source"],issue["target"]) for move in reviewed["moves"] for issue in move["sharedPhases"]}
+        for move in moves.values():
+            for issue in move["sharedPhases"]:
+                if issue["sourceMove"] != move["id"]:
+                    continue
+                pending = [issue["target"]];visited = set()
+                while pending:
+                    target = pending.pop()
+                    if target in visited:
+                        continue
+                    visited.add(target);move["stateIds"].add(target)
+                    state = states[target]
+                    for following in [state["successor"], *state["conditionalTargets"]]:
+                        if owners.get(following) is not None and PHASE.search(states[following]["name"]) and (owners[following]==owners[target] or (target,following) in shared_edges):
+                            pending.append(following)
+        candidates = [[] for _ in states]
+        resolved = []
+        for move in moves.values():
+            move["stateIds"] = sorted(move["stateIds"])
+            move["membershipRanges"] = catalog.membership_ranges(move["stateIds"])
+            move["states"] = [states[i]["name"] for i in move["stateIds"]]
+            move["contextual"] = bool(move["sharedPhases"])
+            for state in move["stateIds"]:
+                candidates[state].append(move["id"])
+            resolved.append(move)
+        for choices in candidates:
+            if len(choices)>1 and any(not moves[key]["contextual"] for key in choices):
+                raise ValueError("Shared membership escaped context guards")
+        edges = set()
+        for state in states:
+            for target in [state["successor"], *state["conditionalTargets"]]:
+                if len(candidates[target])>1:
+                    edges.add((state["id"],target))
+        # Names are not proof that a helper belongs to its namesake move. Report
+        # shared members with no authored path from any unique route state.
+        # This is evidence for controlled gameplay review, not an auto-remapping.
+        origin_review = []
+        outgoing = collections.defaultdict(list)
+        for source_id, target_id in edges:
+            outgoing[source_id].append(target_id)
+        for move in resolved:
+            if not move["contextual"]:
+                continue
+            members = set(move["stateIds"])
+            unique = {i for i in members if len(candidates[i]) == 1}
+            shared = members - unique
+            reached = set(unique)
+            pending = list(unique)
+            while pending:
+                for target_id in outgoing[pending.pop()]:
+                    if target_id in members and target_id not in reached:
+                        reached.add(target_id)
+                        pending.append(target_id)
+            origin_review.append({"move": move["id"], "uniqueStateCount": len(unique),
+                                  "sharedStateCount": len(shared),
+                                  "unprovenSharedStates": sorted(shared - reached)})
+        characters.append({**reviewed, "moves": resolved, "routeEdges": sorted(edges),
+                           "originReachabilityReview": origin_review})
+    return {"format":"skullgirls-context-route-review", "version":1,
+            "runtimeSupport":"Requires synchronized DLL observer; gameplay validation pending", "characters":characters}
+
+
+def write_context_definitions(report):
+    definitions = ["// Generated shared-phase definitions; require synchronized DLL context."]
+    routes = ["// Generated route tables and authored incoming edges. No gameplay emulation."]
+    for c in report["characters"]:
+        routes.append("if(character=="+json.dumps(c["character"])+")return MoveRouteTable("+str(c["animationCount"])+",{")
+        for move in c["moves"]:
+            identifier = c["character"].lower()+"/"+move["id"]
+            ranges = "{"+",".join("{%d,%d}" % tuple(r) for r in move["membershipRanges"])+"}"
+            routes.append("{"+json.dumps(identifier)+","+ranges+"},")
+            if move["contextual"]:
+                fields = [identifier,c["character"],move["label"],c["foitSha256"]]
+                definitions.append("{"+",".join(json.dumps(value) for value in fields)+","+ranges+","+str(c["animationCount"])+","+json.dumps(move["category"])+",true},")
+        routes.append("},{"+",".join("{%d,%d}" % tuple(edge) for edge in c["routeEdges"])+"});")
+    routes.append('throw std::runtime_error("No contextual route table for this character.");')
+    (ROOT / "PalleteEditor/Data/ContextMoveDefinitions.inl").write_text("\n".join(definitions)+"\n",encoding="utf-8")
+    (ROOT / "PalleteEditor/Data/CharacterMoveRoutes.inl").write_text("\n".join(routes)+"\n",encoding="utf-8")
 
 
 def write_definitions(report, source):
@@ -178,9 +278,11 @@ def write_definitions(report, source):
     summary = ["# Roster move coverage", "", "Generated from the researched local FOIT catalogue by `scripts/build-roster-moves.py`.",
                "These are authored-data mappings, not blanket gameplay verification. The original",
                "Beowulf Chair Toss and Gigantic Arm passed the user's gameplay checks.", "",
-               f"The compiled catalogue contains **{available} mapped families across all 18 characters**.",
-               f"**{pending} families remain unavailable** because distinct moves enter the same timed",
-               "phase. Resolving their move context remains part of the active all-attacks goal.", "",
+               f"The catalogue contains **{available} stateless families across all 18 characters**.",
+               f"A further **{pending} shared-phase families** require synchronized per-fighter route tracking",
+               f"in the DLL host, for {available + pending} selectable families. They remain unavailable in the standalone",
+               "host. Unknown origins keep transformations inactive. Gameplay validation and broader",
+               "attack-path coverage remain part of the active goal.", "",
                "| Character | Mapped families | Shared-phase cases | Attack-tagged states mapped / pending |",
                "| --- | ---: | ---: | ---: |"]
     for c in report["characters"]:
@@ -189,7 +291,11 @@ def write_definitions(report, source):
     summary += ["", "Generic Normals/FlyingNormals dispatchers are accounted for separately, not exposed",
                 "as individual attacks. Input-cancel destinations are not recursively absorbed into",
                 "the current move. Untimed dispatchers do not establish visible shared-phase ownership.", "",
-                "## Remaining shared-phase families", ""]
+                "Attack-tag coverage is not a completeness proof: Beowulf's Bulldog, Gringo Killa",
+                "and grab-mode snapback have no attack tags. Explicit reviewed exceptions expose them",
+                "as separate complete-body selections. The existing Grab Mode ID now covers holding,",
+                "movement and release; its former accidental inclusion of these finishers is corrected.", "",
+                "## Shared-phase families requiring the DLL host", ""]
     for c in report["characters"]:
         names = [m["label"] for m in c["moves"] if not m["available"]]
         if names:
@@ -203,13 +309,18 @@ def write_definitions(report, source):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) not in (3, 4) or (len(sys.argv) == 4 and sys.argv[3] != "--write"):
+    if len(sys.argv) not in (3, 4) or (len(sys.argv) == 4 and sys.argv[3] not in ("--write","--write-context")):
         raise SystemExit(__doc__)
     source = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
     rules = json.loads((ROOT / "PalleteEditor/data01/roster-move-rules.json").read_text(encoding="utf-8"))
     report = build(source, rules)
+    contextual = len(sys.argv)==4 and sys.argv[3]=="--write-context"
+    if contextual:
+        report = context_routes(report,source)
     Path(sys.argv[2]).write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    if len(sys.argv) == 4:
+    if contextual:
+        write_context_definitions(report)
+    elif len(sys.argv) == 4:
         write_definitions(report, source)
     for c in report["characters"]:
         print(c["character"], "moves", sum(m["available"] for m in c["moves"]), "/", len(c["moves"]), c["counts"])

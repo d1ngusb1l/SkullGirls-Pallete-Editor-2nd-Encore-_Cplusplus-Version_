@@ -4,9 +4,11 @@ Generated from the researched local FOIT catalogue by `scripts/build-roster-move
 These are authored-data mappings, not blanket gameplay verification. The original
 Beowulf Chair Toss and Gigantic Arm passed the user's gameplay checks.
 
-The compiled catalogue contains **570 mapped families across all 18 characters**.
-**15 families remain unavailable** because distinct moves enter the same timed
-phase. Resolving their move context remains part of the active all-attacks goal.
+The catalogue contains **573 stateless families across all 18 characters**.
+A further **15 shared-phase families** require synchronized per-fighter route tracking
+in the DLL host, for 588 selectable families. They remain unavailable in the standalone
+host. Unknown origins keep transformations inactive. Gameplay validation and broader
+attack-path coverage remain part of the active goal.
 
 | Character | Mapped families | Shared-phase cases | Attack-tagged states mapped / pending |
 | --- | ---: | ---: | ---: |
@@ -22,7 +24,7 @@ phase. Resolving their move context remains part of the active all-attacks goal.
 | BigBand | 27 | 3 | 73 / 27 |
 | Eliza | 34 | 0 | 121 / 0 |
 | Fukua | 29 | 2 | 79 / 7 |
-| Beowulf | 35 | 3 | 97 / 44 |
+| Beowulf | 38 | 3 | 97 / 44 |
 | RoboFortune | 29 | 0 | 85 / 0 |
 | Annie | 36 | 0 | 114 / 0 |
 | Umbrella | 34 | 0 | 111 / 0 |
@@ -33,7 +35,12 @@ Generic Normals/FlyingNormals dispatchers are accounted for separately, not expo
 as individual attacks. Input-cancel destinations are not recursively absorbed into
 the current move. Untimed dispatchers do not establish visible shared-phase ownership.
 
-## Remaining shared-phase families
+Attack-tag coverage is not a completeness proof: Beowulf's Bulldog, Gringo Killa
+and grab-mode snapback have no attack tags. Explicit reviewed exceptions expose them
+as separate complete-body selections. The existing Grab Mode ID now covers holding,
+movement and release; its former accidental inclusion of these finishers is corrected.
+
+## Shared-phase families requiring the DLL host
 
 - **Filia**: Trap Jaw, Fenrir.
 - **Valentine**: Alpha Blade, Dio Scalpels, Flat Line.

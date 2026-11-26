@@ -8,7 +8,7 @@
 #include <vector>
 
 namespace PaletteData {
-// Pure tracking foundation. Not yet connected to live palette writes.
+// Pure route tracking used by the synchronized appearance observer.
 // Tables allocate once; Observe/Reset allocate nothing and access no process memory.
 struct MoveRouteDefinition {
     std::string id;
@@ -38,6 +38,7 @@ public:
         for(auto& sources:incoming){std::sort(sources.begin(),sources.end());sources.erase(std::unique(sources.begin(),sources.end()),sources.end());}
     }
     int Count() const {return (int)candidates.size();}
+    int Routes() const {return (int)definitions.size();}
     const std::vector<int>& Candidates(int animation) const {return candidates.at(animation);}
     bool Contains(int route,int animation) const {
         if(route<0 || route>=(int)definitions.size() || animation<0 || animation>=Count())return false;
@@ -52,6 +53,10 @@ public:
         return std::binary_search(incoming[target].begin(),incoming[target].end(),source);
     }
     const std::string& Id(int route) const {return definitions.at(route).id;}
+    int Find(const std::string& id) const {
+        for(int index=0;index<(int)definitions.size();++index)if(definitions[index].id==id)return index;
+        return -1;
+    }
 };
 struct MoveRouteIdentity {
     uintptr_t root=0,actor=0,entity=0,palette=0;

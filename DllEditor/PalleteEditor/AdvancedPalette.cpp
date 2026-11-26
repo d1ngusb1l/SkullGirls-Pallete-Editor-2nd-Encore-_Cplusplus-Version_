@@ -26,6 +26,7 @@ struct GroupColorGroup {
 #include "../../PalleteEditor/OverlayEditor.h"
 #include "../../PalleteEditor/Data/AtomicFile.h"
 #include "../../PalleteEditor/OverlayControls.h"
+#include "MoveContextHost.inl"
 
 #include "DirectXWrapper/LiveOverlays.h"
 #ifdef SGPE_DLL_VALIDATION
@@ -225,6 +226,7 @@ bool Save(const std::string& path,bool legacy) {
     } catch(const std::exception& e) {Status=std::string("Save failed: ")+e.what();return false;}
 }
 void Tick() {
+    MoveContextHost::Register();
     try {
         auto& process=ProcessManager::instance();if(!process.s_SG_Process)return;
         OverlayEditor::Bind(process.s_SG_Process,process.s_BaseAddress);OverlayEditor::Tick();

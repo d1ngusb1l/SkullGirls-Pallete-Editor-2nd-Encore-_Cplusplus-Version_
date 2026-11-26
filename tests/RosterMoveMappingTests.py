@@ -17,10 +17,23 @@ class RosterMoveMappingTests(unittest.TestCase):
                  sourceFrames=2, timedTicks=2, generalTags=(tags or {}).get(i, ["ATTACK", "SPECIAL"]))
             for i, name in enumerate(names)])
 
-    def resolve(self, character, families):
+    def resolve(self, character, families, untagged=None):
         for state in character["states"]:
             state["tags"] = [builder.catalog.tag_hash(tag) for tag in state["generalTags"]]
-        return builder.resolve_character(character, families)
+        return builder.resolve_character(character, families, untagged)
+
+    def test_reviewed_untagged_finishers_are_distinct_from_parent_stance(self):
+        c = self.states(["GrabMode_Stand", "GrabMode_Bulldog_Ground", "GrabMode_Bulldog_Land", "GrabMode_EX_Bulldog_Air", "GrabMode_GringoKilla_Ground"], tags={0:["ATTACK"],1:[],2:[],3:[],4:[]})
+        families = [["GrabMode"],["GrabMode_Bulldog","GrabMode_EX_Bulldog"],["GrabMode_GringoKilla"]]
+        result = self.resolve(c, families, {"grab-mode-bulldog":"Special", "grab-mode-gringo-killa":"Special"})
+        groups={m["id"]:m for m in result["moves"]}
+        self.assertEqual(groups["grab-mode"]["stateIds"],[0])
+        self.assertEqual(groups["grab-mode-bulldog"]["stateIds"],[1,2,3])
+        self.assertEqual(groups["grab-mode-gringo-killa"]["stateIds"],[4])
+        self.assertEqual(groups["grab-mode-bulldog"]["category"],"Special")
+        self.assertEqual(len(self.resolve(c,families)["moves"]),1)
+        with self.assertRaises(ValueError):self.resolve(c,families,{"missing":"Special"})
+        with self.assertRaises(ValueError):self.resolve(c,families,{"grab-mode-bulldog":"Typo"})
 
     def test_normal_phases_are_one_button_selection_without_capturing_other_buttons(self):
         c = self.states(["s.WP", "s.WP_2nd", "s.MP", "j.D+MP", "j.D+MP_Land"])
@@ -102,6 +115,34 @@ class RosterMoveMappingTests(unittest.TestCase):
     def test_roster_cannot_silently_shrink(self):
         with self.assertRaises(ValueError):
             builder.build(dict(format="skullgirls-move-catalog", version=1, characters=[]), dict(version=1, families={}))
+
+    def test_reviewed_beowulf_finishers_are_exposed_with_complete_disjoint_bodies(self):
+        portable=json.loads((ROOT / "PalleteEditor/data01/move-families.json").read_text())
+        moves={m["id"]:m for c in portable["characters"] if c["character"]=="Beowulf" for m in c["moves"]}
+        expected={"grab-mode-bulldog":[[319,329]],"grab-mode-gringo-killa":[[330,337]],"grab-mode-snapback":[[285,289]]}
+        compiled=(ROOT / "PalleteEditor/Data/CharacterMoveDefinitions.inl").read_text()
+        for identifier,ranges in expected.items():
+            line=next(line for line in compiled.splitlines() if line.startswith('{"beowulf/'+identifier+'",'))
+            self.assertIn("{{"+str(ranges[0][0])+","+str(ranges[0][1])+"}}",line)
+            self.assertEqual(len(moves[identifier]["states"]),sum(b-a+1 for a,b in ranges))
+            self.assertFalse(set(moves[identifier]["states"]) & set(moves["grab-mode"]["states"]))
+
+    def test_shared_route_expands_through_loop_and_landing_but_not_cancel_entries(self):
+        c = self.states(["s.First", "First_End", "Second_Loop", "Second_Land", "s.Second", "s.Other"], {1:2,2:2,3:5})
+        c["states"][2]["conditionalTargets"]=[3,5]
+        c["states"][2]["conditionalEdges"]=[dict(target=t,declaredSteps=1,flags=0,hasInputBytes=True) for t in (3,5)]
+        reviewed=self.resolve(c,[["First"],["Second"],["Other"]])
+        report=builder.context_routes(dict(characters=[reviewed]),dict(characters=[c]))
+        moves={m["id"]:m for m in report["characters"][0]["moves"]}
+        self.assertEqual(moves["first"]["stateIds"],[0,1,2,3])
+        self.assertNotIn(4,moves["first"]["stateIds"])
+        self.assertNotIn(5,moves["first"]["stateIds"])
+        self.assertTrue(moves["first"]["contextual"] and moves["second"]["contextual"])
+        self.assertFalse(moves["other"]["contextual"])
+        self.assertIn((2,3),report["characters"][0]["routeEdges"])
+        origins={entry["move"]:entry for entry in report["characters"][0]["originReachabilityReview"]}
+        self.assertEqual(origins["first"]["unprovenSharedStates"],[])
+        self.assertEqual(origins["second"]["unprovenSharedStates"],[2,3])
 
 
 if __name__ == "__main__":

@@ -1,4 +1,6 @@
 #include "Data/MoveRouteTracker.h"
+#include "Data/CharacterMoveRoutes.h"
+#include "Data/CharacterMoves.h"
 #include <cstdlib>
 #include <iostream>
 #include <new>
@@ -37,6 +39,47 @@ int main(){try {
     const auto before=allocations;
     for(int repeat=0;repeat<10000;++repeat){tracker.Observe(table,p1,185,184);tracker.Observe(table,p1,167,185);tracker.Observe(table,p1,167,167);tracker.Observe(table,p1,168,167);tracker.Observe(table,p1,20,168);tracker.Reset();}
     Check(allocations==before,"Steady-state route tracking allocated memory");
+    auto filia=BuildCharacterMoveRoutes("Filia");MoveRouteTracker full;
+    for(auto [animation,prior]:std::vector<std::pair<int,int>>{{182,22},{183,182},{183,183},{184,183},{185,184},{167,185},{167,167},{168,167}}) {
+        auto result=full.Observe(filia,p1,animation,prior);Check(result.status==MoveRouteStatus::Active && filia.Id(result.route)=="filia/fenrir","Generated Filia table lost observed Fenrir shared phases");
+    }
+    full.Observe(filia,p1,20,168);
+    for(auto [animation,prior]:std::vector<std::pair<int,int>>{{161,20},{164,161},{165,164},{166,165},{167,166},{167,167},{168,167}}) {
+        auto result=full.Observe(filia,p1,animation,prior);Check(result.status==MoveRouteStatus::Active && filia.Id(result.route)=="filia/trap-jaw","Generated Filia table mixed Updo/Fenrir");
+    }
+    // Authored shared tails for the remaining gameplay-check families. These
+    // assert route ownership, not that the game takes every authored branch.
+    auto verifyTail=[&](const char* character,const char* id,int entry,std::initializer_list<int> tail){
+        auto routes=BuildCharacterMoveRoutes(character);MoveRouteTracker owner,other;
+        auto start=owner.Observe(routes,p1,entry,20);
+        Check(start.status==MoveRouteStatus::Active && routes.Id(start.route)==id,"Shared-tail unique entry chose the wrong move");
+        int prior=entry;
+        for(int state:tail){
+            auto result=owner.Observe(routes,p1,state,prior);
+            Check(result.status==MoveRouteStatus::Active && routes.Id(result.route)==id,"Shared tail lost its move origin");
+            Check(other.Observe(routes,p2,state,state).status==MoveRouteStatus::Unavailable,"Mirror guessed an unobserved shared origin");
+            prior=state;
+        }
+        Check(owner.Observe(routes,p1,20,prior).status==MoveRouteStatus::Inactive,"Shared tail failed to restore at idle");
+        Check(owner.Observe(routes,p1,prior,prior).status==MoveRouteStatus::Unavailable,"Interrupted shared tail recovered stale ownership");
+    };
+    verifyTail("Beowulf","beowulf/tackle",218,{227,227});
+    verifyTail("Beowulf","beowulf/three-wolf-moonsault",245,{227,227});
+    verifyTail("Beowulf","beowulf/three-wolf-moonsault",251,{309,309,310});
+    verifyTail("Beowulf","beowulf/grab-mode-frog-splash",307,{309,309,310});
+    verifyTail("BlackDahlia","blackdahlia/counter",171,{176,176});
+    verifyTail("BlackDahlia","blackdahlia/teleport",175,{176,176});
+    int contextualCount=0;
+    for(const auto& move:PaletteData::CharacterMoves())if(move.contextual) {
+        ++contextualCount;auto generated=BuildCharacterMoveRoutes(move.character);const auto route=generated.Find(move.id);
+        Check(route>=0 && generated.Count()==move.animationCount,"Missing contextual route/build bounds");
+        for(int animation=0;animation<generated.Count();++animation) {
+            bool expected=false;for(auto [first,last]:move.ranges)expected=expected || (animation>=first && animation<=last);
+            Check(generated.Contains(route,animation)==expected,"Compiled condition ranges differ from route membership");
+        }
+    }
+    Check(contextualCount==15 && PaletteData::CharacterMoves().size()==588,"Roster/shared coverage changed without review");
+    Reject([]{BuildCharacterMoveRoutes("UnknownCharacter");});
     Reject([]{MoveRouteTable bad(0,{{"a",{{0,0}}}},{});});
     Reject([]{MoveRouteTable bad(4,{{"a",{{0,4}}}},{});});
     Reject([]{MoveRouteTable bad(4,{{"a",{{0,1},{1,2}}}},{});});

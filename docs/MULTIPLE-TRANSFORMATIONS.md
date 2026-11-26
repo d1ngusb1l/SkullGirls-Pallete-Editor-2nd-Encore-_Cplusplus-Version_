@@ -11,9 +11,12 @@ single transformations into its collection. Runtime validation checks character,
 palette layout and predicates before mutation. `ColorAssignment` owns all static
 and conditional assignments for one native table header. `BuildRedirectPlan`
 composes the original native records, static links and enabled rules; only the
-owner commits the resulting header. Condition graphs are allocated once per rule
-and shared among its links. The game evaluates the existing allowlisted animation
-predicates; the editor does not poll or set gameplay resources.
+owner commits the resulting header. Each generated native redirect record owns
+its complete condition graph, including its context gate when required. Graphs
+must not be shared between links or ranges: native cleanup destroys them per
+record. The game evaluates allowlisted animation predicates; synchronized move
+observation updates editor-owned gates for shared phases. Beowulf Hype is the
+only added resource provider; the editor does not set gameplay resources.
 
 Rules have stable IDs, names, enabled flags, links, shade masks and individual
 predicates. Source/shade overlaps are rejected even for disabled rules. This

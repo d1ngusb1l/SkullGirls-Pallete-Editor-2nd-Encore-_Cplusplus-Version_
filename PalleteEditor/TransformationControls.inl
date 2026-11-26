@@ -81,7 +81,9 @@ inline void DrawTransformationEditor(const Character& c,const std::set<int>& sou
                         if(ruleMoveCategory && entry.category!=ruleMoveCategories[ruleMoveCategory])continue;
                         if(ruleMoveFilter[0] && std::search(entry.label.begin(),entry.label.end(),ruleMoveFilter,ruleMoveFilter+strlen(ruleMoveFilter),[](unsigned char a,unsigned char b){return std::tolower(a)==std::tolower(b);})==entry.label.end())continue;
                         any=true;
+                        ImGui::BeginDisabled(entry.contextual && !ContextSupported());
                         if(ImGui::Selectable(entry.label.c_str(),rule.moveId==entry.id)){rule.moveId=entry.id;rule.activationTag.clear();rule.hypeLevel=-1;rule.mode=TransformMode::Automatic;}
+                        ImGui::EndDisabled();
                     }
                     if(!any)ImGui::TextDisabled("No mapped moves match this character/filter.");
                 } else {
@@ -93,7 +95,8 @@ inline void DrawTransformationEditor(const Character& c,const std::set<int>& sou
             if(ruleTriggerCategory==1) {
                 const int count=(int)std::count_if(PaletteData::CharacterMoves().begin(),PaletteData::CharacterMoves().end(),[&](const auto& entry){return entry.character==c.Char_Name;});
                 ImGui::TextDisabled("%d mapped character moves",count);
-                if(ImGui::IsItemHovered()){ImGui::BeginTooltip();ImGui::TextWrapped("Roster additions await gameplay checks. Shared-phase cases remain unavailable until their move context is resolved.");ImGui::EndTooltip();}
+                if(ImGui::IsItemHovered()){ImGui::BeginTooltip();ImGui::TextWrapped("Roster additions await gameplay checks. Moves with shared phases require the synchronized DLL host. An unknown move origin keeps the transformation inactive.");ImGui::EndTooltip();}
+                if(move && move->contextual)ImGui::TextDisabled("%s",moveContextHooks.status?moveContextHooks.status(c.ID):"Requires synchronized DLL host");
             }
             if(rule.hypeLevel>=0)ImGui::TextWrapped("Completed Hype amount only: level %d. Fractional progress stays in the lower level; this does not track a persistent boost after spending.",rule.hypeLevel);
             if(ruleTriggerCategory==0)ImGui::TextDisabled("Tags follow authored move phases; confirm them for the chosen fighter.");

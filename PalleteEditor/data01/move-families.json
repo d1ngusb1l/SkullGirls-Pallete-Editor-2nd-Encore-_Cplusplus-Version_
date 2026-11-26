@@ -3641,31 +3641,7 @@
             "GrabMode_JumpFall",
             "GrabMode_JumpLand",
             "GrabMode_JumpLand_N",
-            "GrabMode_Regrab_Or_Release",
-            "GrabMode_Snapback_A1",
-            "GrabMode_KaraSnapback_A1",
-            "GrabMode_Snapback_A2",
-            "GrabMode_KaraSnapback_A2",
-            "GrabMode_Snapback_ForReal",
-            "GrabMode_Bulldog_Ground",
-            "GrabMode_EX_Bulldog_Ground",
-            "GrabMode_Bulldog_Ground_ForReal",
-            "GrabMode_Bulldog_Air",
-            "GrabMode_EX_Bulldog_Air",
-            "GrabMode_Bulldog_Air_ForReal",
-            "GrabMode_Bulldog_Fall",
-            "GrabMode_Bulldog_Land",
-            "GrabMode_Bulldog_Regrab",
-            "GrabMode_Bulldog_TechCheck",
-            "GrabMode_Bulldog_NoTech",
-            "GrabMode_GringoKilla_Ground",
-            "GrabMode_EX_GringoKilla_Ground",
-            "GrabMode_GringoKilla_Ground_ForReal",
-            "GrabMode_GringoKilla_Air",
-            "GrabMode_EX_GringoKilla_Air",
-            "GrabMode_GringoKilla_Air_ForReal",
-            "GrabMode_GringoKilla_Fall",
-            "GrabMode_GringoKilla_Land"
+            "GrabMode_Regrab_Or_Release"
           ]
         },
         {
@@ -3681,6 +3657,17 @@
           "label": "Grab Mode Knee",
           "states": [
             "GrabMode_Knee"
+          ]
+        },
+        {
+          "id": "grab-mode-snapback",
+          "label": "Grab Mode Snapback",
+          "states": [
+            "GrabMode_Snapback_A1",
+            "GrabMode_KaraSnapback_A1",
+            "GrabMode_Snapback_A2",
+            "GrabMode_KaraSnapback_A2",
+            "GrabMode_Snapback_ForReal"
           ]
         },
         {
@@ -3895,6 +3882,23 @@
           ]
         },
         {
+          "id": "grab-mode-bulldog",
+          "label": "Grab Mode Bulldog",
+          "states": [
+            "GrabMode_Bulldog_Ground",
+            "GrabMode_EX_Bulldog_Ground",
+            "GrabMode_Bulldog_Ground_ForReal",
+            "GrabMode_Bulldog_Air",
+            "GrabMode_EX_Bulldog_Air",
+            "GrabMode_Bulldog_Air_ForReal",
+            "GrabMode_Bulldog_Fall",
+            "GrabMode_Bulldog_Land",
+            "GrabMode_Bulldog_Regrab",
+            "GrabMode_Bulldog_TechCheck",
+            "GrabMode_Bulldog_NoTech"
+          ]
+        },
+        {
           "id": "grab-mode-cossack",
           "label": "Grab Mode Cossack",
           "states": [
@@ -3920,6 +3924,20 @@
             "GrabMode_FishermanSlam_B_REAL",
             "GrabMode_FishermanSlam_ForReal",
             "GrabMode_FishermanSlam_Regrab"
+          ]
+        },
+        {
+          "id": "grab-mode-gringo-killa",
+          "label": "Grab Mode Gringo Killa",
+          "states": [
+            "GrabMode_GringoKilla_Ground",
+            "GrabMode_EX_GringoKilla_Ground",
+            "GrabMode_GringoKilla_Ground_ForReal",
+            "GrabMode_GringoKilla_Air",
+            "GrabMode_EX_GringoKilla_Air",
+            "GrabMode_GringoKilla_Air_ForReal",
+            "GrabMode_GringoKilla_Fall",
+            "GrabMode_GringoKilla_Land"
           ]
         },
         {
