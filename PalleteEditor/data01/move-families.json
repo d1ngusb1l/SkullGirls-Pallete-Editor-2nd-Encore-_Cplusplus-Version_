@@ -1,0 +1,5557 @@
+{
+  "version": 1,
+  "characters": [
+    {
+      "character": "Filia",
+      "foitSha256": "8da69291f2bdf5c38be5f74e12443351698f2441bbdf1fbe69195a7ea86f4d25",
+      "moves": [
+        {
+          "id": "snap-out",
+          "label": "Snap out",
+          "states": [
+            "s.SnapOut_A1",
+            "s.KaraSnapOut_A1",
+            "s.SnapOut_A2",
+            "s.KaraSnapOut_A2",
+            "SnapOut_ForReal"
+          ]
+        },
+        {
+          "id": "normal-c-rh",
+          "label": "c.HK",
+          "states": [
+            "c.RH"
+          ]
+        },
+        {
+          "id": "normal-c-fierce",
+          "label": "c.HP",
+          "states": [
+            "c.Fierce"
+          ]
+        },
+        {
+          "id": "normal-c-short",
+          "label": "c.LK",
+          "states": [
+            "c.Short"
+          ]
+        },
+        {
+          "id": "normal-c-jab",
+          "label": "c.LP",
+          "states": [
+            "c.Jab",
+            "c.Jab_RapidFire"
+          ]
+        },
+        {
+          "id": "normal-c-fwd",
+          "label": "c.MK",
+          "states": [
+            "c.Fwd"
+          ]
+        },
+        {
+          "id": "normal-c-strong",
+          "label": "c.MP",
+          "states": [
+            "c.Strong"
+          ]
+        },
+        {
+          "id": "normal-j-rh",
+          "label": "j.HK",
+          "states": [
+            "j.RH"
+          ]
+        },
+        {
+          "id": "normal-j-fierce",
+          "label": "j.HP",
+          "states": [
+            "j.Fierce"
+          ]
+        },
+        {
+          "id": "normal-j-short",
+          "label": "j.LK",
+          "states": [
+            "j.Short"
+          ]
+        },
+        {
+          "id": "normal-j-jab",
+          "label": "j.LP",
+          "states": [
+            "j.Jab"
+          ]
+        },
+        {
+          "id": "normal-j-fwd",
+          "label": "j.MK",
+          "states": [
+            "j.Fwd"
+          ]
+        },
+        {
+          "id": "normal-j-strong",
+          "label": "j.MP",
+          "states": [
+            "j.Strong"
+          ]
+        },
+        {
+          "id": "normal-s-rh",
+          "label": "s.HK",
+          "states": [
+            "s.RH"
+          ]
+        },
+        {
+          "id": "normal-s-fierce",
+          "label": "s.HP",
+          "states": [
+            "s.Fierce"
+          ]
+        },
+        {
+          "id": "normal-s-short",
+          "label": "s.LK",
+          "states": [
+            "s.Short"
+          ]
+        },
+        {
+          "id": "normal-s-jab",
+          "label": "s.LP",
+          "states": [
+            "s.Jab",
+            "s.Jab_RapidFire"
+          ]
+        },
+        {
+          "id": "normal-s-fwd",
+          "label": "s.MK",
+          "states": [
+            "s.Fwd"
+          ]
+        },
+        {
+          "id": "normal-s-strong",
+          "label": "s.MP",
+          "states": [
+            "s.Strong"
+          ]
+        },
+        {
+          "id": "love-drill",
+          "label": "Love Drill",
+          "states": [
+            "s.LoveDrill_Close_HCT",
+            "s.LoveDrill_Close",
+            "s.LoveDrill_Med_HCT",
+            "s.LoveDrill_Med",
+            "s.LoveDrill_Far_HCT",
+            "s.LoveDrill_Far",
+            "LoveDrill",
+            "s.LoveDrill_Fake"
+          ]
+        },
+        {
+          "id": "spine-dash",
+          "label": "Spine Dash",
+          "states": [
+            "s.SpineDash_L",
+            "s.SpineDash_M",
+            "s.SpineDash_H",
+            "j.SpineDash_L",
+            "j.SpineDash_M",
+            "j.SpineDash_H",
+            "SpineDash_Loop_Grd",
+            "SpineDash_Loop_Air",
+            "SpineDash_End",
+            "SpineDash_End_Air",
+            "SpineDash_End_AirDash_OnHit",
+            "SpineDash_End_AirDash_OnBlock",
+            "SpineDash_End_AirDash_OnWhiff"
+          ]
+        },
+        {
+          "id": "roach-rush",
+          "label": "Roach Rush",
+          "states": [
+            "s.RoachRush",
+            "s.Roach_Loop",
+            "s.Roach_End",
+            "s.Roach_End_Skid",
+            "s.Roach_End_Stop",
+            "j.RoachRush",
+            "j.Roach_Loop",
+            "j.Roach_End",
+            "j.Roach_Fall",
+            "j.Roach_Fall_Loop",
+            "Roach_Land_Recovery"
+          ]
+        },
+        {
+          "id": "skull-ball",
+          "label": "Skull Ball",
+          "states": [
+            "s.SkullBall"
+          ]
+        },
+        {
+          "id": "air-throw",
+          "label": "Air throw (all directions)",
+          "states": [
+            "j.Throw",
+            "j.KaraThrow",
+            "j.ThrowWhiff",
+            "j.ThrowSuccess",
+            "j.ThrowRecovery"
+          ]
+        },
+        {
+          "id": "ground-throw",
+          "label": "Ground throw (all directions)",
+          "states": [
+            "s.Throw_Back",
+            "s.Throw_Fwd",
+            "s.KaraThrow_Back",
+            "s.KaraThrow_Fwd",
+            "s.ThrowWhiff",
+            "s.ThrowSuccess_Back",
+            "s.ThrowSuccess_Fwd",
+            "s.ThrowRecovery"
+          ]
+        }
+      ]
+    },
+    {
+      "character": "Cerebella",
+      "foitSha256": "ff9fd46bbb5c4d81a6f196ec311db9787fadd0ab9c3a4ad1ae10dd53b363492c",
+      "moves": [
+        {
+          "id": "snap-out",
+          "label": "Snap out",
+          "states": [
+            "s.SnapOut_A1",
+            "s.KaraSnapOut_A1",
+            "s.SnapOut_A2",
+            "s.KaraSnapOut_A2",
+            "SnapOut_ForReal"
+          ]
+        },
+        {
+          "id": "normal-c-hk",
+          "label": "c.HK",
+          "states": [
+            "c.HK"
+          ]
+        },
+        {
+          "id": "normal-c-hp",
+          "label": "c.HP",
+          "states": [
+            "c.HP"
+          ]
+        },
+        {
+          "id": "normal-c-wk",
+          "label": "c.LK",
+          "states": [
+            "c.WK"
+          ]
+        },
+        {
+          "id": "normal-c-wp",
+          "label": "c.LP",
+          "states": [
+            "c.WP",
+            "c.WP_2nd"
+          ]
+        },
+        {
+          "id": "normal-c-mk",
+          "label": "c.MK",
+          "states": [
+            "c.MK"
+          ]
+        },
+        {
+          "id": "normal-c-mp",
+          "label": "c.MP",
+          "states": [
+            "c.MP"
+          ]
+        },
+        {
+          "id": "normal-j-d-mp",
+          "label": "j.D+MP",
+          "states": [
+            "j.D+MP",
+            "j.D+MP_ForReal",
+            "j.D+MP_Fall",
+            "j.D+MP_Land",
+            "j.D+MP_ReversalWindow",
+            "j.D+MP_Recovery"
+          ]
+        },
+        {
+          "id": "normal-j-hk",
+          "label": "j.HK",
+          "states": [
+            "j.HK"
+          ]
+        },
+        {
+          "id": "normal-j-hp",
+          "label": "j.HP",
+          "states": [
+            "j.HP",
+            "j.HP_Branch",
+            "j.HP_Glide",
+            "j.HP_Glide_End",
+            "j.HP_Fake",
+            "j.HP_Fake2",
+            "j.HP_End"
+          ]
+        },
+        {
+          "id": "normal-j-wk",
+          "label": "j.LK",
+          "states": [
+            "j.WK"
+          ]
+        },
+        {
+          "id": "normal-j-wp",
+          "label": "j.LP",
+          "states": [
+            "j.WP",
+            "j.WP_end",
+            "j.WP_2",
+            "j.WP_3"
+          ]
+        },
+        {
+          "id": "normal-j-mk",
+          "label": "j.MK",
+          "states": [
+            "j.MK"
+          ]
+        },
+        {
+          "id": "normal-j-mp",
+          "label": "j.MP",
+          "states": [
+            "j.MP"
+          ]
+        },
+        {
+          "id": "normal-s-f-hp",
+          "label": "s.F+HP",
+          "states": [
+            "s.F+HP"
+          ]
+        },
+        {
+          "id": "normal-s-hk",
+          "label": "s.HK",
+          "states": [
+            "s.HK"
+          ]
+        },
+        {
+          "id": "normal-s-hp",
+          "label": "s.HP",
+          "states": [
+            "s.HP"
+          ]
+        },
+        {
+          "id": "normal-s-wk",
+          "label": "s.LK",
+          "states": [
+            "s.WK"
+          ]
+        },
+        {
+          "id": "normal-s-wp",
+          "label": "s.LP",
+          "states": [
+            "s.WP",
+            "s.WP_2nd"
+          ]
+        },
+        {
+          "id": "normal-s-mk",
+          "label": "s.MK",
+          "states": [
+            "s.MK"
+          ]
+        },
+        {
+          "id": "normal-s-mp",
+          "label": "s.MP",
+          "states": [
+            "s.MP"
+          ]
+        },
+        {
+          "id": "bt",
+          "label": "BT",
+          "states": [
+            "s.InstantBT_Butt",
+            "BT_Butt"
+          ]
+        },
+        {
+          "id": "cerecopter",
+          "label": "Cerecopter",
+          "states": [
+            "s.Cerecopter"
+          ]
+        },
+        {
+          "id": "gorilla-throw",
+          "label": "Gorilla Throw",
+          "states": [
+            "s.KaraGorilla",
+            "s.GorillaThrow",
+            "Gorilla_Pull",
+            "Gorilla_Loop",
+            "Gorilla_End"
+          ]
+        },
+        {
+          "id": "grab-bag",
+          "label": "Grab Bag",
+          "states": [
+            "j.KaraGrabBag",
+            "j.GrabBag",
+            "GrabBag_Fall",
+            "GrabBag_Land",
+            "GrabBag_TechCheck",
+            "GrabBag_Catch",
+            "GrabBag_Catch_Fall",
+            "GrabBag_Catch_Land"
+          ]
+        },
+        {
+          "id": "horns",
+          "label": "Horns",
+          "states": [
+            "s.Horns"
+          ]
+        },
+        {
+          "id": "jazz-hands",
+          "label": "Jazz Hands",
+          "states": [
+            "s.KaraJazzHands",
+            "s.JazzHands_HCT",
+            "s.JazzHands",
+            "JazzHands_ForReal",
+            "JazzHandsSuccess",
+            "JazzHandsSuccess_Branch",
+            "JazzHandsSuccess_End"
+          ]
+        },
+        {
+          "id": "kanchou",
+          "label": "Kanchou",
+          "states": [
+            "s.InstantKanchou",
+            "Kanchou_K",
+            "Kanchou_P",
+            "Kanchou_Start",
+            "Kanchou_End",
+            "Kanchou_Behind",
+            "Kanchou_DoIt"
+          ]
+        },
+        {
+          "id": "reflect",
+          "label": "Reflect",
+          "states": [
+            "s.Reflect",
+            "Reflect_Success"
+          ]
+        },
+        {
+          "id": "rush-punch",
+          "label": "Rush Punch",
+          "states": [
+            "s.RushPunch_L_HCT",
+            "s.RushPunch_L",
+            "s.RushPunch_M_HCT",
+            "s.RushPunch_M",
+            "s.RushPunch_H_HCT",
+            "s.RushPunch_H",
+            "RushPunch_Loop",
+            "RushPunch_End"
+          ]
+        },
+        {
+          "id": "showtime",
+          "label": "Showtime",
+          "states": [
+            "KaraShowtime",
+            "Showtime",
+            "Showtime_Grab",
+            "Showtime_Straddle",
+            "Showtime_PunchLoop",
+            "Showtime_Dismount",
+            "Showtime_Dismount_Fall",
+            "Showtime_Dismount_End"
+          ]
+        },
+        {
+          "id": "slap-slap",
+          "label": "Slap Slap",
+          "states": [
+            "s.KaraSlapSlap",
+            "s.SlapSlap",
+            "SlapSlap_Grabbed",
+            "SlapSlap_Loop",
+            "SlapSlap_End"
+          ]
+        },
+        {
+          "id": "special-run",
+          "label": "Special Run",
+          "states": [
+            "s.SpecialRun_L",
+            "s.SpecialRun_M",
+            "s.SpecialRun_H",
+            "SpecialRun",
+            "SpecialRun_Loop",
+            "SpecialRun_End",
+            "s.InstantRunStop"
+          ]
+        },
+        {
+          "id": "arm-skip",
+          "label": "Arm Skip",
+          "states": [
+            "s.ArmSkip",
+            "ArmSkip_Loop",
+            "ArmSkip_End",
+            "ArmSkip_End_Reversals"
+          ]
+        },
+        {
+          "id": "girls-best-friend",
+          "label": "Girls Best Friend",
+          "states": [
+            "s.GirlsBestFriend"
+          ]
+        },
+        {
+          "id": "super-throw",
+          "label": "Super Throw",
+          "states": [
+            "s.SuperThrow",
+            "SuperThrow_Throw1",
+            "SuperThrow_Loop1",
+            "SuperThrow_Throw2",
+            "SuperThrow_Loop2",
+            "SuperThrow_Throw3",
+            "SuperThrow_Throw4",
+            "SuperThrow_DPCancel",
+            "SuperThrow_DPCancel_Horns"
+          ]
+        },
+        {
+          "id": "air-throw",
+          "label": "Air throw (all directions)",
+          "states": [
+            "j.Throw",
+            "j.KaraThrow",
+            "j.ThrowSuccess",
+            "j.ThrowRecovery"
+          ]
+        },
+        {
+          "id": "ground-throw",
+          "label": "Ground throw (all directions)",
+          "states": [
+            "s.Throw_Back",
+            "s.Throw_Fwd",
+            "s.KaraThrow_Back",
+            "s.KaraThrow_Fwd",
+            "s.ThrowWhiff",
+            "s.ThrowSuccess_Back",
+            "s.ThrowSuccess_Fwd",
+            "s.ThrowRecovery"
+          ]
+        }
+      ]
+    },
+    {
+      "character": "Peacock",
+      "foitSha256": "deed094c9012d612ec9328703b220e43a2ca0ea1b9e7beffe85304ca87c81807",
+      "moves": [
+        {
+          "id": "snap-out",
+          "label": "Snap out",
+          "states": [
+            "s.SnapOut_A1",
+            "s.KaraSnapOut_A1",
+            "s.SnapOut_A2",
+            "s.KaraSnapOut_A2",
+            "SnapOut_ForReal"
+          ]
+        },
+        {
+          "id": "normal-c-hk",
+          "label": "c.HK",
+          "states": [
+            "c.HK"
+          ]
+        },
+        {
+          "id": "normal-c-hp",
+          "label": "c.HP",
+          "states": [
+            "c.HP"
+          ]
+        },
+        {
+          "id": "normal-c-wk",
+          "label": "c.LK",
+          "states": [
+            "c.WK"
+          ]
+        },
+        {
+          "id": "normal-c-wp",
+          "label": "c.LP",
+          "states": [
+            "c.WP",
+            "c.WP_2nd"
+          ]
+        },
+        {
+          "id": "normal-c-mk",
+          "label": "c.MK",
+          "states": [
+            "c.MK"
+          ]
+        },
+        {
+          "id": "normal-c-mp",
+          "label": "c.MP",
+          "states": [
+            "c.MP"
+          ]
+        },
+        {
+          "id": "normal-j-hk",
+          "label": "j.HK",
+          "states": [
+            "j.HK"
+          ]
+        },
+        {
+          "id": "normal-j-hp",
+          "label": "j.HP",
+          "states": [
+            "j.HP"
+          ]
+        },
+        {
+          "id": "normal-j-wk",
+          "label": "j.LK",
+          "states": [
+            "j.WK"
+          ]
+        },
+        {
+          "id": "normal-j-wp",
+          "label": "j.LP",
+          "states": [
+            "j.WP"
+          ]
+        },
+        {
+          "id": "normal-j-mk",
+          "label": "j.MK",
+          "states": [
+            "j.MK_B",
+            "j.MK_N",
+            "j.MK_F",
+            "j.MK_ForReal"
+          ]
+        },
+        {
+          "id": "normal-j-mp",
+          "label": "j.MP",
+          "states": [
+            "j.MP"
+          ]
+        },
+        {
+          "id": "normal-s-hk",
+          "label": "s.HK",
+          "states": [
+            "s.HK"
+          ]
+        },
+        {
+          "id": "normal-s-hp",
+          "label": "s.HP",
+          "states": [
+            "s.HP"
+          ]
+        },
+        {
+          "id": "normal-s-wk",
+          "label": "s.LK",
+          "states": [
+            "s.WK"
+          ]
+        },
+        {
+          "id": "normal-s-wp",
+          "label": "s.LP",
+          "states": [
+            "s.WP",
+            "s.WP_2nd"
+          ]
+        },
+        {
+          "id": "normal-s-mk",
+          "label": "s.MK",
+          "states": [
+            "s.MK"
+          ]
+        },
+        {
+          "id": "normal-s-mp",
+          "label": "s.MP",
+          "states": [
+            "s.MP"
+          ]
+        },
+        {
+          "id": "bang-bullet",
+          "label": "Bang Bullet",
+          "states": [
+            "s.BangBullet",
+            "BangBullet_Fire2",
+            "BangBullet_Fire3"
+          ]
+        },
+        {
+          "id": "bang-flag",
+          "label": "Bang Flag",
+          "states": [
+            "s.BangFlag"
+          ]
+        },
+        {
+          "id": "bang-sword",
+          "label": "Bang Sword",
+          "states": [
+            "s.BangSword"
+          ]
+        },
+        {
+          "id": "item-drop",
+          "label": "Item Drop",
+          "states": [
+            "s.ItemDrop_L",
+            "s.ItemDrop_M",
+            "s.ItemDrop_H",
+            "s.ItemDrop_Normal",
+            "s.ItemDrop_FullCharge_L",
+            "s.ItemDrop_FullCharge_M",
+            "s.ItemDrop_FullCharge_H",
+            "s.ItemDrop_FullCharge",
+            "s.ItemDrop_ForReal",
+            "s.ItemDrop_EndBranch",
+            "s.ItemDrop_AssistWait",
+            "s.ItemDrop_AssistWait_Loop"
+          ]
+        },
+        {
+          "id": "little-boy",
+          "label": "Little Boy",
+          "states": [
+            "s.LittleBoy_L",
+            "s.LittleBoy_L_ForReal",
+            "s.LittleBoy_L_From_M",
+            "s.LittleBoy_L_From_H",
+            "s.LittleBoy_M",
+            "s.LittleBoy_M_ForReal",
+            "s.LittleBoy_M_From_L",
+            "s.LittleBoy_M_From_H",
+            "s.LittleBoy_H",
+            "s.LittleBoy_H_ForReal",
+            "s.LittleBoy_H_From_L",
+            "s.LittleBoy_H_From_M"
+          ]
+        },
+        {
+          "id": "teleport",
+          "label": "Teleport",
+          "states": [
+            "s.Teleport_L",
+            "s.TeleportCancel_L",
+            "s.Teleport_M",
+            "s.Teleport_H",
+            "Teleport_ForReal",
+            "Teleport_Out",
+            "Teleport_Recovery"
+          ]
+        },
+        {
+          "id": "beatdown",
+          "label": "Beatdown",
+          "states": [
+            "s.Beatdown",
+            "Beatdown_Loop",
+            "Beatdown_End",
+            "s.Beatdown_DHC",
+            "s.Beatdown_DHC_Success"
+          ]
+        },
+        {
+          "id": "fat-man",
+          "label": "Fat Man",
+          "states": [
+            "s.FatMan"
+          ]
+        },
+        {
+          "id": "peacock-laser",
+          "label": "Peacock Laser",
+          "states": [
+            "s.PeacockLaser",
+            "PeacockLaser_Second",
+            "PeacockLaser_Third",
+            "PeacockLaser_Fourth",
+            "PeacockLaser_Last",
+            "PeacockLaser_EndLand"
+          ]
+        },
+        {
+          "id": "air-throw",
+          "label": "Air throw (all directions)",
+          "states": [
+            "j.Throw",
+            "j.KaraThrow",
+            "j.ThrowSuccess"
+          ]
+        },
+        {
+          "id": "ground-throw",
+          "label": "Ground throw (all directions)",
+          "states": [
+            "s.Throw_Back",
+            "s.Throw_Fwd",
+            "s.KaraThrow_Back",
+            "s.KaraThrow_Fwd",
+            "s.ThrowAttempt",
+            "s.ThrowSuccess",
+            "s.Throw_SuperChoice",
+            "s.Throw_2nd",
+            "s.ThrowRecovery"
+          ]
+        }
+      ]
+    },
+    {
+      "character": "Parasoul",
+      "foitSha256": "000b9114756f26bba973ef90f72fb585ad39db1175717e0144f496fedfbc9fd2",
+      "moves": [
+        {
+          "id": "snap-out",
+          "label": "Snap out",
+          "states": [
+            "s.SnapOut_A1",
+            "s.KaraSnapOut_A1",
+            "s.SnapOut_A2",
+            "s.KaraSnapOut_A2",
+            "SnapOut_ForReal"
+          ]
+        },
+        {
+          "id": "normal-c-hk",
+          "label": "c.HK",
+          "states": [
+            "c.HK"
+          ]
+        },
+        {
+          "id": "normal-c-hp",
+          "label": "c.HP",
+          "states": [
+            "c.HP"
+          ]
+        },
+        {
+          "id": "normal-c-wk",
+          "label": "c.LK",
+          "states": [
+            "c.WK"
+          ]
+        },
+        {
+          "id": "normal-c-wp",
+          "label": "c.LP",
+          "states": [
+            "c.WP"
+          ]
+        },
+        {
+          "id": "normal-c-mk",
+          "label": "c.MK",
+          "states": [
+            "c.MK"
+          ]
+        },
+        {
+          "id": "normal-c-mp",
+          "label": "c.MP",
+          "states": [
+            "c.MP"
+          ]
+        },
+        {
+          "id": "normal-j-b-wk",
+          "label": "j.B+LK",
+          "states": [
+            "j.B+WK",
+            "Reverse_j.B+WK",
+            "NewChain_j.B+WK"
+          ]
+        },
+        {
+          "id": "normal-j-d-mk",
+          "label": "j.D+MK",
+          "states": [
+            "j.D+MK",
+            "j.D+MK_Bounce",
+            "Reverse_j.D+MK",
+            "NewChain_j.D+MK"
+          ]
+        },
+        {
+          "id": "normal-j-hk",
+          "label": "j.HK",
+          "states": [
+            "Reverse_j.HK",
+            "NewChain_j.HK",
+            "j.HK"
+          ]
+        },
+        {
+          "id": "normal-j-hp",
+          "label": "j.HP",
+          "states": [
+            "Reverse_j.HP",
+            "NewChain_j.HP",
+            "j.HP"
+          ]
+        },
+        {
+          "id": "normal-j-wk",
+          "label": "j.LK",
+          "states": [
+            "j.WK",
+            "Reverse_j.WK",
+            "NewChain_j.WK"
+          ]
+        },
+        {
+          "id": "normal-j-wp",
+          "label": "j.LP",
+          "states": [
+            "j.WP",
+            "Reverse_j.WP",
+            "NewChain_j.WP"
+          ]
+        },
+        {
+          "id": "normal-j-mk",
+          "label": "j.MK",
+          "states": [
+            "j.MK",
+            "j.MK_Float",
+            "j.MK_Float_Loop",
+            "j.MK_FloatEnd_Immediate",
+            "j.MK_FloatEnd",
+            "Reverse_j.MK",
+            "NewChain_j.MK"
+          ]
+        },
+        {
+          "id": "normal-j-mp",
+          "label": "j.MP",
+          "states": [
+            "j.MP",
+            "Reverse_j.MP",
+            "NewChain_j.MP"
+          ]
+        },
+        {
+          "id": "normal-s-b-hk",
+          "label": "s.B+HK",
+          "states": [
+            "s.B+HK"
+          ]
+        },
+        {
+          "id": "normal-s-f-hp",
+          "label": "s.F+HP",
+          "states": [
+            "s.F+HP"
+          ]
+        },
+        {
+          "id": "normal-s-f-wp",
+          "label": "s.F+LP",
+          "states": [
+            "s.F+WP"
+          ]
+        },
+        {
+          "id": "normal-s-f-mp",
+          "label": "s.F+MP",
+          "states": [
+            "s.F+MP"
+          ]
+        },
+        {
+          "id": "normal-s-hk",
+          "label": "s.HK",
+          "states": [
+            "s.HK"
+          ]
+        },
+        {
+          "id": "normal-s-hp",
+          "label": "s.HP",
+          "states": [
+            "s.HP",
+            "s.HP_2nd"
+          ]
+        },
+        {
+          "id": "normal-s-wk",
+          "label": "s.LK",
+          "states": [
+            "s.WK",
+            "s.WK_2nd"
+          ]
+        },
+        {
+          "id": "normal-s-wp",
+          "label": "s.LP",
+          "states": [
+            "s.WP",
+            "s.WP_2nd"
+          ]
+        },
+        {
+          "id": "normal-s-mk",
+          "label": "s.MK",
+          "states": [
+            "s.MK",
+            "s.MK_2nd"
+          ]
+        },
+        {
+          "id": "normal-s-mp",
+          "label": "s.MP",
+          "states": [
+            "s.MP"
+          ]
+        },
+        {
+          "id": "quake",
+          "label": "Quake",
+          "states": [
+            "s.Quake_L",
+            "s.Quake_M",
+            "s.Quake_H"
+          ]
+        },
+        {
+          "id": "soldier-call",
+          "label": "Soldier Call",
+          "states": [
+            "s.RC_Soldier",
+            "s.SoldierCall_Shrug",
+            "s.SoldierCall_Stumble",
+            "s.SoldierCall_Point"
+          ]
+        },
+        {
+          "id": "tear-shot",
+          "label": "Tear Shot",
+          "states": [
+            "s.TearShot_L",
+            "s.TearShot_M",
+            "s.TearShot_H",
+            "s.TearShot_ReversalWindow"
+          ]
+        },
+        {
+          "id": "tear-toss",
+          "label": "Tear Toss",
+          "states": [
+            "s.TearToss_L",
+            "s.TearToss_M",
+            "s.TearToss_H",
+            "s.TearToss_ForReal",
+            "s.TearToss_RapidFire_L",
+            "s.TearToss_RapidFire_M",
+            "s.TearToss_RapidFire_H",
+            "s.TearToss_RapidFire_ForReal",
+            "s.TearToss_RapidFire2_L",
+            "s.TearToss_RapidFire2_M",
+            "s.TearToss_RapidFire2_H",
+            "s.TearToss_RapidFire2_ForReal",
+            "j.TearToss_L",
+            "j.TearToss_M",
+            "j.TearToss_H",
+            "j.TearToss_ForReal",
+            "j.TearToss_RapidFire_L",
+            "j.TearToss_RapidFire_M",
+            "j.TearToss_RapidFire_H",
+            "j.TearToss_RapidFire_ForReal",
+            "j.TearToss_RapidFire2_L",
+            "j.TearToss_RapidFire2_M",
+            "j.TearToss_RapidFire2_H",
+            "j.TearToss_RapidFire2_ForReal"
+          ]
+        },
+        {
+          "id": "crimson-hunting",
+          "label": "Crimson Hunting",
+          "states": [
+            "s.CrimsonHunting",
+            "CrimsonHunting_Loop",
+            "CrimsonHunting_End"
+          ]
+        },
+        {
+          "id": "phalanx",
+          "label": "Phalanx",
+          "states": [
+            "s.Phalanx"
+          ]
+        },
+        {
+          "id": "silent-scope",
+          "label": "Silent Scope",
+          "states": [
+            "s.SilentScope"
+          ]
+        },
+        {
+          "id": "air-throw",
+          "label": "Air throw (all directions)",
+          "states": [
+            "j.Throw",
+            "j.KaraThrow",
+            "j.ThrowSuccess",
+            "j.Throw_Recovery"
+          ]
+        },
+        {
+          "id": "ground-throw",
+          "label": "Ground throw (all directions)",
+          "states": [
+            "s.Throw_Back",
+            "s.Throw_Fwd",
+            "s.KaraThrow_Back",
+            "s.KaraThrow_Fwd",
+            "s.Throw_ForReal",
+            "s.Throw_Whiff",
+            "s.ThrowSuccess",
+            "s.ThrowRecovery"
+          ]
+        }
+      ]
+    },
+    {
+      "character": "MsFortune",
+      "foitSha256": "a259d7b1cea18bd467ea816c46b041d6e850c153e81157ebae56b1da2a0fc3c1",
+      "moves": [
+        {
+          "id": "snap-out",
+          "label": "Snap out",
+          "states": [
+            "s.SnapOut_A1",
+            "s.KaraSnapOut_A1",
+            "s.SnapOut_A2",
+            "s.KaraSnapOut_A2",
+            "SnapOut_ForReal"
+          ]
+        },
+        {
+          "id": "normal-c-hk",
+          "label": "c.HK",
+          "states": [
+            "c.HK"
+          ]
+        },
+        {
+          "id": "normal-c-hp",
+          "label": "c.HP",
+          "states": [
+            "c.HP",
+            "c.HP_Headless_Assist"
+          ]
+        },
+        {
+          "id": "normal-c-wk",
+          "label": "c.LK",
+          "states": [
+            "c.WK"
+          ]
+        },
+        {
+          "id": "normal-c-wp",
+          "label": "c.LP",
+          "states": [
+            "c.WP",
+            "c.WP_2nd"
+          ]
+        },
+        {
+          "id": "normal-c-mk",
+          "label": "c.MK",
+          "states": [
+            "c.MK"
+          ]
+        },
+        {
+          "id": "normal-c-mp",
+          "label": "c.MP",
+          "states": [
+            "c.MP"
+          ]
+        },
+        {
+          "id": "normal-j-hk",
+          "label": "j.HK",
+          "states": [
+            "j.HK"
+          ]
+        },
+        {
+          "id": "normal-j-hp",
+          "label": "j.HP",
+          "states": [
+            "j.HP"
+          ]
+        },
+        {
+          "id": "normal-j-wk",
+          "label": "j.LK",
+          "states": [
+            "j.WK"
+          ]
+        },
+        {
+          "id": "normal-j-wp",
+          "label": "j.LP",
+          "states": [
+            "j.WP"
+          ]
+        },
+        {
+          "id": "normal-j-mk",
+          "label": "j.MK",
+          "states": [
+            "j.MK"
+          ]
+        },
+        {
+          "id": "normal-j-mp",
+          "label": "j.MP",
+          "states": [
+            "j.MP"
+          ]
+        },
+        {
+          "id": "normal-s-hk",
+          "label": "s.HK",
+          "states": [
+            "s.HK",
+            "s.HK_Headless",
+            "s.HK_Headed"
+          ]
+        },
+        {
+          "id": "normal-s-hp",
+          "label": "s.HP",
+          "states": [
+            "s.HP",
+            "s.HP_Headless_Assist"
+          ]
+        },
+        {
+          "id": "normal-s-wk",
+          "label": "s.LK",
+          "states": [
+            "s.WK"
+          ]
+        },
+        {
+          "id": "normal-s-wp",
+          "label": "s.LP",
+          "states": [
+            "s.WP",
+            "s.WP_2nd"
+          ]
+        },
+        {
+          "id": "normal-s-mk",
+          "label": "s.MK",
+          "states": [
+            "s.MK"
+          ]
+        },
+        {
+          "id": "normal-s-mp",
+          "label": "s.MP",
+          "states": [
+            "s.MP",
+            "s.MP_NoHead",
+            "s.MP_WithHead"
+          ]
+        },
+        {
+          "id": "axe-kick",
+          "label": "Axe Kick",
+          "states": [
+            "j.AxeKick_W",
+            "j.AxeKick_M",
+            "j.AxeKick_H"
+          ]
+        },
+        {
+          "id": "head-bowl-or-recall",
+          "label": "Head Bowl Or Recall",
+          "states": [
+            "s.HeadBowlOrRecall",
+            "s.HeadBowlOrRecall_Rekka",
+            "s.HeadRecall_BetweenDowns",
+            "HeadRecall",
+            "HeadRecall_Loop",
+            "HeadRecall_Cancel",
+            "HeadRecall_End",
+            "HeadBowl",
+            "s.HeadBowl_NoSuperCancels",
+            "s.HeadBowl_NoSuperCancels_ForReal"
+          ]
+        },
+        {
+          "id": "head-spike",
+          "label": "Head Spike",
+          "states": [
+            "j.HeadSpike"
+          ]
+        },
+        {
+          "id": "nyanti-air",
+          "label": "Nyanti Air",
+          "states": [
+            "s.NyantiAir_W",
+            "NyantiAir_W_To_Air",
+            "s.NyantiAir_M",
+            "NyantiAir_M_To_Air",
+            "s.NyantiAir_H",
+            "NyantiAir_H_To_Air",
+            "NyantiAir_AirRecovery",
+            "NyantiAir_AirRecovery_ForReal"
+          ]
+        },
+        {
+          "id": "rekka",
+          "label": "Rekka",
+          "states": [
+            "s.RekkaBranch_Fast",
+            "s.RekkaBranch_Slow",
+            "s.RekkaBranch_VerySlow",
+            "s.Rekka1Fast",
+            "s.Rekka1Slow",
+            "s.Rekka1VerySlow",
+            "Rekka2Fast",
+            "Rekka2Slow",
+            "Rekka2VerySlow",
+            "Rekka3Fast",
+            "Rekka3Slow",
+            "Rekka3VerySlow"
+          ]
+        },
+        {
+          "id": "rekka-axe-kick",
+          "label": "Rekka Axe Kick",
+          "states": [
+            "s.RekkaAxeKick_Standalone",
+            "RekkaAxeKick_AssistBranch",
+            "RekkaAxeKick",
+            "RekkaAxeKick_Land"
+          ]
+        },
+        {
+          "id": "rekka-slide",
+          "label": "Rekka Slide",
+          "states": [
+            "s.RekkaSlide_Standalone_HCT",
+            "s.RekkaSlide_Standalone",
+            "RekkaSlide_AssistBranch",
+            "RekkaSlide"
+          ]
+        },
+        {
+          "id": "bbx",
+          "label": "BBX",
+          "states": [
+            "s.BBX",
+            "BBX_Loop",
+            "BBX_End_Head",
+            "BBX_End_NoHead"
+          ]
+        },
+        {
+          "id": "headsplosion",
+          "label": "Headsplosion",
+          "states": [
+            "Headsplosion",
+            "Headsplosion_Invisible_Start",
+            "Headsplosion_Invisible_Wait",
+            "Headsplosion_Invisible_End",
+            "Headsplosion_End"
+          ]
+        },
+        {
+          "id": "tail-dive",
+          "label": "Tail Dive",
+          "states": [
+            "j.TailDive",
+            "TailDive_Dive",
+            "TailDive_Land",
+            "TailDive_Whiff"
+          ]
+        },
+        {
+          "id": "air-throw",
+          "label": "Air throw (all directions)",
+          "states": [
+            "j.Throw",
+            "j.KaraThrow",
+            "j.ThrowSuccess",
+            "j.ThrowRecovery"
+          ]
+        },
+        {
+          "id": "ground-throw",
+          "label": "Ground throw (all directions)",
+          "states": [
+            "s.Throw_Back",
+            "s.Throw_Fwd",
+            "s.KaraThrow_Back",
+            "s.KaraThrow_Fwd",
+            "s.KaraThrow_Back_From_s.WK",
+            "s.KaraThrow_Fwd_From_s.WK",
+            "s.ThrowAttempt",
+            "s.ThrowSuccess_Fwd",
+            "s.ThrowSuccess_Back",
+            "s.ThrowRecovery"
+          ]
+        }
+      ]
+    },
+    {
+      "character": "Painwheel",
+      "foitSha256": "270cb83c57162c80bd0c9d070645dc9e85ff8ea12f21222aad845cbe7d7606af",
+      "moves": [
+        {
+          "id": "snap-out",
+          "label": "Snap out",
+          "states": [
+            "s.SnapOut_A1",
+            "s.KaraSnapOut_A1",
+            "s.SnapOut_A2",
+            "s.KaraSnapOut_A2",
+            "SnapOut_ForReal"
+          ]
+        },
+        {
+          "id": "normal-c-hk",
+          "label": "c.HK",
+          "states": [
+            "c.HK"
+          ]
+        },
+        {
+          "id": "normal-c-hp",
+          "label": "c.HP",
+          "states": [
+            "c.HP",
+            "c.HP_Normal",
+            "c.HP_Beam"
+          ]
+        },
+        {
+          "id": "normal-c-wk",
+          "label": "c.LK",
+          "states": [
+            "c.WK"
+          ]
+        },
+        {
+          "id": "normal-c-wp",
+          "label": "c.LP",
+          "states": [
+            "c.WP"
+          ]
+        },
+        {
+          "id": "normal-c-mk",
+          "label": "c.MK",
+          "states": [
+            "c.MK"
+          ]
+        },
+        {
+          "id": "normal-c-mp",
+          "label": "c.MP",
+          "states": [
+            "c.MP"
+          ]
+        },
+        {
+          "id": "normal-j-hk",
+          "label": "j.HK",
+          "states": [
+            "j.HK"
+          ]
+        },
+        {
+          "id": "normal-j-hp",
+          "label": "j.HP",
+          "states": [
+            "j.HP",
+            "j.HP_From_Fly"
+          ]
+        },
+        {
+          "id": "normal-j-wk",
+          "label": "j.LK",
+          "states": [
+            "j.WK"
+          ]
+        },
+        {
+          "id": "normal-j-wp",
+          "label": "j.LP",
+          "states": [
+            "j.WP",
+            "j.WP_From_Fly"
+          ]
+        },
+        {
+          "id": "normal-j-mk",
+          "label": "j.MK",
+          "states": [
+            "j.MK"
+          ]
+        },
+        {
+          "id": "normal-j-mp",
+          "label": "j.MP",
+          "states": [
+            "j.MP",
+            "j.MP_From_Fly"
+          ]
+        },
+        {
+          "id": "normal-s-f-hk",
+          "label": "s.F+HK",
+          "states": [
+            "s.F+HK",
+            "s.F+HK_Recovery",
+            "s.F+HK_2nd",
+            "s.F+HK_3rd",
+            "s.F+HK_4th"
+          ]
+        },
+        {
+          "id": "normal-s-hk",
+          "label": "s.HK",
+          "states": [
+            "s.HK"
+          ]
+        },
+        {
+          "id": "normal-s-hp",
+          "label": "s.HP",
+          "states": [
+            "s.HP",
+            "s.HP_Normal",
+            "s.HP_Beam"
+          ]
+        },
+        {
+          "id": "normal-s-wk",
+          "label": "s.LK",
+          "states": [
+            "s.WK"
+          ]
+        },
+        {
+          "id": "normal-s-wp",
+          "label": "s.LP",
+          "states": [
+            "s.WP"
+          ]
+        },
+        {
+          "id": "normal-s-mk",
+          "label": "s.MK",
+          "states": [
+            "s.MK"
+          ]
+        },
+        {
+          "id": "normal-s-mp",
+          "label": "s.MP",
+          "states": [
+            "s.MP"
+          ]
+        },
+        {
+          "id": "fly",
+          "label": "Fly",
+          "states": [
+            "s.Fly",
+            "j.Fly",
+            "j.FlyCancel_From_Nails",
+            "j.FlyCancel",
+            "j.FlyCancel_Limited",
+            "j.FlyCancel_Anim_From_Nails",
+            "j.FlyCancel_Anim",
+            "j.ReFly",
+            "Fly_End_Manual",
+            "Fly_End_Manual_Lenient_From_Attack",
+            "Fly_End_Fall_Manual",
+            "Fly_End_RoundOver",
+            "Fly_End_Fall_RoundOver",
+            "Flying",
+            "Flying_Branch",
+            "Fly_Frame_1",
+            "Fly_Frame_2",
+            "Fly_Frame_3"
+          ]
+        },
+        {
+          "id": "nail-punch",
+          "label": "Nail Punch",
+          "states": [
+            "s.NailPunch_W",
+            "s.NailPunch_M",
+            "s.NailPunch_H"
+          ]
+        },
+        {
+          "id": "scythe",
+          "label": "Scythe",
+          "states": [
+            "s.Scythe_L",
+            "s.Scythe_L_Hit",
+            "s.Scythe_M",
+            "s.Scythe_M_Hit",
+            "s.Scythe_H",
+            "s.Scythe_H_Hit",
+            "j.Scythe_L",
+            "j.Scythe_L_Fly_Buffer",
+            "j.Scythe_L_Hit",
+            "j.Scythe_M",
+            "j.Scythe_M_Fly_Buffer",
+            "j.Scythe_M_Hit",
+            "j.Scythe_H",
+            "j.Scythe_H_Fly_Buffer",
+            "j.Scythe_H_Hit"
+          ]
+        },
+        {
+          "id": "spin-dash",
+          "label": "Spin Dash",
+          "states": [
+            "SpinDashAssistL",
+            "SpinDashAssistM",
+            "SpinDashAssistH",
+            "s.SpinDash",
+            "SpinDash_Charge",
+            "SpinDash_Cancel",
+            "SpinDash_Roll_Start",
+            "SpinDash_Roll",
+            "SpinDash_End"
+          ]
+        },
+        {
+          "id": "crawl",
+          "label": "Crawl",
+          "states": [
+            "s.Crawl",
+            "Crawl_Loop",
+            "Crawl_End"
+          ]
+        },
+        {
+          "id": "gaebolga",
+          "label": "Gaebolga",
+          "states": [
+            "j.Gaebolga",
+            "Gaebolga_Second",
+            "Gaebolga_Grab",
+            "Gaebolga_Grab_Loop",
+            "Gaebolga_Grab_End"
+          ]
+        },
+        {
+          "id": "hsf",
+          "label": "HSF",
+          "states": [
+            "s.HSF",
+            "s.HSF_Loop",
+            "s.HSF_End"
+          ]
+        },
+        {
+          "id": "hatred-install",
+          "label": "Hatred Install",
+          "states": [
+            "s.HatredInstall_FromGrdFly",
+            "s.HatredInstall",
+            "s.HatredInstall_Reversals"
+          ]
+        },
+        {
+          "id": "super-spin-dash",
+          "label": "Super Spin Dash",
+          "states": [
+            "s.SuperSpinDash",
+            "SuperSpinDash_Charge",
+            "SuperSpinDash_Roll_Start",
+            "SuperSpinDash_Roll",
+            "SuperSpinDash_RollImpact",
+            "SuperSpinDash_End",
+            "SuperSpinDash_Reversals"
+          ]
+        },
+        {
+          "id": "air-throw",
+          "label": "Air throw (all directions)",
+          "states": [
+            "j.Throw",
+            "j.KaraThrow",
+            "j.ThrowSuccess",
+            "j.TagInThrowSuccess",
+            "j.Throw_Dive",
+            "j.Throw_Land",
+            "j.Throw_Recovery",
+            "j.Throw_Land_Nail",
+            "j.Throw_Recovery_Nail"
+          ]
+        },
+        {
+          "id": "ground-throw",
+          "label": "Ground throw (all directions)",
+          "states": [
+            "s.Throw_Back",
+            "s.Throw_Fwd",
+            "s.KaraThrow_Back",
+            "s.KaraThrow_Fwd",
+            "s.ThrowAttempt",
+            "s.ThrowSuccess",
+            "s.ThrowSuccess_Back",
+            "s.ThrowSuccess_2nd",
+            "s.Throw_End",
+            "s.Throw_Recovery",
+            "s.Throw_End_Nail",
+            "s.Throw_Recovery_Nail"
+          ]
+        }
+      ]
+    },
+    {
+      "character": "Valentine",
+      "foitSha256": "66e0a28e90df946836a95c837789cb00cf53d9e7f9e158ee49709dda6b5a593f",
+      "moves": [
+        {
+          "id": "snap-out",
+          "label": "Snap out",
+          "states": [
+            "s.SnapOut_A1",
+            "s.KaraSnapOut_A1",
+            "s.SnapOut_A2",
+            "s.KaraSnapOut_A2",
+            "SnapOut_ForReal"
+          ]
+        },
+        {
+          "id": "normal-c-hk",
+          "label": "c.HK",
+          "states": [
+            "c.HK"
+          ]
+        },
+        {
+          "id": "normal-c-hp",
+          "label": "c.HP",
+          "states": [
+            "c.HP"
+          ]
+        },
+        {
+          "id": "normal-c-wk",
+          "label": "c.LK",
+          "states": [
+            "c.WK",
+            "c.WK_2nd"
+          ]
+        },
+        {
+          "id": "normal-c-wp",
+          "label": "c.LP",
+          "states": [
+            "c.WP"
+          ]
+        },
+        {
+          "id": "normal-c-mk",
+          "label": "c.MK",
+          "states": [
+            "c.MK"
+          ]
+        },
+        {
+          "id": "normal-c-mp",
+          "label": "c.MP",
+          "states": [
+            "c.MP"
+          ]
+        },
+        {
+          "id": "normal-j-hk",
+          "label": "j.HK",
+          "states": [
+            "j.HK"
+          ]
+        },
+        {
+          "id": "normal-j-hp",
+          "label": "j.HP",
+          "states": [
+            "j.HP"
+          ]
+        },
+        {
+          "id": "normal-j-wk",
+          "label": "j.LK",
+          "states": [
+            "j.WK"
+          ]
+        },
+        {
+          "id": "normal-j-wp",
+          "label": "j.LP",
+          "states": [
+            "j.WP"
+          ]
+        },
+        {
+          "id": "normal-j-mk",
+          "label": "j.MK",
+          "states": [
+            "j.MK"
+          ]
+        },
+        {
+          "id": "normal-j-mp",
+          "label": "j.MP",
+          "states": [
+            "j.MP"
+          ]
+        },
+        {
+          "id": "normal-s-hk",
+          "label": "s.HK",
+          "states": [
+            "s.HK",
+            "s.HK_2nd",
+            "s.HK_3rd"
+          ]
+        },
+        {
+          "id": "normal-s-hp",
+          "label": "s.HP",
+          "states": [
+            "s.HP"
+          ]
+        },
+        {
+          "id": "normal-s-wk",
+          "label": "s.LK",
+          "states": [
+            "s.WK"
+          ]
+        },
+        {
+          "id": "normal-s-wp",
+          "label": "s.LP",
+          "states": [
+            "s.WP",
+            "s.WP_2nd_ToolChoice",
+            "s.WP_Pop",
+            "s.WP_Scalpel",
+            "s.WP_Tongue",
+            "s.WP_Pop2",
+            "s.WP_Scalpel2",
+            "s.WP_Tongue2"
+          ]
+        },
+        {
+          "id": "normal-s-mk",
+          "label": "s.MK",
+          "states": [
+            "s.MK"
+          ]
+        },
+        {
+          "id": "normal-s-mp",
+          "label": "s.MP",
+          "states": [
+            "s.MP",
+            "s.MP_2nd"
+          ]
+        },
+        {
+          "id": "item-toss",
+          "label": "Item Toss",
+          "states": [
+            "s.ItemToss_L",
+            "s.ItemToss_M",
+            "s.ItemToss_H",
+            "s.ThrowPoisonIfAny_H_Assist",
+            "s.ItemToss_Decision",
+            "s.Shuriken",
+            "s.Syringe",
+            "j.ItemToss_L",
+            "j.ItemToss_M",
+            "j.ItemToss_H",
+            "j.ItemToss_Decision",
+            "j.Shuriken",
+            "j.Syringe"
+          ]
+        },
+        {
+          "id": "izuna-drop",
+          "label": "Izuna Drop",
+          "states": [
+            "s.Kara_IzunaDrop",
+            "s.IzunaDrop",
+            "IzunaDrop_GrabAttempt",
+            "IzunaDrop_Toss",
+            "IzunaDrop_TeleportGrab",
+            "IzunaDrop_AirCatch",
+            "IzunaDrop_CatchRise",
+            "IzunaDrop_CatchApogee",
+            "IzunaDrop_CatchFall",
+            "IzunaDrop_Slam",
+            "IzunaDrop_BounceLoop",
+            "IzunaDrop_Recovery"
+          ]
+        },
+        {
+          "id": "syringe-load",
+          "label": "Syringe Load",
+          "states": [
+            "s.SyringeLoad_A",
+            "s.SyringeLoad_B",
+            "s.SyringeLoad_C"
+          ]
+        },
+        {
+          "id": "aed",
+          "label": "AED",
+          "states": [
+            "s.AED_A1",
+            "s.AED_A2",
+            "s.AED_ForReal"
+          ]
+        },
+        {
+          "id": "counter-super",
+          "label": "Counter Super",
+          "states": [
+            "s.CounterSuper",
+            "s.CounterSuper_HitBranch",
+            "s.CounterSuper_LoseMeter_Hit",
+            "s.CounterSuper_LoseMeter_Recovery",
+            "s.CounterSuper_CreateDummy",
+            "s.CounterSuper_DecisionBranch",
+            "s.CounterSuper_Seal",
+            "s.CounterSuper_Poison_A",
+            "s.CounterSuper_Poison_B",
+            "s.CounterSuper_Poison_C"
+          ]
+        },
+        {
+          "id": "operation",
+          "label": "Operation",
+          "states": [
+            "s.Operation",
+            "Operation_GrabAttempt",
+            "Operation_Toss",
+            "Operation_TeleportGrab",
+            "Operation_AirCatch",
+            "Operation_CatchRise",
+            "Operation_CatchApogee",
+            "Operation_CatchFall",
+            "Operation_Land",
+            "Operation_Cinematic",
+            "Operation_End"
+          ]
+        },
+        {
+          "id": "air-throw",
+          "label": "Air throw (all directions)",
+          "states": [
+            "j.Throw_BufferAllowed_Branch",
+            "j.Throw",
+            "j.KaraThrow",
+            "j.ThrowSuccess",
+            "j.ThrowRecovery"
+          ]
+        },
+        {
+          "id": "ground-throw",
+          "label": "Ground throw (all directions)",
+          "states": [
+            "s.Throw_Back",
+            "s.Throw_Fwd",
+            "s.KaraThrow_Back",
+            "s.KaraThrow_Fwd",
+            "s.ThrowAttempt",
+            "s.ThrowSuccess",
+            "s.ThrowRecovery"
+          ]
+        }
+      ]
+    },
+    {
+      "character": "Double",
+      "foitSha256": "373db4a424417e95c008ac6b279fc7c108f6e1367f0588e4ef548a54804d7a60",
+      "moves": [
+        {
+          "id": "snap-out",
+          "label": "Snap out",
+          "states": [
+            "s.SnapOut_A1",
+            "s.KaraSnapOut_A1",
+            "s.SnapOut_A2",
+            "s.KaraSnapOut_A2",
+            "SnapOut_ForReal"
+          ]
+        },
+        {
+          "id": "normal-c-hk",
+          "label": "c.HK",
+          "states": [
+            "c.HK"
+          ]
+        },
+        {
+          "id": "normal-c-hp",
+          "label": "c.HP",
+          "states": [
+            "c.HP"
+          ]
+        },
+        {
+          "id": "normal-c-wk",
+          "label": "c.LK",
+          "states": [
+            "c.WK"
+          ]
+        },
+        {
+          "id": "normal-c-wp",
+          "label": "c.LP",
+          "states": [
+            "c.WP",
+            "c.WP_2nd"
+          ]
+        },
+        {
+          "id": "normal-c-mk",
+          "label": "c.MK",
+          "states": [
+            "c.MK"
+          ]
+        },
+        {
+          "id": "normal-c-mp",
+          "label": "c.MP",
+          "states": [
+            "c.MP"
+          ]
+        },
+        {
+          "id": "normal-j-hk",
+          "label": "j.HK",
+          "states": [
+            "j.HK"
+          ]
+        },
+        {
+          "id": "normal-j-hp",
+          "label": "j.HP",
+          "states": [
+            "j.HP"
+          ]
+        },
+        {
+          "id": "normal-j-wk",
+          "label": "j.LK",
+          "states": [
+            "j.WK"
+          ]
+        },
+        {
+          "id": "normal-j-wp",
+          "label": "j.LP",
+          "states": [
+            "j.WP"
+          ]
+        },
+        {
+          "id": "normal-j-mk",
+          "label": "j.MK",
+          "states": [
+            "j.MK"
+          ]
+        },
+        {
+          "id": "normal-j-mp",
+          "label": "j.MP",
+          "states": [
+            "j.MP"
+          ]
+        },
+        {
+          "id": "normal-s-hk",
+          "label": "s.HK",
+          "states": [
+            "s.HK"
+          ]
+        },
+        {
+          "id": "normal-s-hp",
+          "label": "s.HP",
+          "states": [
+            "s.HP"
+          ]
+        },
+        {
+          "id": "normal-s-wk",
+          "label": "s.LK",
+          "states": [
+            "s.WK"
+          ]
+        },
+        {
+          "id": "normal-s-wp",
+          "label": "s.LP",
+          "states": [
+            "s.WP",
+            "s.WP_2nd"
+          ]
+        },
+        {
+          "id": "normal-s-mk",
+          "label": "s.MK",
+          "states": [
+            "s.MK",
+            "s.MK_2nd"
+          ]
+        },
+        {
+          "id": "normal-s-mp",
+          "label": "s.MP",
+          "states": [
+            "s.MP"
+          ]
+        },
+        {
+          "id": "air-drop",
+          "label": "Air Drop",
+          "states": [
+            "j.AirDrop_L",
+            "AirDrop_L_Fall",
+            "AirDrop_L_Land",
+            "j.AirDrop_M",
+            "AirDrop_M_Fall",
+            "AirDrop_M_Land",
+            "j.AirDrop_H",
+            "AirDrop_H_Fall",
+            "AirDrop_H_Land"
+          ]
+        },
+        {
+          "id": "luscious-luger",
+          "label": "Luscious Luger",
+          "states": [
+            "s.LusciousLuger_L_HCT",
+            "s.LusciousLuger_L",
+            "s.LusciousLuger_M_HCT",
+            "s.LusciousLuger_M",
+            "s.LusciousLuger_H_HCT",
+            "s.LusciousLuger_H"
+          ]
+        },
+        {
+          "id": "old-dash-fwd",
+          "label": "OLD Dash Fwd",
+          "states": [
+            "s.OLD_DashFwd_QCB",
+            "OLD_DashFwd_Middle",
+            "OLD_DashFwd_End"
+          ]
+        },
+        {
+          "id": "stabbing-peach",
+          "label": "Stabbing Peach",
+          "states": [
+            "s.StabbingPeach_L",
+            "s.StabbingPeach_M",
+            "s.StabbingPeach_H",
+            "StabbingPeach_ForReal",
+            "StabbingPeach_Ascend",
+            "StabbingPeach_Peak",
+            "StabbingPeach_Descend",
+            "StabbingPeach_Land",
+            "StabbingPeach_Land_NoCancels",
+            "StabbingPeach_Recover"
+          ]
+        },
+        {
+          "id": "sub-zero-slide",
+          "label": "Sub Zero Slide",
+          "states": [
+            "s.SubZeroSlide",
+            "SubZeroSlide_Loop",
+            "SubZeroSlide_End"
+          ]
+        },
+        {
+          "id": "fortuneboros",
+          "label": "Fortuneboros",
+          "states": [
+            "s.Fortuneboros"
+          ]
+        },
+        {
+          "id": "gradius-moai",
+          "label": "Gradius Moai",
+          "states": [
+            "s.GradiusMoai",
+            "j.GradiusMoai",
+            "Moai_Fall",
+            "Moai_Land",
+            "Moai_Loop",
+            "Moai_Fire_L",
+            "Moai_Fire_M",
+            "Moai_Fire_H",
+            "Moai_Fire",
+            "Moai_End",
+            "Moai_Explode",
+            "Moai_Explode_Recovery"
+          ]
+        },
+        {
+          "id": "monster",
+          "label": "Monster",
+          "states": [
+            "s.Monster"
+          ]
+        },
+        {
+          "id": "morph",
+          "label": "Morph",
+          "states": [
+            "s.Morph",
+            "Morph_EarlyOut",
+            "Morph_1",
+            "Morph_Teleport_1",
+            "Morph_2",
+            "Morph_Teleport_2",
+            "Morph_3",
+            "Morph_Teleport_3",
+            "Morph_4",
+            "Morph_Teleport_4",
+            "Morph_5",
+            "Morph_Teleport_5",
+            "Morph_6",
+            "Morph_Teleport_6",
+            "Morph_7",
+            "Morph_Teleport_7",
+            "Morph_8",
+            "Morph_Teleport_8",
+            "Morph_9",
+            "Morph_Teleport_9",
+            "Morph_10",
+            "Morph_Teleport_10",
+            "Morph_11",
+            "Morph_Teleport_11",
+            "Morph_12",
+            "Morph_Teleport_12",
+            "Morph_13",
+            "Morph_Teleport_13",
+            "Morph_14"
+          ]
+        },
+        {
+          "id": "rush-hour",
+          "label": "Rush Hour",
+          "states": [
+            "s.RushHour",
+            "RushHour_Car",
+            "RushHour_End"
+          ]
+        },
+        {
+          "id": "air-throw",
+          "label": "Air throw (all directions)",
+          "states": [
+            "j.Throw",
+            "j.KaraThrow",
+            "j.ThrowSuccess"
+          ]
+        },
+        {
+          "id": "ground-throw",
+          "label": "Ground throw (all directions)",
+          "states": [
+            "s.Throw_Back",
+            "s.Throw_Fwd",
+            "s.KaraThrow_Back",
+            "s.KaraThrow_Fwd",
+            "s.ThrowAttempt",
+            "s.ThrowSuccess",
+            "s.ThrowRecovery"
+          ]
+        }
+      ]
+    },
+    {
+      "character": "Squigly",
+      "foitSha256": "a55f7a23ac25ec1b9d776ecb5e4f5db6f04b5d5b3599a08a7cbae53ac99b3dad",
+      "moves": [
+        {
+          "id": "snap-out",
+          "label": "Snap out",
+          "states": [
+            "s.SnapOut_A1",
+            "s.KaraSnapOut_A1",
+            "s.SnapOut_A2",
+            "s.KaraSnapOut_A2",
+            "SnapOut_ForReal"
+          ]
+        },
+        {
+          "id": "normal-c-hk",
+          "label": "c.HK",
+          "states": [
+            "c.HK"
+          ]
+        },
+        {
+          "id": "normal-c-hp",
+          "label": "c.HP",
+          "states": [
+            "c.HP"
+          ]
+        },
+        {
+          "id": "normal-c-wk",
+          "label": "c.LK",
+          "states": [
+            "c.WK"
+          ]
+        },
+        {
+          "id": "normal-c-wp",
+          "label": "c.LP",
+          "states": [
+            "c.WP"
+          ]
+        },
+        {
+          "id": "normal-c-mk",
+          "label": "c.MK",
+          "states": [
+            "c.MK"
+          ]
+        },
+        {
+          "id": "normal-c-mp",
+          "label": "c.MP",
+          "states": [
+            "c.MP"
+          ]
+        },
+        {
+          "id": "normal-j-hk",
+          "label": "j.HK",
+          "states": [
+            "j.HK"
+          ]
+        },
+        {
+          "id": "normal-j-hp",
+          "label": "j.HP",
+          "states": [
+            "j.HP"
+          ]
+        },
+        {
+          "id": "normal-j-wk",
+          "label": "j.LK",
+          "states": [
+            "j.WK"
+          ]
+        },
+        {
+          "id": "normal-j-wp",
+          "label": "j.LP",
+          "states": [
+            "j.WP"
+          ]
+        },
+        {
+          "id": "normal-j-mk",
+          "label": "j.MK",
+          "states": [
+            "j.MK"
+          ]
+        },
+        {
+          "id": "normal-j-mp",
+          "label": "j.MP",
+          "states": [
+            "j.MP"
+          ]
+        },
+        {
+          "id": "normal-s-f-hp",
+          "label": "s.F+HP",
+          "states": [
+            "s.F+HP",
+            "s.F+HP_loop",
+            "s.F+HP_end"
+          ]
+        },
+        {
+          "id": "normal-s-hk",
+          "label": "s.HK",
+          "states": [
+            "s.HK"
+          ]
+        },
+        {
+          "id": "normal-s-hp",
+          "label": "s.HP",
+          "states": [
+            "s.HP",
+            "s.HP_2nd"
+          ]
+        },
+        {
+          "id": "normal-s-wk",
+          "label": "s.LK",
+          "states": [
+            "s.WK",
+            "s.WK_2nd"
+          ]
+        },
+        {
+          "id": "normal-s-wp",
+          "label": "s.LP",
+          "states": [
+            "s.WP",
+            "s.WP_2nd"
+          ]
+        },
+        {
+          "id": "normal-s-mk",
+          "label": "s.MK",
+          "states": [
+            "s.MK",
+            "s.MK_ExtraRecovery"
+          ]
+        },
+        {
+          "id": "normal-s-mp",
+          "label": "s.MP",
+          "states": [
+            "s.MP"
+          ]
+        },
+        {
+          "id": "divekick",
+          "label": "Divekick",
+          "states": [
+            "j.Divekick_L",
+            "j.Divekick_M",
+            "j.Divekick_H",
+            "j.Divekick_L_FromAirThrow",
+            "j.Divekick_M_FromAirThrow",
+            "j.Divekick_H_FromAirThrow",
+            "Divekick_Start_FromAirThrow",
+            "Divekick_Start",
+            "Divekick_Dive",
+            "Divekick_Land_L",
+            "Divekick_Land_M",
+            "Divekick_Land_H",
+            "Divekick_Land_H_Whiff",
+            "Divekick_ExtraRecovery",
+            "Divekick_ExtraRecovery_ReversalWindow",
+            "Divekick_ExtraRecovery_ForReal"
+          ]
+        },
+        {
+          "id": "dragon-stance",
+          "label": "Dragon Stance",
+          "states": [
+            "DragonStance_HCT_L",
+            "DragonStance_QCT_L",
+            "DragonStance_HCT_M",
+            "DragonStance_QCT_M",
+            "DragonStance_HCT_H",
+            "DragonStance_QCT_H",
+            "DragonStance_DP_L",
+            "DragonStance_DP_M",
+            "DragonStance_DP_H",
+            "DragonStance_Start",
+            "DragonStance_Start_Lv1",
+            "DragonStance_Start_Lv2",
+            "DragonStance_QuickCancel_Lv1",
+            "DragonStance_QuickCancel_Lv2",
+            "DragonStance_Start_LateCancelCheck",
+            "DragonStance_Loop",
+            "DragonStance_Lv2",
+            "DragonStance_Lv2Loop",
+            "DragonStance_End",
+            "DragonStance_DashFwd",
+            "DragonStance_DashFwd_Loop",
+            "DragonStance_DashFwd_End",
+            "DragonStance_DashBack",
+            "DragonStance_DashBack_Loop",
+            "DragonStance_DashBack_End"
+          ]
+        },
+        {
+          "id": "dragon-stance-dog-bite",
+          "label": "Dragon Stance Dog Bite",
+          "states": [
+            "DragonStance_DogBite_Start",
+            "DragonStance_DogBite_Branch",
+            "DragonStance_DogBite_Low",
+            "DragonStance_DogBite_Low_Lv2",
+            "DragonStance_DogBite_End",
+            "DogBite_ReversalWindow",
+            "Assist_DogBite",
+            "AssistStart_DogBite_Lv1",
+            "AssistStart_DogBite_Lv2"
+          ]
+        },
+        {
+          "id": "dragon-stance-one-inch-punch",
+          "label": "Dragon Stance One Inch Punch",
+          "states": [
+            "DragonStance_OneInchPunch",
+            "DragonStance_OneInchPunch_Lv1",
+            "DragonStance_OneInchPunch_Lv2",
+            "Assist_OneInchPunch",
+            "AssistStart_OneInchPunch_Lv1",
+            "AssistStart_OneInchPunch_Lv2"
+          ]
+        },
+        {
+          "id": "dragon-stance-rising-dragon",
+          "label": "Dragon Stance Rising Dragon",
+          "states": [
+            "DragonStance_Start_Lv2_H_DP",
+            "DragonStance_Auto_RisingDragon",
+            "DragonStance_RisingDragon",
+            "DragonStance_RisingDragon_Lv1",
+            "DragonStance_RisingDragon_Lv2",
+            "DragonStance_RisingDragon_Rise",
+            "DragonStance_RisingDragon_Peak",
+            "DragonStance_RisingDragon_Fall",
+            "DragonStance_RisingDragon_Land",
+            "Assist_RisingDragon",
+            "AssistStart_RisingDragon_Lv1",
+            "AssistStart_RisingDragon_Lv2"
+          ]
+        },
+        {
+          "id": "dragon-stance-sing",
+          "label": "Dragon Stance Sing",
+          "states": [
+            "DragonStance_Sing",
+            "DragonStance_Sing_Lv1",
+            "DragonStance_Sing_Lv2",
+            "Assist_Sing",
+            "AssistStart_Sing_Lv1",
+            "AssistStart_Sing_Lv2"
+          ]
+        },
+        {
+          "id": "whip-stance",
+          "label": "Whip Stance",
+          "states": [
+            "WhipStance_L",
+            "WhipStance_M",
+            "WhipStance_H",
+            "WhipStance_Start",
+            "WhipStance_Start_Lv1",
+            "WhipStance_Start_Lv2",
+            "WhipStance_QuickCancel_Lv1",
+            "WhipStance_QuickCancel_Lv2",
+            "WhipStance_Start_LateCancelCheck",
+            "WhipStance_Loop",
+            "WhipStance_Lv2",
+            "WhipStance_Lv2Loop",
+            "WhipStance_End",
+            "WhipStance_DashFwd",
+            "WhipStance_DashFwd_Loop",
+            "WhipStance_DashFwd_End",
+            "WhipStance_DashBack",
+            "WhipStance_DashBack_Loop",
+            "WhipStance_DashBack_End"
+          ]
+        },
+        {
+          "id": "whip-stance-harpoon",
+          "label": "Whip Stance Harpoon",
+          "states": [
+            "WhipStance_Harpoon_Start",
+            "WhipStance_Harpoon_Loop",
+            "WhipStance_Harpoon_Hit",
+            "WhipStance_Harpoon_Hit_Loop",
+            "WhipStance_Harpoon_Hit_End",
+            "WhipStance_Harpoon_Whiff",
+            "WhipStance_Harpoon_Whiff_Loop",
+            "WhipStance_Harpoon_Whiff_End",
+            "Assist_Harpoon",
+            "AssistStart_Harpoon_Lv1",
+            "AssistStart_Harpoon_Lv2"
+          ]
+        },
+        {
+          "id": "whip-stance-rapid-stab",
+          "label": "Whip Stance Rapid Stab",
+          "states": [
+            "WhipStance_RapidStab",
+            "WhipStance_RapidStab_Lv2",
+            "WhipStance_RapidStab_End",
+            "WhipStance_RapidStab_ReversalWindow",
+            "Assist_RapidStab",
+            "AssistStart_RapidStab_Lv1",
+            "AssistStart_RapidStab_Lv2"
+          ]
+        },
+        {
+          "id": "whip-stance-remote-stab",
+          "label": "Whip Stance Remote Stab",
+          "states": [
+            "WhipStance_RemoteStab",
+            "WhipStance_RemoteStab_Loop",
+            "WhipStance_RemoteStab_Retract",
+            "WhipStance_RemoteStab_Retract_Loop",
+            "WhipStance_RemoteStab_End",
+            "Assist_RemoteStab",
+            "AssistStart_RemoteStab_Lv1",
+            "AssistStart_RemoteStab_Lv2"
+          ]
+        },
+        {
+          "id": "daisy-pusher",
+          "label": "Daisy Pusher",
+          "states": [
+            "s.DaisyPusher",
+            "DaisyPusher_Hit"
+          ]
+        },
+        {
+          "id": "flame-ball",
+          "label": "Flame Ball",
+          "states": [
+            "s.FlameBall"
+          ]
+        },
+        {
+          "id": "opera",
+          "label": "Opera",
+          "states": [
+            "s.Opera_L+M",
+            "s.Opera_M+H_3Buttons",
+            "s.Opera_L+H",
+            "s.Opera_ForReal"
+          ]
+        },
+        {
+          "id": "raging-dragon",
+          "label": "Raging Dragon",
+          "states": [
+            "s.RagingDragon",
+            "s.RagingDragon_Loop",
+            "s.RagingDragon_End",
+            "s.RagingDragon_Grab"
+          ]
+        },
+        {
+          "id": "air-throw",
+          "label": "Air throw (all directions)",
+          "states": [
+            "j.Throw",
+            "j.KaraThrow",
+            "j.ThrowSuccess",
+            "j.ThrowRecovery"
+          ]
+        },
+        {
+          "id": "ground-throw",
+          "label": "Ground throw (all directions)",
+          "states": [
+            "s.Throw_Back",
+            "s.Throw_Fwd",
+            "s.KaraThrow_Back",
+            "s.KaraThrow_Fwd",
+            "s.ThrowAttempt",
+            "s.ThrowSuccess",
+            "s.ThrowRecovery"
+          ]
+        }
+      ]
+    },
+    {
+      "character": "BigBand",
+      "foitSha256": "6b70ab58d42d8a9a015644f3bd934b093fe6209bdc69058895ebf13f707b38e3",
+      "moves": [
+        {
+          "id": "snap-out",
+          "label": "Snap out",
+          "states": [
+            "s.SnapOut_A1",
+            "s.KaraSnapOut_A1",
+            "s.SnapOut_A2",
+            "s.KaraSnapOut_A2",
+            "SnapOut_ForReal"
+          ]
+        },
+        {
+          "id": "normal-c-hk",
+          "label": "c.HK",
+          "states": [
+            "c.HK"
+          ]
+        },
+        {
+          "id": "normal-c-hp",
+          "label": "c.HP",
+          "states": [
+            "c.HP"
+          ]
+        },
+        {
+          "id": "normal-c-wk",
+          "label": "c.LK",
+          "states": [
+            "c.WK"
+          ]
+        },
+        {
+          "id": "normal-c-wp",
+          "label": "c.LP",
+          "states": [
+            "c.WP",
+            "c.WP_2nd"
+          ]
+        },
+        {
+          "id": "normal-c-mk",
+          "label": "c.MK",
+          "states": [
+            "c.MK"
+          ]
+        },
+        {
+          "id": "normal-c-mp",
+          "label": "c.MP",
+          "states": [
+            "c.MP",
+            "c.MP_2nd"
+          ]
+        },
+        {
+          "id": "normal-j-hk",
+          "label": "j.HK",
+          "states": [
+            "j.HK",
+            "j.HK_Fall",
+            "j.HK_Land",
+            "j.HK_Land_TechCheck"
+          ]
+        },
+        {
+          "id": "normal-j-hp",
+          "label": "j.HP",
+          "states": [
+            "j.HP"
+          ]
+        },
+        {
+          "id": "normal-j-wk",
+          "label": "j.LK",
+          "states": [
+            "j.WK"
+          ]
+        },
+        {
+          "id": "normal-j-wp",
+          "label": "j.LP",
+          "states": [
+            "j.WP"
+          ]
+        },
+        {
+          "id": "normal-j-mk",
+          "label": "j.MK",
+          "states": [
+            "j.MK",
+            "j.MK_2nd"
+          ]
+        },
+        {
+          "id": "normal-j-mp",
+          "label": "j.MP",
+          "states": [
+            "j.MP"
+          ]
+        },
+        {
+          "id": "normal-s-hk",
+          "label": "s.HK",
+          "states": [
+            "s.HK"
+          ]
+        },
+        {
+          "id": "normal-s-hp",
+          "label": "s.HP",
+          "states": [
+            "s.HP"
+          ]
+        },
+        {
+          "id": "normal-s-wk",
+          "label": "s.LK",
+          "states": [
+            "s.WK"
+          ]
+        },
+        {
+          "id": "normal-s-wp",
+          "label": "s.LP",
+          "states": [
+            "s.WP",
+            "s.WP_2nd"
+          ]
+        },
+        {
+          "id": "normal-s-mk",
+          "label": "s.MK",
+          "states": [
+            "s.MK",
+            "s.MK_2nd"
+          ]
+        },
+        {
+          "id": "normal-s-mp",
+          "label": "s.MP",
+          "states": [
+            "s.MP",
+            "s.MP_2nd",
+            "s.MP_3rd"
+          ]
+        },
+        {
+          "id": "cymbals",
+          "label": "Cymbals",
+          "states": [
+            "j.Cymbals_L",
+            "j.Cymbals_M",
+            "j.Cymbals_H_If_Flag0",
+            "j.Cymbals_H"
+          ]
+        },
+        {
+          "id": "foot-pedal",
+          "label": "Foot Pedal",
+          "states": [
+            "s.FootPedal_L",
+            "s.FootPedal_M",
+            "s.FootPedal_H",
+            "FootPedal_ArtReshuffling",
+            "FootPedal_ForReal",
+            "FootPedal_EndBranch"
+          ]
+        },
+        {
+          "id": "take-the-atrain",
+          "label": "Take The ATrain",
+          "states": [
+            "s.TakeTheATrain_L",
+            "s.TakeTheATrain_M",
+            "s.TakeTheATrain_H",
+            "s.TakeTheATrain_Start",
+            "s.TakeTheATrain_Loop",
+            "s.TakeTheATrain_Break",
+            "s.TakeTheATrain_AirGrab",
+            "s.TakeTheATrain_GroundGrab",
+            "s.TakeTheATrain_GroundGrab_Success",
+            "s.TakeTheATrain_AirGrab_Success",
+            "s.TakeTheATrain_Grab_Success_Main"
+          ]
+        },
+        {
+          "id": "tambourine",
+          "label": "Tambourine",
+          "states": [
+            "s.Tambourine_L",
+            "s.Tambourine_M",
+            "s.Tambourine_H",
+            "Tambourine_H_Branch",
+            "Tambourine_H_Shake",
+            "Tambourine_H_End"
+          ]
+        },
+        {
+          "id": "jazz-combo",
+          "label": "Jazz Combo",
+          "states": [
+            "s.JazzCombo"
+          ]
+        },
+        {
+          "id": "timpani",
+          "label": "Timpani",
+          "states": [
+            "j.Timpani",
+            "j.Timpani_Loop",
+            "j.Timpani_End",
+            "j.Timpani_EndBranch",
+            "j.Timpani_ThrowEnd",
+            "j.Timpani_Blocked_Fall",
+            "j.Timpani_Block_Fall_Loop",
+            "j.Timpani_Land_No_Block"
+          ]
+        },
+        {
+          "id": "air-throw",
+          "label": "Air throw (all directions)",
+          "states": [
+            "j.Throw",
+            "j.KaraThrow",
+            "j.ThrowSuccess",
+            "j.ThrowRecovery"
+          ]
+        },
+        {
+          "id": "ground-throw",
+          "label": "Ground throw (all directions)",
+          "states": [
+            "s.Throw_Back",
+            "s.Throw_Fwd",
+            "s.KaraThrow_Back",
+            "s.KaraThrow_Fwd",
+            "s.ThrowAttempt",
+            "s.ThrowSuccess",
+            "s.ThrowRecovery"
+          ]
+        }
+      ]
+    },
+    {
+      "character": "Eliza",
+      "foitSha256": "3d6e176ffc373b8ba09430d26a47a490b055371bb499f7f8ec3c50ea71f88f73",
+      "moves": [
+        {
+          "id": "snap-out",
+          "label": "Snap out",
+          "states": [
+            "s.SnapOut_A1",
+            "s.KaraSnapOut_A1",
+            "s.SnapOut_A2",
+            "s.KaraSnapOut_A2",
+            "SnapOut_ForReal"
+          ]
+        },
+        {
+          "id": "normal-c-hk",
+          "label": "c.HK",
+          "states": [
+            "c.HK"
+          ]
+        },
+        {
+          "id": "normal-c-hp",
+          "label": "c.HP",
+          "states": [
+            "c.HP"
+          ]
+        },
+        {
+          "id": "normal-c-wk",
+          "label": "c.LK",
+          "states": [
+            "c.WK"
+          ]
+        },
+        {
+          "id": "normal-c-wp",
+          "label": "c.LP",
+          "states": [
+            "c.WP",
+            "c.WP_2nd"
+          ]
+        },
+        {
+          "id": "normal-c-mk",
+          "label": "c.MK",
+          "states": [
+            "c.MK",
+            "c.MK_2nd"
+          ]
+        },
+        {
+          "id": "normal-c-mp",
+          "label": "c.MP",
+          "states": [
+            "c.MP",
+            "c.MP_2nd"
+          ]
+        },
+        {
+          "id": "normal-j-hk",
+          "label": "j.HK",
+          "states": [
+            "j.HK"
+          ]
+        },
+        {
+          "id": "normal-j-hp",
+          "label": "j.HP",
+          "states": [
+            "j.HP"
+          ]
+        },
+        {
+          "id": "normal-j-wk",
+          "label": "j.LK",
+          "states": [
+            "j.WK"
+          ]
+        },
+        {
+          "id": "normal-j-wp",
+          "label": "j.LP",
+          "states": [
+            "j.WP"
+          ]
+        },
+        {
+          "id": "normal-j-mk",
+          "label": "j.MK",
+          "states": [
+            "j.MK"
+          ]
+        },
+        {
+          "id": "normal-j-mp",
+          "label": "j.MP",
+          "states": [
+            "j.MP"
+          ]
+        },
+        {
+          "id": "normal-s-hk",
+          "label": "s.HK",
+          "states": [
+            "s.HK",
+            "s.HK_2nd"
+          ]
+        },
+        {
+          "id": "normal-s-hp",
+          "label": "s.HP",
+          "states": [
+            "s.HP",
+            "s.HP_2nd",
+            "s.HP_3rd"
+          ]
+        },
+        {
+          "id": "normal-s-wk",
+          "label": "s.LK",
+          "states": [
+            "s.WK"
+          ]
+        },
+        {
+          "id": "normal-s-wp",
+          "label": "s.LP",
+          "states": [
+            "s.WP",
+            "s.WP_2nd",
+            "s.WP_3rd"
+          ]
+        },
+        {
+          "id": "normal-s-mk",
+          "label": "s.MK",
+          "states": [
+            "s.MK",
+            "s.MK_1st_Hitstop",
+            "s.MK_1st_Part2",
+            "s.MK_1st_Hitstop2",
+            "s.MK_1st_End",
+            "s.MK_2nd"
+          ]
+        },
+        {
+          "id": "normal-s-mp",
+          "label": "s.MP",
+          "states": [
+            "s.MP"
+          ]
+        },
+        {
+          "id": "blood-dp",
+          "label": "Blood DP",
+          "states": [
+            "s.BloodDP_L",
+            "s.BloodDP_M",
+            "s.BloodDP_H",
+            "s.BloodDP_FirstPart",
+            "s.BloodDP_2nd_M",
+            "s.BloodDP_2nd_H",
+            "s.BloodDP_SecondPart",
+            "s.BloodDP_ThirdPart"
+          ]
+        },
+        {
+          "id": "sek-axe",
+          "label": "Sek Axe",
+          "states": [
+            "s.Sek_Axe_Summoned",
+            "s.Sek_Axe",
+            "s.Sek_Axe_ForReal",
+            "s.Sek_Axe_End",
+            "j.Sek_Axe_Summoned",
+            "j.Sek_Axe",
+            "j.Sek_Axe_ForReal",
+            "j.Sek_Axe_Loop",
+            "j.Sek_Axe_End"
+          ]
+        },
+        {
+          "id": "sek-cartouche",
+          "label": "Sek Cartouche",
+          "states": [
+            "j.Sek_Cartouche_Summoned",
+            "j.Sek_Cartouche",
+            "j.Sek_Cartouche_ForReal",
+            "j.Sek_Cartouche_Fall_Success",
+            "j.Sek_Cartouche_Fall_Failure"
+          ]
+        },
+        {
+          "id": "sek-kopesh",
+          "label": "Sek Kopesh",
+          "states": [
+            "s.Sek_Kopesh_Summoned",
+            "s.Sek_Kopesh",
+            "s.Sek_Kopesh_ForReal",
+            "s.Sek_Kopesh2",
+            "s.Sek_Kopesh3"
+          ]
+        },
+        {
+          "id": "sek-lunge",
+          "label": "Sek Lunge",
+          "states": [
+            "s.Sek_Lunge",
+            "j.Sek_Lunge_Summoned",
+            "j.Sek_Lunge",
+            "j.Sek_Lunge_ForReal"
+          ]
+        },
+        {
+          "id": "sek-stab",
+          "label": "Sek Stab",
+          "states": [
+            "s.Sek_Stab_Summoned",
+            "s.Sek_Stab",
+            "s.Sek_Stab_ForReal"
+          ]
+        },
+        {
+          "id": "sek-summon",
+          "label": "Sek Summon",
+          "states": [
+            "s.Sek_Summon_L",
+            "s.Sek_Summon_M",
+            "s.Sek_Summon_H",
+            "s.Sek_Summon",
+            "j.Sek_Summon_L",
+            "j.Sek_Summon_M",
+            "j.Sek_Summon_H",
+            "j.Sek_Summon",
+            "Sek_Summon_Branch",
+            "Sek_Summon_Branch_ForReal"
+          ]
+        },
+        {
+          "id": "servant-summon",
+          "label": "Servant Summon",
+          "states": [
+            "s.ServantSummon_L",
+            "s.ServantSummon_M",
+            "s.ServantSummon_H"
+          ]
+        },
+        {
+          "id": "twirl",
+          "label": "Twirl",
+          "states": [
+            "s.Twirl_L",
+            "s.Twirl_L_ReversalWindow",
+            "s.Twirl_M",
+            "s.Twirl_H"
+          ]
+        },
+        {
+          "id": "bird-dive",
+          "label": "Bird Dive",
+          "states": [
+            "j.BirdDive",
+            "j.BirdDive_Loop",
+            "j.BirdDive_Miss_Land",
+            "j.BirdDive_Catch",
+            "j.BirdDive_Rise_Loop",
+            "j.BirdDive_Fall_Loop",
+            "j.BirdDive_Slam"
+          ]
+        },
+        {
+          "id": "scarab-super",
+          "label": "Scarab Super",
+          "states": [
+            "s.ScarabSuper",
+            "s.ScarabSuper_Rise",
+            "s.ScarabSuper_Across",
+            "s.ScarabSuper_Fall",
+            "s.ScarabSuper_Land"
+          ]
+        },
+        {
+          "id": "sek-super-lunge",
+          "label": "Sek Super Lunge",
+          "states": [
+            "s.SekhSuper_From_Eliza",
+            "s.Sek_SuperLunge_Start_As_Sek_Chained",
+            "s.Sek_SuperLunge_Start_As_Sek",
+            "s.Sek_SuperLunge",
+            "Sek_SuperLunge_Blocked",
+            "Sek_SuperLunge_Bounce",
+            "Sek_SuperLunge_BounceLand",
+            "Sek_SuperLunge_Hit",
+            "Sek_SuperLunge_Part1",
+            "Sek_SuperLunge_Part2",
+            "Sek_SuperLunge_Part3",
+            "Sek_SuperLunge_End",
+            "Sek_SuperLunge_Fall",
+            "Sek_SuperLunge_EarlyOut"
+          ]
+        },
+        {
+          "id": "sekhmet-vampire-grab",
+          "label": "Sekhmet Vampire Grab",
+          "states": [
+            "s.SekhVampireSuper_From_Eliza",
+            "s.Sekhmet_Vampire_Grab",
+            "s.Sekhmet_Vampire_Grab_From_Eliza",
+            "s.Sekhmet_Vampire_Grab_Success",
+            "s.Sekhmet_Vampire_Grab_Dismount"
+          ]
+        },
+        {
+          "id": "air-throw",
+          "label": "Air throw (all directions)",
+          "states": [
+            "j.Throw",
+            "j.KaraThrow",
+            "j.ThrowSuccess",
+            "j.Throw_Wallslam_Loop",
+            "j.Throw_Wallslam_Loop_CameraIgnore",
+            "j.Throw_Wallslam_Slam"
+          ]
+        },
+        {
+          "id": "ground-throw",
+          "label": "Ground throw (all directions)",
+          "states": [
+            "s.Throw_Back",
+            "s.Throw_Fwd",
+            "s.KaraThrow_Back",
+            "s.KaraThrow_Fwd",
+            "s.ThrowAttempt",
+            "s.ThrowSuccess",
+            "s.ThrowRecovery"
+          ]
+        }
+      ]
+    },
+    {
+      "character": "Fukua",
+      "foitSha256": "6a9b4e8bdada7a1b078083898dc9e003d316f1a69fdc45bdbce9a4802fac9779",
+      "moves": [
+        {
+          "id": "snap-out",
+          "label": "Snap out",
+          "states": [
+            "s.SnapOut_A1",
+            "s.KaraSnapOut_A1",
+            "s.SnapOut_A2",
+            "s.KaraSnapOut_A2",
+            "SnapOut_ForReal"
+          ]
+        },
+        {
+          "id": "normal-c-rh",
+          "label": "c.HK",
+          "states": [
+            "c.RH"
+          ]
+        },
+        {
+          "id": "normal-c-fierce",
+          "label": "c.HP",
+          "states": [
+            "c.Fierce"
+          ]
+        },
+        {
+          "id": "normal-c-short",
+          "label": "c.LK",
+          "states": [
+            "c.Short",
+            "c.Short_RapidFire"
+          ]
+        },
+        {
+          "id": "normal-c-jab",
+          "label": "c.LP",
+          "states": [
+            "c.Jab",
+            "c.Jab_RapidFire"
+          ]
+        },
+        {
+          "id": "normal-c-fwd",
+          "label": "c.MK",
+          "states": [
+            "c.Fwd"
+          ]
+        },
+        {
+          "id": "normal-c-strong",
+          "label": "c.MP",
+          "states": [
+            "c.Strong"
+          ]
+        },
+        {
+          "id": "normal-j-rh",
+          "label": "j.HK",
+          "states": [
+            "j.RH",
+            "j.RH_Hitstop_OnHit",
+            "j.RH_Hitstop_OnBlock",
+            "j.RH_Recovery_OnHit",
+            "j.RH_Recovery_OnBlock",
+            "j.RH_JumpLand_NoBlocking_OnHit",
+            "j.RH_JumpLand_OnHit_Reversals"
+          ]
+        },
+        {
+          "id": "normal-j-fierce",
+          "label": "j.HP",
+          "states": [
+            "j.Fierce",
+            "j.Fierce_After_j.RH"
+          ]
+        },
+        {
+          "id": "normal-j-short",
+          "label": "j.LK",
+          "states": [
+            "j.Short"
+          ]
+        },
+        {
+          "id": "normal-j-jab",
+          "label": "j.LP",
+          "states": [
+            "j.Jab"
+          ]
+        },
+        {
+          "id": "normal-j-fwd",
+          "label": "j.MK",
+          "states": [
+            "j.Fwd"
+          ]
+        },
+        {
+          "id": "normal-j-strong",
+          "label": "j.MP",
+          "states": [
+            "j.Strong"
+          ]
+        },
+        {
+          "id": "normal-s-rh",
+          "label": "s.HK",
+          "states": [
+            "s.RH"
+          ]
+        },
+        {
+          "id": "normal-s-fierce",
+          "label": "s.HP",
+          "states": [
+            "s.Fierce"
+          ]
+        },
+        {
+          "id": "normal-s-short",
+          "label": "s.LK",
+          "states": [
+            "s.Short",
+            "s.Short_RapidFire"
+          ]
+        },
+        {
+          "id": "normal-s-jab",
+          "label": "s.LP",
+          "states": [
+            "s.Jab",
+            "s.Jab_RapidFire"
+          ]
+        },
+        {
+          "id": "normal-s-fwd",
+          "label": "s.MK",
+          "states": [
+            "s.Fwd"
+          ]
+        },
+        {
+          "id": "normal-s-strong",
+          "label": "s.MP",
+          "states": [
+            "s.Strong"
+          ]
+        },
+        {
+          "id": "drill-rush",
+          "label": "Drill Rush",
+          "states": [
+            "s.DrillRush_L",
+            "s.DrillRush_M",
+            "s.DrillRush_H"
+          ]
+        },
+        {
+          "id": "fireball",
+          "label": "Fireball",
+          "states": [
+            "s.Fireball_L",
+            "s.Fireball_M",
+            "s.Fireball_H",
+            "s.Fireball_ForReal",
+            "j.Fireball_L",
+            "j.Fireball_M",
+            "j.Fireball_H",
+            "j.Fireball_ForReal"
+          ]
+        },
+        {
+          "id": "shadow-clone",
+          "label": "Shadow Clone",
+          "states": [
+            "s.ShadowClone_L",
+            "s.ShadowClone_M",
+            "s.ShadowClone_H",
+            "s.ShadowClone_DashLenient"
+          ]
+        },
+        {
+          "id": "black-pol",
+          "label": "Black Pol",
+          "states": [
+            "s.BlackPol",
+            "s.BlackPol_Slow",
+            "s.BlackPol_ForReal",
+            "s.BlackPol_OnHit"
+          ]
+        },
+        {
+          "id": "super-drill-kick",
+          "label": "Super Drill Kick",
+          "states": [
+            "s.SuperDrillKick",
+            "s.SuperDrillKick_Loop",
+            "s.SuperDrillKick_Apex",
+            "s.SuperDrillKick_Fall",
+            "s.SuperDrillKick_Fall_Loop",
+            "s.SuperDrillKick_Land",
+            "j.SuperDrillKick",
+            "j.SuperDrillKick_Loop",
+            "j.SuperDrillKick_FinalHit",
+            "j.SuperDrillKick_Land"
+          ]
+        },
+        {
+          "id": "super-fireball",
+          "label": "Super Fireball",
+          "states": [
+            "s.SuperFireball",
+            "j.SuperFireball_L+M",
+            "j.SuperFireball_M+H",
+            "j.SuperFireball_L+H_3Buttons",
+            "j.SuperFireball_ForReal"
+          ]
+        },
+        {
+          "id": "super-throw",
+          "label": "Super Throw",
+          "states": [
+            "s.SuperThrow",
+            "s.SuperThrowWhiff",
+            "SuperThrowSuccess",
+            "s.SuperThrowRecovery"
+          ]
+        },
+        {
+          "id": "twice-shy",
+          "label": "Twice Shy",
+          "states": [
+            "s.TwiceShy",
+            "s.TwiceShy_Bite",
+            "s.TwiceShy_Whiff",
+            "s.TwiceShy_Catch",
+            "s.TwiceShy_Spit"
+          ]
+        },
+        {
+          "id": "air-throw",
+          "label": "Air throw (all directions)",
+          "states": [
+            "j.Throw",
+            "j.KaraThrow",
+            "j.ThrowWhiff",
+            "j.ThrowSuccess",
+            "j.ThrowRecovery_Branch",
+            "j.ThrowRecovery"
+          ]
+        },
+        {
+          "id": "ground-throw",
+          "label": "Ground throw (all directions)",
+          "states": [
+            "s.Throw_Back",
+            "s.Throw_Fwd",
+            "s.KaraThrow_Back",
+            "s.KaraThrow_Fwd",
+            "s.ThrowWhiff",
+            "s.ThrowSuccess_Back",
+            "s.ThrowSuccess_Fwd",
+            "s.ThrowRecovery"
+          ]
+        }
+      ]
+    },
+    {
+      "character": "Beowulf",
+      "foitSha256": "5302729ad0f055f1c89008c189f69ce2ce167f508ba77e619a889bbe59540411",
+      "moves": [
+        {
+          "id": "grab-mode",
+          "label": "Grab Mode",
+          "states": [
+            "GrabMode_Catch",
+            "GrabMode_Catch_AirOnly",
+            "GrabMode_Catch_Super",
+            "GrabMode_Catch_Lv3",
+            "GrabMode_Release",
+            "GrabMode_ToStand",
+            "GrabMode_End",
+            "GrabMode_Init",
+            "GrabMode_Init_Branch",
+            "GrabMode_Stand",
+            "GrabMode_WalkFwd",
+            "GrabMode_WalkFwd_Loop",
+            "GrabMode_WalkFwd_End",
+            "GrabMode_WalkBack",
+            "GrabMode_WalkBack_Loop",
+            "GrabMode_WalkBack_End",
+            "GrabMode_JumpStart",
+            "GrabMode_Jump_Start_N",
+            "GrabMode_Jump_Start_EndBranch",
+            "GrabMode_JumpRise",
+            "GrabMode_JumpFall",
+            "GrabMode_JumpLand",
+            "GrabMode_JumpLand_N",
+            "GrabMode_Regrab_Or_Release",
+            "GrabMode_Snapback_A1",
+            "GrabMode_KaraSnapback_A1",
+            "GrabMode_Snapback_A2",
+            "GrabMode_KaraSnapback_A2",
+            "GrabMode_Snapback_ForReal",
+            "GrabMode_Bulldog_Ground",
+            "GrabMode_EX_Bulldog_Ground",
+            "GrabMode_Bulldog_Ground_ForReal",
+            "GrabMode_Bulldog_Air",
+            "GrabMode_EX_Bulldog_Air",
+            "GrabMode_Bulldog_Air_ForReal",
+            "GrabMode_Bulldog_Fall",
+            "GrabMode_Bulldog_Land",
+            "GrabMode_Bulldog_Regrab",
+            "GrabMode_Bulldog_TechCheck",
+            "GrabMode_Bulldog_NoTech",
+            "GrabMode_GringoKilla_Ground",
+            "GrabMode_EX_GringoKilla_Ground",
+            "GrabMode_GringoKilla_Ground_ForReal",
+            "GrabMode_GringoKilla_Air",
+            "GrabMode_EX_GringoKilla_Air",
+            "GrabMode_GringoKilla_Air_ForReal",
+            "GrabMode_GringoKilla_Fall",
+            "GrabMode_GringoKilla_Land"
+          ]
+        },
+        {
+          "id": "grab-mode-headbutt",
+          "label": "Grab Mode Headbutt",
+          "states": [
+            "GrabMode_Headbutt",
+            "GrabMode_Double_Headbutt"
+          ]
+        },
+        {
+          "id": "grab-mode-knee",
+          "label": "Grab Mode Knee",
+          "states": [
+            "GrabMode_Knee"
+          ]
+        },
+        {
+          "id": "snap-out",
+          "label": "Snap out",
+          "states": [
+            "s.SnapOut_A1",
+            "s.KaraSnapOut_A1",
+            "s.SnapOut_A2",
+            "s.KaraSnapOut_A2",
+            "SnapOut_ForReal"
+          ]
+        },
+        {
+          "id": "snapback",
+          "label": "Snapback",
+          "states": [
+            "Snapback_EarlyOut",
+            "Snapback_StaySeated",
+            "Snapback_StaySeated_End"
+          ]
+        },
+        {
+          "id": "normal-c-hk",
+          "label": "c.HK",
+          "states": [
+            "c.HK",
+            "c.HK_Chair",
+            "c.HK_Chair_2ndHalf",
+            "c.HK_NoChair_ArtReshuffling",
+            "c.HK_NoChair",
+            "c.HK_NoChair_TechCheck",
+            "c.HK_OnFloor_Front_LieThere_Loop",
+            "c.HK_Wakeup_Facedown"
+          ]
+        },
+        {
+          "id": "normal-c-hp",
+          "label": "c.HP",
+          "states": [
+            "c.HP",
+            "c.HP_Chair",
+            "c.HP_NoChair",
+            "c.HP_NoChair_2nd"
+          ]
+        },
+        {
+          "id": "normal-c-wk",
+          "label": "c.LK",
+          "states": [
+            "c.WK"
+          ]
+        },
+        {
+          "id": "normal-c-wp",
+          "label": "c.LP",
+          "states": [
+            "c.WP"
+          ]
+        },
+        {
+          "id": "normal-c-mk",
+          "label": "c.MK",
+          "states": [
+            "c.MK",
+            "c.MK_ToGrabMode"
+          ]
+        },
+        {
+          "id": "normal-c-mp",
+          "label": "c.MP",
+          "states": [
+            "c.MP"
+          ]
+        },
+        {
+          "id": "normal-j-d-hk",
+          "label": "j.D+HK",
+          "states": [
+            "j.D+HK_FromDash",
+            "j.D+HK",
+            "j.D+HK_LeapOffChair"
+          ]
+        },
+        {
+          "id": "normal-j-hk",
+          "label": "j.HK",
+          "states": [
+            "j.HK_FromDash",
+            "j.HK"
+          ]
+        },
+        {
+          "id": "normal-j-hp",
+          "label": "j.HP",
+          "states": [
+            "j.HP_FromDash",
+            "j.HP",
+            "j.HP_Chair",
+            "j.HP_Chair_Loop",
+            "j.HP_NoChair",
+            "j.HP_NoChair_Loop",
+            "j.HP_NoChair_ToGrabMode"
+          ]
+        },
+        {
+          "id": "normal-j-wk",
+          "label": "j.LK",
+          "states": [
+            "j.WK_FromDash",
+            "j.WK"
+          ]
+        },
+        {
+          "id": "normal-j-wp",
+          "label": "j.LP",
+          "states": [
+            "j.WP_FromDash",
+            "j.WP"
+          ]
+        },
+        {
+          "id": "normal-j-mk",
+          "label": "j.MK",
+          "states": [
+            "j.MK_FromDash",
+            "j.MK",
+            "j.MK_Loop",
+            "j.MK_Land",
+            "j.MK_Recovery"
+          ]
+        },
+        {
+          "id": "normal-j-mp",
+          "label": "j.MP",
+          "states": [
+            "j.MP_FromDash",
+            "j.MP"
+          ]
+        },
+        {
+          "id": "normal-s-hk",
+          "label": "s.HK",
+          "states": [
+            "s.HK"
+          ]
+        },
+        {
+          "id": "normal-s-hp",
+          "label": "s.HP",
+          "states": [
+            "s.HP",
+            "s.HP_Chair",
+            "s.HP_NoChair",
+            "s.HP_NoChair_ToGrabMode"
+          ]
+        },
+        {
+          "id": "normal-s-wk",
+          "label": "s.LK",
+          "states": [
+            "s.WK"
+          ]
+        },
+        {
+          "id": "normal-s-wp",
+          "label": "s.LP",
+          "states": [
+            "s.WP",
+            "s.WP_Hold",
+            "s.WP_End"
+          ]
+        },
+        {
+          "id": "normal-s-mk",
+          "label": "s.MK",
+          "states": [
+            "s.MK"
+          ]
+        },
+        {
+          "id": "normal-s-mp",
+          "label": "s.MP",
+          "states": [
+            "s.MP",
+            "s.MP_Hold",
+            "s.MP_Drop"
+          ]
+        },
+        {
+          "id": "chair-recall",
+          "label": "Chair Recall",
+          "states": [
+            "s.Chair_Recall",
+            "s.Chair_Recall_For_Real",
+            "s.Chair_Recall_Recovery",
+            "s.Chair_Recall_Catch"
+          ]
+        },
+        {
+          "id": "chair-toss",
+          "label": "Chair Toss (all strengths)",
+          "states": [
+            "s.ChairToss_L",
+            "s.ChairToss_L_ForReal",
+            "s.ChairToss_L_ReversalWindow",
+            "s.ChairToss_M",
+            "s.ChairToss_H",
+            "s.ChairToss_M_H_Check",
+            "s.ChairToss_M_H_ForReal",
+            "s.ChairToss_M_H_ReversalWindow"
+          ]
+        },
+        {
+          "id": "grab-mode-cossack",
+          "label": "Grab Mode Cossack",
+          "states": [
+            "GrabMode_Cossack",
+            "GrabMode_EX_Cossack",
+            "GrabMode_Cossack_ForReal",
+            "GrabMode_Cossack_Loop",
+            "GrabMode_Cossack_End",
+            "GrabMode_Cossack_Fall",
+            "GrabMode_Cossack_Fall_Loop",
+            "GrabMode_Cossack_Land"
+          ]
+        },
+        {
+          "id": "grab-mode-fisherman-slam",
+          "label": "Grab Mode Fisherman Slam",
+          "states": [
+            "GrabMode_FishermanSlam_F",
+            "GrabMode_EX_FishermanSlam_F",
+            "GrabMode_FishermanSlam_F_REAL",
+            "GrabMode_FishermanSlam_B",
+            "GrabMode_EX_FishermanSlam_B",
+            "GrabMode_FishermanSlam_B_REAL",
+            "GrabMode_FishermanSlam_ForReal",
+            "GrabMode_FishermanSlam_Regrab"
+          ]
+        },
+        {
+          "id": "pick-up-chair",
+          "label": "Pick Up Chair",
+          "states": [
+            "s.Pick_Up_Chair_FromArmNormals",
+            "s.Pick_Up_Chair",
+            "s.Pick_Up_Chair_ReversalWindow"
+          ]
+        },
+        {
+          "id": "rush-grab",
+          "label": "Rush Grab",
+          "states": [
+            "s.KaraRushGrab",
+            "s.RushGrab",
+            "s.RushGrab_Catch"
+          ]
+        },
+        {
+          "id": "organic-arm",
+          "label": "Gigantic Arm",
+          "states": [
+            "s.OrganicArm",
+            "s.OrganicArm_Loop",
+            "s.OrganicArm_End"
+          ]
+        },
+        {
+          "id": "heavenly-buster",
+          "label": "Heavenly Buster",
+          "states": [
+            "s.HeavenlyBuster",
+            "HeavenlyBuster_Loop",
+            "HeavenlyBuster_End",
+            "HeavenlyBuster_ToGrabMode"
+          ]
+        },
+        {
+          "id": "lv3",
+          "label": "Lv3",
+          "states": [
+            "s.Lv3_Grab",
+            "s.Lv3_ToGrabMode"
+          ]
+        },
+        {
+          "id": "air-throw",
+          "label": "Air throw (all directions)",
+          "states": [
+            "j.Throw",
+            "j.KaraThrow",
+            "j.ThrowToGrabMode"
+          ]
+        },
+        {
+          "id": "ground-throw",
+          "label": "Ground throw (all directions)",
+          "states": [
+            "s.Throw_Back",
+            "s.Throw_Fwd",
+            "s.KaraThrow_Back",
+            "s.KaraThrow_Fwd",
+            "s.ThrowAttempt",
+            "s.ThrowToGrabMode"
+          ]
+        }
+      ]
+    },
+    {
+      "character": "RoboFortune",
+      "foitSha256": "0550f88e2f834a68879be52775e1910841f47203c6a8aeceff8cf05824212aa6",
+      "moves": [
+        {
+          "id": "snap-out",
+          "label": "Snap out",
+          "states": [
+            "s.SnapOut_A1",
+            "s.KaraSnapOut_A1",
+            "s.SnapOut_A2",
+            "s.KaraSnapOut_A2",
+            "SnapOut_ForReal"
+          ]
+        },
+        {
+          "id": "normal-c-hk",
+          "label": "c.HK",
+          "states": [
+            "c.HK",
+            "c.HK_Until3Heads",
+            "c.HK_Until3Heads_Rotate",
+            "c.HK_Until3Heads_EndBranch"
+          ]
+        },
+        {
+          "id": "normal-c-hp",
+          "label": "c.HP",
+          "states": [
+            "c.HP"
+          ]
+        },
+        {
+          "id": "normal-c-wk",
+          "label": "c.LK",
+          "states": [
+            "c.WK"
+          ]
+        },
+        {
+          "id": "normal-c-wp",
+          "label": "c.LP",
+          "states": [
+            "c.WP",
+            "c.WP_2nd"
+          ]
+        },
+        {
+          "id": "normal-c-mk",
+          "label": "c.MK",
+          "states": [
+            "c.MK"
+          ]
+        },
+        {
+          "id": "normal-c-mp",
+          "label": "c.MP",
+          "states": [
+            "c.MP"
+          ]
+        },
+        {
+          "id": "normal-j-hk",
+          "label": "j.HK",
+          "states": [
+            "j.HK",
+            "j.HK_From_HJ"
+          ]
+        },
+        {
+          "id": "normal-j-hp",
+          "label": "j.HP",
+          "states": [
+            "j.HP",
+            "j.HP_From_HJ"
+          ]
+        },
+        {
+          "id": "normal-j-wk",
+          "label": "j.LK",
+          "states": [
+            "j.WK",
+            "j.WK_From_HJ"
+          ]
+        },
+        {
+          "id": "normal-j-wp",
+          "label": "j.LP",
+          "states": [
+            "j.WP",
+            "j.WP_From_HJ"
+          ]
+        },
+        {
+          "id": "normal-j-mk",
+          "label": "j.MK",
+          "states": [
+            "j.MK",
+            "j.MK_From_HJ"
+          ]
+        },
+        {
+          "id": "normal-j-mp",
+          "label": "j.MP",
+          "states": [
+            "j.MP",
+            "j.MP_From_HJ"
+          ]
+        },
+        {
+          "id": "normal-s-hk",
+          "label": "s.HK",
+          "states": [
+            "s.HK",
+            "s.HK_HomingJump_Start_SJ",
+            "s.HK_HomingJump_Start",
+            "s.HK_HomingJump_Loop"
+          ]
+        },
+        {
+          "id": "normal-s-hp",
+          "label": "s.HP",
+          "states": [
+            "s.HP"
+          ]
+        },
+        {
+          "id": "normal-s-wk",
+          "label": "s.LK",
+          "states": [
+            "s.WK"
+          ]
+        },
+        {
+          "id": "normal-s-wp",
+          "label": "s.LP",
+          "states": [
+            "s.WP",
+            "s.WP_2nd"
+          ]
+        },
+        {
+          "id": "normal-s-mk",
+          "label": "s.MK",
+          "states": [
+            "s.MK"
+          ]
+        },
+        {
+          "id": "normal-s-mp",
+          "label": "s.MP",
+          "states": [
+            "s.MP"
+          ]
+        },
+        {
+          "id": "det-mode-recharge",
+          "label": "Det Mode Recharge",
+          "states": [
+            "s.DetMode_Recharge_L",
+            "s.DetMode_Recharge_M",
+            "s.DetMode_Recharge_H",
+            "s.DetMode_Recharge_L_On_Hit_Only",
+            "s.DetMode_Recharge_M_On_Hit_Only",
+            "s.DetMode_Recharge_H_On_Hit_Only",
+            "s.DetMode_Recharge_ForReal"
+          ]
+        },
+        {
+          "id": "head-control",
+          "label": "Head Control",
+          "states": [
+            "s.HeadControl_L",
+            "s.HeadControl_L_Assist",
+            "s.HeadControl_M",
+            "s.HeadControl_M_Assist",
+            "s.HeadControl_H",
+            "s.HeadControl_H_Assist",
+            "s.HeadControl_ForReal"
+          ]
+        },
+        {
+          "id": "laser",
+          "label": "Laser",
+          "states": [
+            "s.Laser_L",
+            "s.Laser_M",
+            "s.Laser_H",
+            "j.Laser_L",
+            "j.Laser_M",
+            "j.Laser_H",
+            "j.Post_Laser_DoublejumpCheck"
+          ]
+        },
+        {
+          "id": "spinny",
+          "label": "Spinny",
+          "states": [
+            "s.Spinny_L",
+            "s.Spinny_M",
+            "s.Spinny_M_Kara_From_MK",
+            "s.Spinny_H"
+          ]
+        },
+        {
+          "id": "det-mode",
+          "label": "Det Mode",
+          "states": [
+            "s.DetMode",
+            "s.DetMode_Reversals",
+            "DetMode_OneStandIdleLoop"
+          ]
+        },
+        {
+          "id": "det-mode-explode",
+          "label": "Det Mode Explode",
+          "states": [
+            "Robo_DetMode_Explode",
+            "DetMode_Explode_ForReal",
+            "DetMode_Explode_FallIn",
+            "DetMode_Explode_Land",
+            "s.DetMode_Explode_Reversals"
+          ]
+        },
+        {
+          "id": "iron-claw",
+          "label": "Iron Claw",
+          "states": [
+            "s.IronClaw",
+            "s.IronClaw_Loop",
+            "s.IronClaw_End",
+            "s.IronClaw_Grab",
+            "s.IronClaw_Grab_Loop",
+            "s.IronClaw_Grab_Slam"
+          ]
+        },
+        {
+          "id": "super-laser",
+          "label": "Super Laser",
+          "states": [
+            "s.SuperLaser",
+            "s.SuperLaser_Start_FacingRIGHT",
+            "s.SuperLaser_Start_FacingLEFT",
+            "s.SuperLaser_Charge_FacingRIGHT",
+            "s.SuperLaser_Charge_FacingLEFT",
+            "s.SuperLaser_Loop_FacingRIGHT",
+            "s.SuperLaser_Loop_FacingLEFT",
+            "s.SuperLaser_Recovery_FacingRIGHT",
+            "s.SuperLaser_Recovery_FacingLEFT"
+          ]
+        },
+        {
+          "id": "air-throw",
+          "label": "Air throw (all directions)",
+          "states": [
+            "j.Throw",
+            "j.KaraThrow",
+            "j.ThrowSuccess",
+            "j.ThrowRecovery"
+          ]
+        },
+        {
+          "id": "ground-throw",
+          "label": "Ground throw (all directions)",
+          "states": [
+            "s.Throw_Back",
+            "s.Throw_Fwd",
+            "s.KaraThrow_Back",
+            "s.KaraThrow_Fwd",
+            "s.ThrowAttempt",
+            "s.ThrowSuccess",
+            "s.ThrowRecovery"
+          ]
+        }
+      ]
+    },
+    {
+      "character": "Annie",
+      "foitSha256": "28042e31ca999130d466522f117e7bef87f744c334731cf34d88ed8485ba35f7",
+      "moves": [
+        {
+          "id": "snap-out",
+          "label": "Snap out",
+          "states": [
+            "s.SnapOut_A1",
+            "s.KaraSnapOut_A1",
+            "s.SnapOut_A2",
+            "s.KaraSnapOut_A2",
+            "SnapOut_ForReal"
+          ]
+        },
+        {
+          "id": "star-cancel",
+          "label": "Star Cancel",
+          "states": [
+            "s.StarCancel",
+            "j.StarCancel"
+          ]
+        },
+        {
+          "id": "taunt",
+          "label": "Taunt",
+          "states": [
+            "s.Taunt_As_Assist",
+            "s.Taunt",
+            "s.Taunt_OnHitBranch",
+            "s.Taunt_ToHitstun",
+            "s.Taunt_OneInchPunch"
+          ]
+        },
+        {
+          "id": "normal-c-hk",
+          "label": "c.HK",
+          "states": [
+            "c.HK",
+            "c.HK_Slide",
+            "c.HK_Slide_NoCancels",
+            "c.HK_2ndHit",
+            "c.HK_2ndHit_End",
+            "c.HK_2ndHit_End_Install_ReversalLP"
+          ]
+        },
+        {
+          "id": "normal-c-hp",
+          "label": "c.HP",
+          "states": [
+            "c.HP"
+          ]
+        },
+        {
+          "id": "normal-c-wk",
+          "label": "c.LK",
+          "states": [
+            "c.WK"
+          ]
+        },
+        {
+          "id": "normal-c-wp",
+          "label": "c.LP",
+          "states": [
+            "c.WP",
+            "c.WP_2nd"
+          ]
+        },
+        {
+          "id": "normal-c-mk",
+          "label": "c.MK",
+          "states": [
+            "c.MK"
+          ]
+        },
+        {
+          "id": "normal-c-mp",
+          "label": "c.MP",
+          "states": [
+            "c.MP",
+            "c.MP_Chained"
+          ]
+        },
+        {
+          "id": "normal-j-hk",
+          "label": "j.HK",
+          "states": [
+            "j.HK",
+            "j.HK_Fall",
+            "j.HK_Land"
+          ]
+        },
+        {
+          "id": "normal-j-hp",
+          "label": "j.HP",
+          "states": [
+            "j.HP"
+          ]
+        },
+        {
+          "id": "normal-j-wk",
+          "label": "j.LK",
+          "states": [
+            "j.WK"
+          ]
+        },
+        {
+          "id": "normal-j-wp",
+          "label": "j.LP",
+          "states": [
+            "j.WP"
+          ]
+        },
+        {
+          "id": "normal-j-mk",
+          "label": "j.MK",
+          "states": [
+            "j.MK"
+          ]
+        },
+        {
+          "id": "normal-j-mp",
+          "label": "j.MP",
+          "states": [
+            "j.MP"
+          ]
+        },
+        {
+          "id": "normal-s-f-hp",
+          "label": "s.F+HP",
+          "states": [
+            "s.F+HP"
+          ]
+        },
+        {
+          "id": "normal-s-f-mp",
+          "label": "s.F+MP",
+          "states": [
+            "s.F+MP"
+          ]
+        },
+        {
+          "id": "normal-s-hk",
+          "label": "s.HK",
+          "states": [
+            "s.HK"
+          ]
+        },
+        {
+          "id": "normal-s-hp",
+          "label": "s.HP",
+          "states": [
+            "s.HP",
+            "s.HP_2nd",
+            "s.HP_2nd_ForceNewChain",
+            "s.HP_2nd_Leap"
+          ]
+        },
+        {
+          "id": "normal-s-wk",
+          "label": "s.LK",
+          "states": [
+            "s.WK"
+          ]
+        },
+        {
+          "id": "normal-s-wp",
+          "label": "s.LP",
+          "states": [
+            "s.WP",
+            "s.WP_2nd"
+          ]
+        },
+        {
+          "id": "normal-s-mk",
+          "label": "s.MK",
+          "states": [
+            "s.MK",
+            "s.MK_2nd"
+          ]
+        },
+        {
+          "id": "normal-s-mp",
+          "label": "s.MP",
+          "states": [
+            "s.MP"
+          ]
+        },
+        {
+          "id": "crescent-cut",
+          "label": "Crescent Cut",
+          "states": [
+            "s.CrescentCut_L",
+            "s.CrescentCut_L_HCT",
+            "s.CrescentCut_M",
+            "s.CrescentCut_M_HCT",
+            "s.CrescentCut_H",
+            "s.CrescentCut_H_HCT",
+            "CrescentCut"
+          ]
+        },
+        {
+          "id": "destruction-pillar",
+          "label": "Destruction Pillar",
+          "states": [
+            "s.DestructionPillar_L",
+            "s.DestructionPillar_M",
+            "s.DestructionPillar_H",
+            "j.DestructionPillar_L",
+            "j.DestructionPillar_M",
+            "j.DestructionPillar_H",
+            "DestructionPillar",
+            "DestructionPillar_Loop",
+            "DestructionPillar_Peak",
+            "DestructionPillar_Fall",
+            "DestructionPillar_Land"
+          ]
+        },
+        {
+          "id": "north-knuckle",
+          "label": "North Knuckle",
+          "states": [
+            "s.NorthKnuckle_L",
+            "s.NorthKnuckle_M",
+            "s.NorthKnuckle_H",
+            "NorthKnuckle",
+            "NorthKnuckle_Loop",
+            "NorthKnuckle_End",
+            "NorthKnuckle_Slam",
+            "NorthKnuckle_Slam_L",
+            "NorthKnuckle_Slam_M",
+            "NorthKnuckle_Slam_H"
+          ]
+        },
+        {
+          "id": "re-entry",
+          "label": "Re Entry",
+          "states": [
+            "j.ReEntry_L",
+            "j.ReEntry_M",
+            "j.ReEntry_H",
+            "ReEntry_StartNewChainFromStandFierce",
+            "ReEntry",
+            "ReEntry_Loop",
+            "ReEntry_Land",
+            "ReEntry_OnHit",
+            "ReEntry_OnHit_CancellableRecovery"
+          ]
+        },
+        {
+          "id": "autograph",
+          "label": "Autograph",
+          "states": [
+            "s.Autograph",
+            "Autograph_Final",
+            "PostAutograph_Reversals"
+          ]
+        },
+        {
+          "id": "gravity-slingshot",
+          "label": "Gravity Slingshot",
+          "states": [
+            "s.GravitySlingshot",
+            "GravitySlingshot_Loop",
+            "GravitySlingshot_End"
+          ]
+        },
+        {
+          "id": "meteor-right",
+          "label": "Meteor Right",
+          "states": [
+            "s.MeteorRight",
+            "MeteorRight_Loop",
+            "MeteorRight_End"
+          ]
+        },
+        {
+          "id": "pillar-of-creation",
+          "label": "Pillar Of Creation",
+          "states": [
+            "s.PillarOfCreation",
+            "PillarOfCreation_Start"
+          ]
+        },
+        {
+          "id": "sagan-beam",
+          "label": "Sagan Beam",
+          "states": [
+            "s.SaganBeam_HCT",
+            "s.SaganBeam",
+            "j.SaganBeam",
+            "s.SaganBeam_Startup_2nd",
+            "j.SaganBeam_Startup_2nd",
+            "s.SaganBeam_Loop",
+            "j.SaganBeam_Loop",
+            "s.SaganBeam_End",
+            "j.SaganBeam_End",
+            "s.SaganBeam_Recovery",
+            "j.SaganBeam_Recovery"
+          ]
+        },
+        {
+          "id": "star-power",
+          "label": "Star Power",
+          "states": [
+            "s.StarPower"
+          ]
+        },
+        {
+          "id": "star-power-deactivate",
+          "label": "Star Power Deactivate",
+          "states": [
+            "s.StarPowerDeactivate",
+            "j.StarPowerDeactivate"
+          ]
+        },
+        {
+          "id": "air-throw",
+          "label": "Air throw (all directions)",
+          "states": [
+            "j.Throw",
+            "j.KaraThrow",
+            "j.ThrowSuccess",
+            "j.Throw_Fall_Loop",
+            "j.Throw_Fall_Impact",
+            "j.Throw_Fall_Recovery"
+          ]
+        },
+        {
+          "id": "ground-throw",
+          "label": "Ground throw (all directions)",
+          "states": [
+            "s.Throw_Back",
+            "s.Throw_Fwd",
+            "s.KaraThrow_Back",
+            "s.KaraThrow_Fwd",
+            "s.ThrowAttempt",
+            "s.ThrowSuccess",
+            "s.Throw",
+            "s.ThrowRecovery"
+          ]
+        }
+      ]
+    },
+    {
+      "character": "Umbrella",
+      "foitSha256": "00eaf6d0da8205a5babdbc400062ff7192c0c6ac6f87d31a926704dd0618686b",
+      "moves": [
+        {
+          "id": "snap-out",
+          "label": "Snap out",
+          "states": [
+            "s.SnapOut_A1",
+            "s.KaraSnapOut_A1",
+            "s.SnapOut_A2",
+            "s.KaraSnapOut_A2",
+            "SnapOut_ForReal"
+          ]
+        },
+        {
+          "id": "normal-b-mp",
+          "label": "b.MP",
+          "states": [
+            "b.MP",
+            "b.MP_Attack",
+            "b.MP_Fall_Loop",
+            "b.MP_JumpLand_NoBlocking_N",
+            "b.MP_JumpLand_ReversalWindow"
+          ]
+        },
+        {
+          "id": "normal-c-hk",
+          "label": "c.HK",
+          "states": [
+            "c.HK"
+          ]
+        },
+        {
+          "id": "normal-c-hp",
+          "label": "c.HP",
+          "states": [
+            "c.HP",
+            "c.HP_2nd"
+          ]
+        },
+        {
+          "id": "normal-c-wk",
+          "label": "c.LK",
+          "states": [
+            "c.WK"
+          ]
+        },
+        {
+          "id": "normal-c-wp",
+          "label": "c.LP",
+          "states": [
+            "c.WP"
+          ]
+        },
+        {
+          "id": "normal-c-mk",
+          "label": "c.MK",
+          "states": [
+            "c.MK"
+          ]
+        },
+        {
+          "id": "normal-c-mp",
+          "label": "c.MP",
+          "states": [
+            "c.MP"
+          ]
+        },
+        {
+          "id": "normal-j-hk",
+          "label": "j.HK",
+          "states": [
+            "j.HK",
+            "Reverse_j.HK"
+          ]
+        },
+        {
+          "id": "normal-j-hp",
+          "label": "j.HP",
+          "states": [
+            "j.HP",
+            "j.HP_Loop",
+            "j.HP_Overstuffed_Loop",
+            "j.HP_Land",
+            "Reverse_j.HP"
+          ]
+        },
+        {
+          "id": "normal-j-wk",
+          "label": "j.LK",
+          "states": [
+            "j.WK",
+            "j.WK_Kick_A",
+            "j.WK_Kick_B",
+            "j.WK_Kick_C",
+            "j.WK_Kick_D",
+            "j.WK_End",
+            "Reverse_j.WK"
+          ]
+        },
+        {
+          "id": "normal-j-wp",
+          "label": "j.LP",
+          "states": [
+            "j.WP",
+            "Reverse_j.WP"
+          ]
+        },
+        {
+          "id": "normal-j-mk",
+          "label": "j.MK",
+          "states": [
+            "j.MK",
+            "j.MK_Float",
+            "j.MK_Float_Loop",
+            "j.MK_Float_End_Immediate",
+            "j.MK_Float_End",
+            "j.MK_Fall_Start",
+            "j.MK_Fall_Loop",
+            "j.MK_Fall_Land",
+            "j.MK_Fall_Wakeup",
+            "Reverse_j.MK"
+          ]
+        },
+        {
+          "id": "normal-j-mp",
+          "label": "j.MP",
+          "states": [
+            "j.MP",
+            "Reverse_j.MP"
+          ]
+        },
+        {
+          "id": "normal-s-f-hp",
+          "label": "s.F+HP",
+          "states": [
+            "s.F+HP",
+            "s.F+HP_Charge_Loop",
+            "s.F+HP_End"
+          ]
+        },
+        {
+          "id": "normal-s-f-wp",
+          "label": "s.F+LP",
+          "states": [
+            "s.F+WP"
+          ]
+        },
+        {
+          "id": "normal-s-hk",
+          "label": "s.HK",
+          "states": [
+            "s.HK",
+            "s.HK_Jump",
+            "s.HK_Loop",
+            "s.HK_Grabbed",
+            "s.HK_Recovery",
+            "s.HK_Landing"
+          ]
+        },
+        {
+          "id": "normal-s-hp",
+          "label": "s.HP",
+          "states": [
+            "s.HP"
+          ]
+        },
+        {
+          "id": "normal-s-wk",
+          "label": "s.LK",
+          "states": [
+            "s.WK"
+          ]
+        },
+        {
+          "id": "normal-s-wp",
+          "label": "s.LP",
+          "states": [
+            "s.WP"
+          ]
+        },
+        {
+          "id": "normal-s-mk",
+          "label": "s.MK",
+          "states": [
+            "s.MK"
+          ]
+        },
+        {
+          "id": "normal-s-mp",
+          "label": "s.MP",
+          "states": [
+            "s.MP",
+            "s.MP_Followup_Branch",
+            "s.MP_2nd",
+            "s.MP_2nd_Single"
+          ]
+        },
+        {
+          "id": "bite-grab",
+          "label": "Bite Grab",
+          "states": [
+            "s.KaraBiteGrab",
+            "s.BiteGrab",
+            "BiteGrab_Extend_Loop",
+            "BiteGrab_Whiff_Shocked",
+            "BiteGrab_Whiff_Retract_Loop",
+            "BiteGrab_Whiff_Recovery",
+            "BiteGrab_Success_Start",
+            "BiteGrab_Success_Retract_Loop",
+            "BiteGrab_Success_Grab_Start",
+            "BiteGrab_Success_Chew_Loop",
+            "BiteGrab_Success_Chew_Spit",
+            "BiteGrab_Success_Chew_Spit_ReversalWindow"
+          ]
+        },
+        {
+          "id": "bite-hitgrab",
+          "label": "Bite Hitgrab",
+          "states": [
+            "s.BiteHitgrab",
+            "BiteHitgrab_Success",
+            "BiteHitgrab_Chomp_Branch",
+            "BiteHitgrab_Chomp_Left",
+            "BiteHitgrab_Chomp_Right",
+            "BiteHitgrab_Recovery"
+          ]
+        },
+        {
+          "id": "bobblin-bubble",
+          "label": "Bobblin Bubble",
+          "states": [
+            "s.BobblinBubble",
+            "BobblinBubble_Normal_Reversals"
+          ]
+        },
+        {
+          "id": "cutie-ptooie",
+          "label": "Cutie Ptooie",
+          "states": [
+            "s.CutiePtooie"
+          ]
+        },
+        {
+          "id": "hungern-rush",
+          "label": "Hungern Rush",
+          "states": [
+            "s.HungernRush",
+            "HungernRush_Ascend_Empty",
+            "Hungern_Rush_Ascend_Chomp",
+            "HungernRush_Ascend_Full",
+            "HungernRush_Ascend_Overstuffed",
+            "HungernRush_Ascend_Apex",
+            "HungernRush_Descend_Loop",
+            "HungernRush_Land",
+            "HungernRush_Ending_DashBuffer"
+          ]
+        },
+        {
+          "id": "slurp-nslide",
+          "label": "Slurp NSlide",
+          "states": [
+            "s.SlurpNSlide",
+            "SlurpNSlide_Loop",
+            "SlurpNSlide_Recovery_First",
+            "SlurpNSlide_Recovery_Airborne",
+            "SlurpNSlide_Recovery_Land",
+            "SlurpNSlide_Recovery_Land_Uncancellable",
+            "SlurpNSlide_Recovery_Land_Cancellable",
+            "SlurpNSlide_Starving_Trip_Setup"
+          ]
+        },
+        {
+          "id": "wish-maker",
+          "label": "Wish Maker",
+          "states": [
+            "s.WishMaker"
+          ]
+        },
+        {
+          "id": "falling-bomb",
+          "label": "Falling Bomb",
+          "states": [
+            "s.FallingBomb"
+          ]
+        },
+        {
+          "id": "feeding-time",
+          "label": "Feeding Time",
+          "states": [
+            "s.Feeding_Time",
+            "Feeding_Time_Grabbed",
+            "Feeding_Time_Swallow"
+          ]
+        },
+        {
+          "id": "retina",
+          "label": "Retina",
+          "states": [
+            "s.Retina_Reflector_Physical",
+            "s.Retina_Reflector_Lens_LM",
+            "s.Retina_Reflector_Lens_MH",
+            "s.Retina_Reflector_Lens_LH"
+          ]
+        },
+        {
+          "id": "air-throw",
+          "label": "Air throw (all directions)",
+          "states": [
+            "j.Throw",
+            "j.KaraThrow",
+            "j.ThrowSuccess",
+            "j.ThrowSuccess_Second"
+          ]
+        },
+        {
+          "id": "ground-throw",
+          "label": "Ground throw (all directions)",
+          "states": [
+            "s.Throw_Back",
+            "s.Throw_Fwd",
+            "s.KaraThrow_Back",
+            "s.KaraThrow_Fwd",
+            "s.ThrowAttempt",
+            "s.ThrowSuccess",
+            "s.ThrowChomp",
+            "s.ThrowFinish",
+            "s.ThrowRecovery"
+          ]
+        }
+      ]
+    },
+    {
+      "character": "BlackDahlia",
+      "foitSha256": "a91af68c3045e8f74d8ce95d292ef29fefc9b5bf1ecf819ceeb585e6697c73e5",
+      "moves": [
+        {
+          "id": "snap-out",
+          "label": "Snap out",
+          "states": [
+            "s.SnapOut_A1",
+            "s.KaraSnapOut_A1",
+            "s.SnapOut_A2",
+            "s.KaraSnapOut_A2",
+            "SnapOut_ForReal"
+          ]
+        },
+        {
+          "id": "taunt",
+          "label": "Taunt",
+          "states": [
+            "s.Taunt_As_Assist",
+            "s.Taunt"
+          ]
+        },
+        {
+          "id": "normal-c-hk",
+          "label": "c.HK",
+          "states": [
+            "c.HK"
+          ]
+        },
+        {
+          "id": "normal-c-hp",
+          "label": "c.HP",
+          "states": [
+            "c.HP",
+            "c.HP_2nd",
+            "c.HP_Empowered",
+            "c.HP_Empowered_Cancellable"
+          ]
+        },
+        {
+          "id": "normal-c-lk",
+          "label": "c.LK",
+          "states": [
+            "c.LK"
+          ]
+        },
+        {
+          "id": "normal-c-lp",
+          "label": "c.LP",
+          "states": [
+            "c.LP"
+          ]
+        },
+        {
+          "id": "normal-c-mk",
+          "label": "c.MK",
+          "states": [
+            "c.MK",
+            "c.MK_2nd",
+            "c.MK_air_first",
+            "c.MK_air_loop",
+            "c.MK_land"
+          ]
+        },
+        {
+          "id": "normal-c-mp",
+          "label": "c.MP",
+          "states": [
+            "c.MP"
+          ]
+        },
+        {
+          "id": "normal-j-hk",
+          "label": "j.HK",
+          "states": [
+            "j.HK"
+          ]
+        },
+        {
+          "id": "normal-j-hp",
+          "label": "j.HP",
+          "states": [
+            "j.HP"
+          ]
+        },
+        {
+          "id": "normal-j-lk",
+          "label": "j.LK",
+          "states": [
+            "j.LK"
+          ]
+        },
+        {
+          "id": "normal-j-lp",
+          "label": "j.LP",
+          "states": [
+            "j.LP"
+          ]
+        },
+        {
+          "id": "normal-j-mk",
+          "label": "j.MK",
+          "states": [
+            "j.MK"
+          ]
+        },
+        {
+          "id": "normal-j-mp",
+          "label": "j.MP",
+          "states": [
+            "j.MP"
+          ]
+        },
+        {
+          "id": "normal-s-hk",
+          "label": "s.HK",
+          "states": [
+            "s.HK"
+          ]
+        },
+        {
+          "id": "normal-s-hp",
+          "label": "s.HP",
+          "states": [
+            "s.HP",
+            "s.HP_Empowered",
+            "s.HP_Empowered_Cancellable"
+          ]
+        },
+        {
+          "id": "normal-s-lk",
+          "label": "s.LK",
+          "states": [
+            "s.LK"
+          ]
+        },
+        {
+          "id": "normal-s-lp",
+          "label": "s.LP",
+          "states": [
+            "s.LP",
+            "s.LP_2nd"
+          ]
+        },
+        {
+          "id": "normal-s-mk",
+          "label": "s.MK",
+          "states": [
+            "s.MK"
+          ]
+        },
+        {
+          "id": "normal-s-mp",
+          "label": "s.MP",
+          "states": [
+            "s.MP"
+          ]
+        },
+        {
+          "id": "bell-ring",
+          "label": "Bell Ring",
+          "states": [
+            "s.BellRing",
+            "s.BellRing_Kara",
+            "BellRing_RingOnce",
+            "BellRing_Recovery"
+          ]
+        },
+        {
+          "id": "command-jump",
+          "label": "Command Jump",
+          "states": [
+            "j.CommandJump",
+            "j.CommandJump_ForReal",
+            "j.KaraCommandJump",
+            "s.CommandJump",
+            "s.KaraCommandJump",
+            "CommandJump_Setup",
+            "CommandJump_Rise_F",
+            "CommandJump_Air",
+            "CommandJump_Apogee_F",
+            "CommandJump_Fall_F",
+            "CommandJump_Fall_Loop_F",
+            "CommandJump_Rise_N",
+            "CommandJump_Rise_Loop_N",
+            "CommandJump_Apogee_N",
+            "CommandJump_Fall_N",
+            "CommandJump_Fall_Loop_N"
+          ]
+        },
+        {
+          "id": "doily-toss",
+          "label": "Doily Toss",
+          "states": [
+            "s.DoilyToss_L",
+            "s.DoilyToss_M",
+            "s.DoilyToss_H",
+            "DoilyToss_ForReal"
+          ]
+        },
+        {
+          "id": "empower",
+          "label": "Empower",
+          "states": [
+            "s.Empower",
+            "s.EmpowerKara",
+            "Empower_Success",
+            "Empower_ReversalWindow"
+          ]
+        },
+        {
+          "id": "gun-shot",
+          "label": "Gun Shot",
+          "states": [
+            "s.GunShot_L",
+            "s.GunShot_M",
+            "s.GunShot_H",
+            "s.GunShot_Ending_Frame",
+            "s.GunShot_ReversalWindow",
+            "j.GunShot_L_FromOnslaught",
+            "j.GunShot_L_FromDashBack",
+            "j.GunShot_L",
+            "j.GunShot_M_FromOnslaught",
+            "j.GunShot_M_FromDashBack",
+            "j.GunShot_M",
+            "j.GunShot_H_FromOnslaught",
+            "j.GunShot_H_FromDashBack",
+            "j.GunShot_H",
+            "j.GunShot_ReversalWindow"
+          ]
+        },
+        {
+          "id": "reload",
+          "label": "Reload",
+          "states": [
+            "s.Reload_LK",
+            "s.Reload_MK",
+            "s.Reload_HK",
+            "s.Reload_LP",
+            "s.Reload_MP",
+            "s.Reload_HP",
+            "Reload_Flick",
+            "Reload_Catch"
+          ]
+        },
+        {
+          "id": "detonate",
+          "label": "Detonate",
+          "states": [
+            "Detonate_Start",
+            "Detonate_Loop",
+            "Detonate_Detonate"
+          ]
+        },
+        {
+          "id": "super-barrel-kick",
+          "label": "Super Barrel Kick",
+          "states": [
+            "s.SuperBarrelKick_LH",
+            "s.SuperBarrelKick_MH_3Buttons",
+            "s.SuperBarrelKick_LM",
+            "s.SuperBarrelKick_ForReal"
+          ]
+        },
+        {
+          "id": "super-bunny-brigade",
+          "label": "Super Bunny Brigade",
+          "states": [
+            "s.SuperBunnyBrigade"
+          ]
+        },
+        {
+          "id": "super-reload",
+          "label": "Super Reload",
+          "states": [
+            "s.SuperReload",
+            "s.SuperReload_Flick",
+            "s.SuperReload_Catch"
+          ]
+        },
+        {
+          "id": "super-toss",
+          "label": "Super Toss",
+          "states": [
+            "s.SuperToss",
+            "s.SuperToss_FriendlyFire",
+            "SuperToss_Start",
+            "SuperToss_Start_FriendlyFire"
+          ]
+        },
+        {
+          "id": "air-throw",
+          "label": "Air throw (all directions)",
+          "states": [
+            "j.Throw",
+            "j.KaraThrow",
+            "j.Throw_FromCommandJump",
+            "j.ThrowSuccess",
+            "j.Throw_Fall_Loop",
+            "j.Throw_Fall_Land",
+            "j.Throw_Fall_Recovery"
+          ]
+        },
+        {
+          "id": "ground-throw",
+          "label": "Ground throw (all directions)",
+          "states": [
+            "s.Throw_Back",
+            "s.Throw_Fwd",
+            "s.KaraThrow_Back",
+            "s.KaraThrow_Fwd",
+            "s.ThrowAttempt",
+            "s.ThrowSuccess",
+            "s.Throw",
+            "s.ThrowRecovery",
+            "s.ThrowEmpowered",
+            "s.ThrowEmpoweredRecovery"
+          ]
+        }
+      ]
+    },
+    {
+      "character": "Marie",
+      "foitSha256": "420c2b4a2d05e10d5dc0e1f92ac3701770c1d7e6b36eaa23423ea9d1841b36b5",
+      "moves": [
+        {
+          "id": "snap-out",
+          "label": "Snap out",
+          "states": [
+            "s.SnapOut_A1",
+            "s.KaraSnapOut_A1",
+            "s.SnapOut_A2",
+            "s.KaraSnapOut_A2",
+            "SnapOut_ForReal"
+          ]
+        },
+        {
+          "id": "taunt",
+          "label": "Taunt",
+          "states": [
+            "s.Taunt_As_Assist",
+            "s.Taunt",
+            "s.Taunt_Loop",
+            "s.Taunt_End",
+            "s.Taunt_TurnaroundVersion_Start",
+            "s.Taunt_TurnaroundVersion_Loop",
+            "s.Taunt_TurnaroundVersion_End"
+          ]
+        },
+        {
+          "id": "normal-c-hk",
+          "label": "c.HK",
+          "states": [
+            "c.HK"
+          ]
+        },
+        {
+          "id": "normal-c-hp",
+          "label": "c.HP",
+          "states": [
+            "c.HP"
+          ]
+        },
+        {
+          "id": "normal-c-lk",
+          "label": "c.LK",
+          "states": [
+            "c.LK"
+          ]
+        },
+        {
+          "id": "normal-c-lp",
+          "label": "c.LP",
+          "states": [
+            "c.LP",
+            "c.LP_scrub_backward",
+            "c.LP_scrub_forward",
+            "c.LP_end_exhausted",
+            "c.LP_end"
+          ]
+        },
+        {
+          "id": "normal-c-mk",
+          "label": "c.MK",
+          "states": [
+            "c.MK"
+          ]
+        },
+        {
+          "id": "normal-c-mp",
+          "label": "c.MP",
+          "states": [
+            "c.MP"
+          ]
+        },
+        {
+          "id": "normal-j-hk",
+          "label": "j.HK",
+          "states": [
+            "j.HK"
+          ]
+        },
+        {
+          "id": "normal-j-hp",
+          "label": "j.HP",
+          "states": [
+            "j.HP"
+          ]
+        },
+        {
+          "id": "normal-j-lk",
+          "label": "j.LK",
+          "states": [
+            "j.LK"
+          ]
+        },
+        {
+          "id": "normal-j-lp",
+          "label": "j.LP",
+          "states": [
+            "j.LP"
+          ]
+        },
+        {
+          "id": "normal-j-mk",
+          "label": "j.MK",
+          "states": [
+            "j.MK"
+          ]
+        },
+        {
+          "id": "normal-j-mp",
+          "label": "j.MP",
+          "states": [
+            "j.MP"
+          ]
+        },
+        {
+          "id": "normal-s-hk",
+          "label": "s.HK",
+          "states": [
+            "s.HK"
+          ]
+        },
+        {
+          "id": "normal-s-hp",
+          "label": "s.HP",
+          "states": [
+            "s.HP"
+          ]
+        },
+        {
+          "id": "normal-s-lk",
+          "label": "s.LK",
+          "states": [
+            "s.LK"
+          ]
+        },
+        {
+          "id": "normal-s-lp",
+          "label": "s.LP",
+          "states": [
+            "s.LP"
+          ]
+        },
+        {
+          "id": "normal-s-mk",
+          "label": "s.MK",
+          "states": [
+            "s.MK"
+          ]
+        },
+        {
+          "id": "normal-s-mp",
+          "label": "s.MP",
+          "states": [
+            "s.MP"
+          ]
+        },
+        {
+          "id": "dust-bunny-toss",
+          "label": "Dust Bunny Toss",
+          "states": [
+            "s.DustBunnyToss_L",
+            "s.DustBunnyToss_M",
+            "s.DustBunnyToss_H",
+            "DustBunnyToss_ForReal",
+            "DustBunnyToss_Recovery_Cancellable"
+          ]
+        },
+        {
+          "id": "gigan-laser",
+          "label": "Gigan Laser",
+          "states": [
+            "s.GiganLaser_L",
+            "s.GiganLaser_M",
+            "s.GiganLaser_H",
+            "GiganLaser_Ground_ForReal",
+            "GiganLaser_Ground_Assist_Loop",
+            "GiganLaser_Ground_Assist_End",
+            "j.GiganLaser_L",
+            "j.GiganLaser_M",
+            "j.GiganLaser_H",
+            "GiganLaser_Air_ForReal"
+          ]
+        },
+        {
+          "id": "gigan-punch",
+          "label": "Gigan Punch",
+          "states": [
+            "s.GiganPunch_L",
+            "s.GiganPunch_M",
+            "s.GiganPunch_H",
+            "GiganPunch_Ground_ForReal",
+            "GiganPunch_Ground_Assist_Loop",
+            "GiganPunch_Ground_Assist_End",
+            "j.GiganPunch_L",
+            "j.GiganPunch_M",
+            "j.GiganPunch_H",
+            "GiganPunch_Air_ForReal"
+          ]
+        },
+        {
+          "id": "twirl",
+          "label": "Twirl",
+          "states": [
+            "s.Twirl_L",
+            "s.Twirl_M",
+            "s.Twirl_H",
+            "Twirl_ReversalBuffer"
+          ]
+        },
+        {
+          "id": "vacuum-grab",
+          "label": "Vacuum Grab",
+          "states": [
+            "s.VacuumGrab",
+            "s.KaraVacuumGrab",
+            "VacuumGrab_Success",
+            "VacuumGrab_ToRecovery",
+            "VacuumGrab_Recovery"
+          ]
+        },
+        {
+          "id": "giant-fist",
+          "label": "Giant Fist",
+          "states": [
+            "s.GiantFist",
+            "GiantFist_ReversalBuffer"
+          ]
+        },
+        {
+          "id": "skeleton-orb",
+          "label": "Skeleton Orb",
+          "states": [
+            "s.SkeletonOrb",
+            "j.SkeletonOrb",
+            "SkeletonOrb_Second"
+          ]
+        },
+        {
+          "id": "super-grab",
+          "label": "Super Grab",
+          "states": [
+            "s.SuperGrab",
+            "SuperGrab_Success_Idle",
+            "SuperGrab_Success_Forward",
+            "SuperGrab_Success_Forward_Wait",
+            "SuperGrab_Success_Forward_Forced",
+            "SuperGrab_Success_Forward_Wait_Forced",
+            "SuperGrab_Success_Backward",
+            "SuperGrab_Success_Backward_Wait",
+            "SuperGrab_Success_Backward_To_Forward",
+            "SuperGrab_Success_Upward",
+            "SuperGrab_Success_Upward_Wait",
+            "SuperGrab_Success_Downward",
+            "SuperGrab_Success_Downward_Wait",
+            "SuperGrab_Success_Backup_Start",
+            "SuperGrab_Success_Backup_Recovery",
+            "SuperGrab_Success_Forward_From_Backdash",
+            "SuperGrab_Success_End"
+          ]
+        },
+        {
+          "id": "air-throw",
+          "label": "Air throw (all directions)",
+          "states": [
+            "j.Throw",
+            "j.KaraThrow",
+            "j.ThrowSuccess",
+            "j.ThrowRecovery"
+          ]
+        },
+        {
+          "id": "ground-throw",
+          "label": "Ground throw (all directions)",
+          "states": [
+            "s.Throw_Back",
+            "s.Throw_Fwd",
+            "s.KaraThrow_Back",
+            "s.KaraThrow_Fwd",
+            "s.ThrowAttempt",
+            "s.ThrowSuccess",
+            "s.Throw",
+            "s.ThrowRecovery"
+          ]
+        }
+      ]
+    }
+  ]
+}

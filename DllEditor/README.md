@@ -61,3 +61,14 @@ Choose an animation in Sprite preview, then **Export animation**. Pick APNG or G
 APNG keeps full RGBA and 60 Hz timeline delays. Preparation resolves one-based sprite references and omits unconditional same-tick advance records. Conditional gameplay script branches are not emulated, so move playback still needs visual comparison with the game. Older SGPOSE5 bundles must be regenerated through the setup UI; SGPOSE6 prevents reusing their incorrect indices/timing. GIF uses a shared palette of up to 255 visible colors plus a transparent entry, no dithering, and a 128/255 alpha cutoff. GIF delays are rounded cumulatively to 10 ms units to avoid long-term drift; some viewers impose their own minimum delays. These format tradeoffs follow the [PNG/APNG specification](https://www.w3.org/TR/png-3/) and [GIF89a specification](https://www.w3.org/Graphics/GIF/spec-gif89a.txt).
 
 After choosing a destination, export runs in the background with progress and Cancel. The worker owns a snapshot and does not access the live fighter, D3D device or editable preview globals. Match/frame/color changes cannot alter an export already captured. Output replaces the destination atomically only after encoding succeeds. Limits: 2,000 timeline entries, 2,048 pixels per canvas side, 64 MiB captured source/decoded-frame limits and 128 MiB encoded output. Oversized animations report an error rather than blocking the editor or producing a partial file.
+
+
+Transformation rules are independently named, enabled and triggered in Effects or
+Advanced. Stage links/shades and Apply rules; overlapping native source shades are
+rejected. Saves use palette schema V3 and import V1/V2. The isolated viewer can
+manually simulate enabled full-band rules without changing gameplay or saved files;
+partial masks and other shader effects remain unpreviewed. Beowulf completed Hype levels 0–3 have an allowlisted native provider for build
+26588330, based on controlled resource/mirror observations; V4 saves preserve these
+predicates. Native appearance validation status is recorded in the resource report. See
+[rule validation](../docs/MULTIPLE-TRANSFORMATIONS.md) and
+[resource evidence](../docs/BEOWULF-RESOURCE-INVESTIGATION.md).

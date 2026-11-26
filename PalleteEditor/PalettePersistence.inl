@@ -31,15 +31,16 @@ inline PaletteData::Document CapturePalette(const Character& c) {
     if(assignment!=colorAssignments.end()) {
         auto& a=assignment->second;
         if(!a.staticLinks.empty()) d.colorLinks=PaletteData::ColorLinks{a.staticLinks,a.staticMask};
-        if(a.hasTransformation) d.transformation=PaletteData::Transformation{a.transformation.links,a.transformation.shadeMask,
-            (int)a.transformation.mode,a.transformation.activationTag,a.transformation.activationTag.empty()?TransformTrigger(c):""};
+        for(const auto& settings:a.transformations) d.transformations.push_back({settings.links,settings.shadeMask,
+            (int)settings.mode,settings.activationTag,settings.moveId.empty() && settings.hypeLevel<0 && settings.activationTag.empty()?TransformTrigger(c):"",settings.id,settings.name,settings.enabled,settings.hypeLevel,settings.moveId});
     }
     PaletteData::Encode(d); return d;
 }
 inline TransformSettings DocumentTransformation(const Character& c,const AppearanceContext& data,const PaletteData::Transformation& value) {
     TransformSettings settings; settings.links=value.links; settings.shadeMask=value.shadeMask;
     settings.mode=(TransformMode)value.previewMode; settings.activationTag=value.activationTag;
-    if(value.activationTag.empty() && value.legacyTrigger!=TransformTrigger(c)) throw std::runtime_error("Legacy transformation trigger does not match this character/palette.");
+    settings.id=value.id; settings.name=value.name; settings.enabled=value.enabled; settings.hypeLevel=value.hypeLevel;settings.moveId=value.moveId;
+    if(value.moveId.empty() && value.hypeLevel<0 && value.activationTag.empty() && value.legacyTrigger!=TransformTrigger(c)) throw std::runtime_error("Legacy transformation trigger does not match this character/palette.");
     ValidateTransformation(c,data,settings); return settings;
 }
 inline void ValidatePalette(const Character& c,const PaletteData::Document& document,bool allowTwo=false) {
@@ -72,7 +73,7 @@ inline void ValidatePalette(const Character& c,const PaletteData::Document& docu
     }
     if(document.rainbow) for(int band:document.rainbow->bands) CheckAppearanceBand(data,band);
     if(document.colorLinks) ValidateLinks(data,document.colorLinks->links,document.colorLinks->shadeMask);
-    if(document.transformation) DocumentTransformation(c,data,*document.transformation);
+    for(const auto& rule:document.transformations) DocumentTransformation(c,data,rule);
     // All document validation precedes resource loading or palette mutation.
     if(document.overlay) ResolveOverlayTexture(document.overlay->texture);
 #ifdef SGPE_DLL_HOST
@@ -102,9 +103,9 @@ inline void ApplyPalette(Character& c,const PaletteData::Document& document,bool
             }
         });
         if(!document.legacy) {
-            auto assignment=CurrentColorAssignment(c,data); assignment.staticLinks.clear(); assignment.hasTransformation=false;
+            auto assignment=CurrentColorAssignment(c,data); assignment.staticLinks.clear(); assignment.transformations.clear();
             if(document.colorLinks) { assignment.staticLinks=document.colorLinks->links; assignment.staticMask=document.colorLinks->shadeMask; }
-            if(document.transformation) { assignment.hasTransformation=true; assignment.transformation=DocumentTransformation(c,data,*document.transformation); }
+            for(const auto& rule:document.transformations) assignment.transformations.push_back(DocumentTransformation(c,data,rule));
             CommitColorAssignment(c,data,assignment);
             if(!keepOverlays) {
                 if(document.overlay) { selected=document.overlay->bands; texture=document.overlay->texture; lighting=document.overlay->lighting; tint=document.overlay->tintBand; Apply(c,document.secondOverlay?&*document.secondOverlay:nullptr); }

@@ -27,6 +27,33 @@ int main(int argc,char** argv){try {
  std::vector<uint32_t> many;for(unsigned i=0;i<1024;++i)many.push_back(0xff000000u|((i*19)&0xffffff));
  SpriteAnimation::Frame colorful{many,6};PaletteData::AtomicWrite(output/"quantized.gif",SpriteAnimation::GIF(32,32,1,1,many,[&](size_t){return colorful;},cancel));
  // A captured animation keeps frame geometry, timing and colors independent of the viewer.
+ // Independent pane-local simulations perform one-hop full-band borrowing.
+ {
+  SpriteViewer::SpriteFrameAsset frame;frame.width=2;frame.height=1;
+  SpriteViewer::PixelLayer pixels;pixels.width=2;pixels.height=1;pixels.pixels={0,31,1,0,31,3};frame.layers={pixels};
+  const std::vector<int> layout={1,1,1,1,1};const std::vector<ImU32> colors={0,0xff0000ff,0xff00ff00,0xffff0000,0xffffffff};
+  PaletteData::Transformation ra{{{1,2}},255,0,"ATTACK","","a","A",true};
+  auto rb=ra;rb.id="b";rb.name="B";rb.links={{3,4}};rb.activationTag="JUMPING";
+  SpriteViewer::simulatedRules={ra,rb};
+  for(int active=0;active<4;++active){
+   SpriteViewer::simulatedActive.clear();if(active&1)SpriteViewer::simulatedActive.insert("a");if(active&2)SpriteViewer::simulatedActive.insert("b");
+   const auto image=SpriteViewer::RenderFrame(frame,colors,{},false,true,layout,SpriteViewer::SimulatedRedirects());
+   Check(image[0]==colors[(active&1)?2:1] && image[1]==colors[(active&2)?4:3],"Local independent rule truth table failed");
+  }
+  SpriteViewer::simulatedRules[0].shadeMask=15;SpriteViewer::simulatedRules[1].enabled=false;
+  Check(SpriteViewer::SimulatedRedirects().empty(),"Unsupported or disabled rule simulated");
+  SpriteViewer::simulatedRules.clear();SpriteViewer::simulatedActive.clear();
+  for(int level=0;level<4;++level){auto r=ra;r.id="hype-"+std::to_string(level);r.hypeLevel=level;r.activationTag.clear();r.links={{1,level==1?3:2}};SpriteViewer::simulatedRules.push_back(r);}
+  for(int level=0;level<4;++level){SpriteViewer::simulatedHypeLevel=level;const auto redirects=SpriteViewer::SimulatedRedirects();Check(redirects.size()==1 && redirects.at(1)==(level==1?3:2),"Local Hype simulation allowed competing levels");}
+  SpriteViewer::simulatedRules.clear();SpriteViewer::simulatedActive.clear();SpriteViewer::simulatedHypeLevel=-1;
+  auto chair=ra;chair.activationTag.clear();chair.moveId="beowulf/chair-toss";
+  auto arm=chair;arm.id="arm";arm.links={{1,3}};arm.moveId="beowulf/organic-arm";
+  SpriteViewer::simulatedRules={chair,arm};SpriteViewer::simulatedActive={chair.id,arm.id};
+  Check(SpriteViewer::SimulatedRedirects().empty(),"Manual animation checkboxes activated move predicates");
+  SpriteViewer::simulatedMoveId=chair.moveId;Check(SpriteViewer::SimulatedRedirects()==std::map<int,int>{{1,2}},"Local move selector mixed exclusive rules");
+  SpriteViewer::simulatedMoveId=arm.moveId;Check(SpriteViewer::SimulatedRedirects()==std::map<int,int>{{1,3}},"Local move switch retained previous move");
+  SpriteViewer::simulatedRules.clear();SpriteViewer::simulatedActive.clear();SpriteViewer::simulatedMoveId.clear();
+ }
  SpriteViewer::SpriteFrameAsset a;a.id=7;a.width=2;a.height=1;a.originX=1;a.originY=1;
  SpriteViewer::PixelLayer layer;layer.width=2;layer.height=1;layer.pixels={0,31,1,0,31,0};a.layers={layer};
  auto b=a;b.id=8;b.originX=0;b.layers[0].pixels={0,31,0,0,31,1};
@@ -49,10 +76,26 @@ int main(int argc,char** argv){try {
 
  SpriteViewer::showOriginal=false;const auto editedCapture=SpriteViewer::CaptureAnimationExport(true,2);
  Check(editedCapture.colors[1]==0x800000ff && editedCapture.gif && editedCapture.plays==2,"Edited colors or export options were not captured");
+ SpriteViewer::sizes={1,1,1};SpriteViewer::edited.push_back(0xff00ff00);
+ PaletteData::Transformation simulation{{{1,2}},255,0,"","","simulation","Local only",true,2};
+ SpriteViewer::simulatedHypeLevel=2;
+ SpriteViewer::simulatedRules={simulation};SpriteViewer::simulatedActive={"simulation"};
+ const auto simulationCapture=SpriteViewer::CaptureAnimationExport(false,0);
+ SpriteViewer::simulatedRules.clear();SpriteViewer::simulatedActive.clear();SpriteViewer::simulatedHypeLevel=-1;
+ Check(simulationCapture.redirects==std::map<int,int>{{1,2}} && capture.redirects.empty(),"Simulation was not independently snapshotted");
+ auto moveSimulation=simulation;moveSimulation.hypeLevel=-1;moveSimulation.moveId="beowulf/chair-toss";
+ SpriteViewer::simulatedRules={moveSimulation};SpriteViewer::simulatedMoveId=moveSimulation.moveId;
+ const auto moveCapture=SpriteViewer::CaptureAnimationExport(false,0);
+ SpriteViewer::simulatedMoveId="beowulf/organic-arm";SpriteViewer::simulatedRules.clear();
+ Check(moveCapture.redirects==std::map<int,int>{{1,2}},"Move export lost its independent simulation snapshot");
+ SpriteViewer::simulatedMoveId.clear();
+ SpriteViewer::sizes={1,1};SpriteViewer::edited.pop_back();
  SpriteViewer::showOriginal=true;
  Check(capture.bounds.right-capture.bounds.left==3 && capture.bounds.bottom-capture.bounds.top==1,"Shared origin canvas incorrect");
  Check(SpriteViewer::selectedAnimation==0 && SpriteViewer::frameIndex==1 && SpriteViewer::highlight && SpriteViewer::zoom==3,"Capture changed viewer state");
  SpriteViewer::original.clear();SpriteViewer::edited.clear();SpriteViewer::sizes.clear();SpriteViewer::frames.clear();SpriteViewer::animations.clear();SpriteViewer::selectedAnimation=-1;
+ PaletteData::AtomicWrite(output/"simulation-snapshot.apng",SpriteViewer::EncodeAnimation(simulationCapture,std::make_shared<SpriteViewer::AnimationProgress>()));
+ PaletteData::AtomicWrite(output/"move-simulation-snapshot.apng",SpriteViewer::EncodeAnimation(moveCapture,std::make_shared<SpriteViewer::AnimationProgress>()));
  SpriteViewer::pendingAnimationExport=capture;SpriteViewer::StartAnimationExport(output/"snapshot.apng");
  for(unsigned i=0;SpriteViewer::AnimationBusy() && i<30000;++i){SpriteViewer::PollAnimationExport();Sleep(1);}
  Check(!SpriteViewer::AnimationBusy() && SpriteViewer::animationStatus.find("Saved APNG:")==0,"Background export failed");

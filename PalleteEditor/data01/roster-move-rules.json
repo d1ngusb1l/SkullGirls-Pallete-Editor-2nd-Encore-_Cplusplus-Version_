@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "families": {
+    "Filia": [
+      ["LoveDrill"], ["SpineDash"], ["TrapJaw"], ["RoachRush", "Roach"], ["Fenrir"], ["SkullBall"]
+    ],
+    "Cerebella": [
+      ["GrabBag"], ["GorillaThrow", "Gorilla"], ["JazzHands", "JazzHandsSuccess"], ["SlapSlap"],
+      ["Reflect"], ["Horns"], ["Cerecopter"], ["RushPunch"], ["SpecialRun", "InstantRunStop"],
+      ["Kanchou", "InstantKanchou"], ["Showtime"], ["BT", "InstantBT"],
+      ["SuperThrow"], ["GirlsBestFriend"], ["ArmSkip"]
+    ],
+    "Peacock": [
+      ["BangFlag"], ["BangSword"], ["BangBullet"], ["ItemDrop"], ["Teleport", "TeleportCancel"],
+      ["LittleBoy"], ["PeacockLaser"], ["FatMan"], ["Beatdown"]
+    ],
+    "Parasoul": [
+      ["Quake"], ["TearToss"], ["TearShot"], ["SoldierCall", "RC_Soldier"],
+      ["SilentScope"], ["CrimsonHunting"], ["Phalanx"]
+    ],
+    "MsFortune": [
+      ["HeadBowlOrRecall", "HeadRecall", "HeadBowl"], ["HeadSpike"], ["AxeKick"], ["NyantiAir"],
+      ["Rekka", "RekkaBranch", "Rekka1Fast", "Rekka1Slow", "Rekka1VerySlow", "Rekka2Fast", "Rekka2Slow", "Rekka2VerySlow", "Rekka3Fast", "Rekka3Slow", "Rekka3VerySlow"],
+      ["RekkaSlide"], ["RekkaAxeKick"], ["TailDive"], ["BBX"], ["Headsplosion"]
+    ],
+    "Painwheel": [
+      ["SpinDash", "SpinDashAssistL", "SpinDashAssistM", "SpinDashAssistH"], ["NailPunch"], ["Scythe"],
+      ["Fly", "FlyCancel", "ReFly", "Flying"], ["Crawl"], ["Gaebolga"], ["HatredInstall"], ["HSF"], ["SuperSpinDash"]
+    ],
+    "Valentine": [
+      ["ItemToss", "ThrowPoisonIfAny", "Shuriken", "Syringe"], ["SyringeLoad"], ["IzunaDrop"], ["AlphaBlade"],
+      ["DioScalpels"], ["FlatLine"], ["CounterSuper"], ["Operation"], ["AED"]
+    ],
+    "Double": [
+      ["SubZeroSlide"], ["LusciousLuger"], ["StabbingPeach"], ["AirDrop"], ["OLD_DashFwd"],
+      ["RushHour"], ["Fortuneboros"], ["Morph"], ["GradiusMoai", "Moai"], ["Monster"]
+    ],
+    "Squigly": [
+      ["WhipStance_Harpoon", "Assist_Harpoon", "AssistStart_Harpoon"],
+      ["WhipStance_RapidStab", "Assist_RapidStab", "AssistStart_RapidStab"],
+      ["WhipStance_RemoteStab", "Assist_RemoteStab", "AssistStart_RemoteStab"],
+      ["DragonStance_OneInchPunch", "Assist_OneInchPunch", "AssistStart_OneInchPunch"],
+      ["DragonStance_RisingDragon", "DragonStance_Auto_RisingDragon", "DragonStance_Start_Lv2_H_DP", "Assist_RisingDragon", "AssistStart_RisingDragon"],
+      ["DragonStance_Sing", "Assist_Sing", "AssistStart_Sing"],
+      ["DragonStance_DogBite", "Assist_DogBite", "AssistStart_DogBite", "DogBite_ReversalWindow"],
+      ["WhipStance"], ["DragonStance"], ["Divekick"], ["Opera"], ["DaisyPusher"], ["FlameBall"], ["RagingDragon"]
+    ],
+    "BigBand": [
+      ["Tambourine"], ["FootPedal"], ["Cymbals"], ["BrassKnuckles"], ["TakeTheATrain"], ["Horncrush"],
+      ["Timpani"], ["JazzCombo"], ["Lv5", "Trumpet_Densetsu"]
+    ],
+    "Eliza": [
+      ["ServantSummon"], ["Twirl"], ["BloodDP"], ["ScarabSuper"], ["BirdDive"],
+      ["Sek_Summon"], ["Sek_Stab"], ["Sek_Kopesh", "Sek_Kopesh2", "Sek_Kopesh3"], ["Sek_Axe"],
+      ["Sek_Lunge"], ["Sek_Cartouche"], ["Sek_SuperLunge", "SekhSuper_From_Eliza"],
+      ["Sekhmet_Vampire_Grab", "SekhVampireSuper_From_Eliza"]
+    ],
+    "Fukua": [
+      ["ShadowClone"], ["DrillRush"], ["CmdThrow", "CmdThrowSuccess", "CmdThrowRecovery"],
+      ["ArmoredCmdThrow"], ["Fireball"], ["SuperThrow", "SuperThrowWhiff", "SuperThrowSuccess", "SuperThrowRecovery"],
+      ["SuperFireball"], ["BlackPol"], ["SuperDrillKick"], ["TwiceShy"]
+    ],
+    "Beowulf": [
+      ["Pick_Up_Chair"], ["Chair_Recall"], ["ChairToss"], ["Tackle"], ["RushGrab"], ["Snapback"],
+      ["OrganicArm"], ["HeavenlyBuster"], ["ThreeWolfMoonsault", "Moonsault"], ["Lv3"],
+      ["GrabMode_Headbutt", "GrabMode_Double_Headbutt"], ["GrabMode_Knee"],
+      ["GrabMode_Cossack", "GrabMode_EX_Cossack"], ["GrabMode_FrogSplash", "GrabMode_EX_FrogSplash"], ["GrabMode_FishermanSlam", "GrabMode_EX_FishermanSlam"],
+      ["GrabMode"]
+    ],
+    "RoboFortune": [
+      ["Laser", "Post_Laser"], ["HeadControl"], ["Spinny"], ["SuperLaser"], ["IronClaw"],
+      ["DetMode_Recharge"], ["DetMode_Explode", "Robo_DetMode_Explode"], ["DetMode"]
+    ],
+    "Annie": [
+      ["ReEntry"], ["DestructionPillar"], ["CrescentCut"], ["NorthKnuckle"], ["StarCancel"],
+      ["PillarOfCreation"], ["Autograph", "PostAutograph"], ["GravitySlingshot"], ["SaganBeam"],
+      ["MeteorRight"], ["StarPower"], ["StarPowerDeactivate"], ["Taunt"]
+    ],
+    "Umbrella": [
+      ["CutiePtooie"], ["BobblinBubble"], ["WishMaker"], ["HungernRush", "Hungern_Rush"],
+      ["SlurpNSlide"], ["BiteHitgrab"], ["BiteGrab"], ["FallingBomb"], ["Retina"], ["Feeding_Time"]
+    ],
+    "BlackDahlia": [
+      ["Counter"], ["Teleport"], ["DoilyToss"], ["Reload"], ["GunShot"], ["Empower", "EmpowerKara"],
+      ["CommandJump"], ["SuperBarrelKick"], ["SuperToss"], ["Detonate"], ["SuperReload"],
+      ["SuperBunnyBrigade"], ["BellRing"], ["Taunt"]
+    ],
+    "Marie": [
+      ["Twirl"], ["DustBunnyToss"], ["GiganLaser"], ["GiganPunch"], ["VacuumGrab"], ["GiantFist"],
+      ["SuperGrab"], ["SkeletonOrb"], ["Taunt"]
+    ]
+  }
+}
