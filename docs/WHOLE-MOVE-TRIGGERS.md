@@ -6,6 +6,13 @@ or interruption. The rule selector separates General tags, Character moves and
 Resources, with move search restricted to the selected fighter. Hype remains the
 only implemented resource provider; this work introduces no resource investigation.
 
+The roster extension now provides **570 mapped families across all 18 characters**,
+with category filtering for normals, specials, supers, throws and other attacks.
+The user confirmed both original Beowulf mappings work. **15 shared-phase families
+remain unavailable**, and authored mapping coverage is not blanket gameplay proof.
+The full all-attacks goal is still active. See [coverage](ROSTER-MOVE-COVERAGE.md)
+and the [move-context investigation](MOVE-CONTEXT-INVESTIGATION.md).
+
 ## Implemented
 
 `scripts/prepare-move-catalog.py` builds a metadata-only catalogue from the user's
@@ -26,14 +33,18 @@ and Gigantic Arm (three states). Their startup, loop/dispatcher and recovery sta
 are one selection each. The maps bind to the full character FOIT SHA-256 and resolve
 exact authored names; missing names, ambiguous names, mismatched builds, duplicate
 identities and shared state ownership reject. These are authored-data mappings,
-**selectable in the validation DLL, but not yet gameplay-validated**.
+**selectable and user-confirmed in the initial validation DLL**. The expanded
+explicit map and generated `CharacterMoveDefinitions.inl` now cover the roster's
+unambiguous families. `scripts/build-roster-moves.py` reproduces both from the
+local catalogue and reviewable `roster-move-rules.json` aliases, rejecting unaccounted
+attack states before export. No local sprite/art payload is included in these files.
 
 Each resolved move contains explicit membership IDs, an exact union of consecutive
 ID ranges, and outgoing boundaries for review. Gaps are never filled with nearby
 animation IDs. Boundary targets are reported rather than recursively absorbed.
 The tool does not execute conditions, interpret script branches, read game memory,
 write palette data or install a DLL. Its generated output is an authoring tool;
-the compiled runtime allowlist is separate and currently contains only these two moves.
+the compiled runtime allowlist is separate and includes per-character table bounds.
 
 Run from the repository root:
 
@@ -95,7 +106,7 @@ Runtime integration can reuse the current-animation mechanism; the remaining
 investigation concerns move boundaries and shared states, rather than resource
 amounts or persistent modes.
 
-## Installed validation build
+## Initial installed validation build
 
 DLL SHA-256:
 `92EB64A9A039292369CFABAE7EA3D85E6E1B4FDDD67AB0B7ACB571626770ACA5`.
@@ -118,3 +129,30 @@ Gameplay testing of this DLL is delegated to the user. No new in-game duration,
 interruption, mirror, tag/assist, save/Autoload or device-transition result is
 claimed for the move predicates. Other characters have metadata coverage but no
 enabled whole-move mappings yet. Existing resource support remains Beowulf Hype.
+
+## Roster validation build
+
+The user subsequently confirmed both original Beowulf moves worked. The roster
+extension contains 570 selectable families across all 18 characters, with 15
+shared-phase families withheld pending context support. Table bounds are now
+per-character; the V5 schema and original two stable IDs are unchanged.
+
+Installed DLL SHA-256:
+`11105B9FDDB7280F25171A28C77C06A8393ECC745E167BCCF2DBB94A5086D51D`.
+An initial installation attempt detected a running game and changed no DLL. After
+the user closed it, the process check passed, the previous DLL was backed up and
+the installed hash matched the build.
+
+Verification passed: required build with 2441 palette/schema/legacy/atomic checks;
+native predicate evaluation across every state index in every compiled character
+table, disjoint-range composition, mirrors/invalid owners/builds/counts and rollback;
+all nine relevant native suites; 38 Python catalogue/roster/timeline tests;
+independent animation export decoding; PowerShell diagnostic syntax; and diff checks.
+Every compiled ID/label/digest/range/table count matched its explicit map and all
+18 current local FOIT archive digests. Networking inspection remained False for
+all four exclusion checks.
+
+These checks verify the declared mappings and backend, not every gameplay route.
+Shared timed recovery, shared stance entry, assist substitutions and representative
+runtime validation remain in the active all-attacks goal. The status of each known
+family is recorded in ROSTER-MOVE-COVERAGE.md; move-history tracing is read-only.

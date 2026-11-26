@@ -134,6 +134,33 @@ int main(){try {
     Check(Read(address,12)==moveHeader && colorAssignments.at(address).transformations[1]==arm,"Move rollback lost header or independent rules");
     chair.enabled=false;ApplyTransformation(c,chair);Check(Word(address+4)-Word(address)==44 && colorAssignments.at(address).transformations[1]==arm,"Disabling Chair Toss changed Arm");
     ResetTransformation(c,"chair");ResetTransformation(c,"arm");Check(Read(address,12)==original,"Removing moves failed to restore native header");
+    std::set<std::string> rosterChecked;bool checkedGapOwner=false;
+    for(const auto& move:PaletteData::CharacterMoves()) {
+        c.Char_Name=move.character;ValidateCharacterMoveSupport(c,context,move.id);
+        auto setting=chair;setting.id="roster";setting.enabled=true;setting.moveId=move.id;
+        std::vector<DWORD> nodes;for(int range=0;range<(int)move.ranges.size();++range)nodes.push_back(TransformCondition(c,setting,range));
+        for(int animation=0;animation<move.animationCount;++animation) {
+            bool actual=false,expected=false;
+            for(auto node:nodes)actual=actual || evaluateMove(node,(float)animation);
+            for(auto range:move.ranges)expected=expected || (animation>=range.first && animation<=range.second);
+            Check(actual==expected,"Roster native range union gained a gap or lost a move phase");
+        }
+        if(rosterChecked.insert(move.character).second) {
+            auto rosterMirror=c;rosterMirror.ID=3;ValidateCharacterMoveSupport(rosterMirror,mirrorContext,move.id);
+            writeAnimation(entity,(float)move.animationCount);Reject([&]{ValidateCharacterMoveSupport(c,context,move.id);});writeAnimation(entity,21);
+        }
+        if(!checkedGapOwner && move.ranges.size()>1) {
+            ApplyTransformation(c,setting);const auto begin=Word(address),end=Word(address+4);
+            Check(end-begin==44*move.ranges.size(),"Composed move owner lost disjoint ranges");
+            for(int animation=0;animation<move.animationCount;++animation) {
+                int active=0;for(DWORD record=begin;record<end;record+=44)if(evaluateMove(Word(record+12),(float)animation))++active;
+                bool expected=false;for(auto range:move.ranges)expected=expected || (animation>=range.first && animation<=range.second);
+                Check(active==(expected?1:0),"Composed move table activates a gap or overlaps its own ranges");
+            }
+            ResetTransformation(c,"roster");Check(Read(address,12)==original,"Multi-range owner did not restore original header");checkedGapOwner=true;
+        }
+    }
+    Check(rosterChecked.size()==18 && checkedGapOwner,"Roster predicates did not exercise every character and disjoint ranges");
     const auto generation=ruleGeneration;ClearColorAssignments();Check(ruleGeneration!=generation && colorAssignments.empty(),"Match cleanup retained rules");
     std::cout<<"Native rule runtime checks passed: independent updates, idempotency, conflicts, partial writes, refresh rollback, reset rollback, restoration and stale identity.\n";
     return 0;

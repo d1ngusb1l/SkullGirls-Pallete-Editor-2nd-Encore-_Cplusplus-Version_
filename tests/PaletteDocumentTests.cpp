@@ -162,7 +162,7 @@ int main() {
         }
         for(float invalid:{-1.f,3.001f,std::numeric_limits<float>::quiet_NaN(),std::numeric_limits<float>::infinity()})Require(BeowulfHypeLevel(invalid)==-1,"Invalid Hype sample reported an inactive/success state.");
         auto moves=hype;moves.transformations.clear();
-        for(const auto& entry:CharacterMoves()) {
+        for(const auto& entry:CharacterMoves())if(entry.id=="beowulf/chair-toss" || entry.id=="beowulf/organic-arm") {
             Transformation rule{{{1,2}},255,0,"","","move-"+std::to_string(moves.transformations.size()),entry.label,true,-1,entry.id};
             moves.transformations.push_back(rule);
         }
@@ -189,6 +189,15 @@ int main() {
         auto moveAndHype=moves;moveAndHype.transformations.push_back(hype.transformations[0]);
         Reject([&]{Encode(moveAndHype);},"Move/Hype overlap was treated as exclusive.");
         Require(DecodePal(EncodePal(moves,true)).transformations.empty(),"Explicit colors-only move export retained predicates.");
+        std::set<std::string> roster,moveIds;
+        for(const auto& entry:CharacterMoves()) {
+            roster.insert(entry.character);Require(moveIds.insert(entry.id).second,"Duplicate roster move ID.");
+            Require(entry.animationCount>0 && entry.foitSha256.size()==64 && !entry.ranges.empty(),"Missing roster build bounds.");
+            int previous=-1;for(const auto& range:entry.ranges){Require(range.first>=0 && range.second>=range.first && range.second<entry.animationCount && range.first>previous,"Roster move range exceeds character table or overlaps.");previous=range.second;}
+            auto single=moves;single.character=entry.character;single.transformations.resize(1);single.transformations[0].moveId=entry.id;
+            Require(DecodePal(EncodePal(single)).transformations[0].moveId==entry.id,"Roster move did not round-trip through .pal.");
+        }
+        Require(roster.size()==18,"Move catalogue does not cover all 18 characters.");
         auto folder=std::filesystem::current_path()/"document-test-files";
         std::filesystem::create_directories(folder);
         auto path=folder/L"palette-unicode-\u03A9.pal";

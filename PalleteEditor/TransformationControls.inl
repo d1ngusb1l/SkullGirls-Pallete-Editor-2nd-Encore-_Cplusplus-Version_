@@ -35,6 +35,8 @@ inline unsigned long long ruleDraftGeneration=0;
 inline int ruleTriggerCategory=0;
 inline std::string ruleTriggerSelectionKey;
 inline char ruleMoveFilter[97]{};
+inline int ruleMoveCategory=0;
+inline const char* ruleMoveCategories[]={"All moves","Normal","Special","Super","Throw","Attack"};
 inline void DrawTransformationEditor(const Character& c,const std::set<int>& sourceBands={}) {
     try {
         auto data=AppearanceData(c); auto live=CurrentColorAssignment(c,data);
@@ -64,11 +66,11 @@ inline void DrawTransformationEditor(const Character& c,const std::set<int>& sou
             ImGui::Checkbox("Enabled",&rule.enabled);
             const auto move=PaletteData::FindCharacterMove(rule.moveId);
             const int currentCategory=move?1:rule.hypeLevel>=0?2:0;
-            if(ruleTriggerSelectionKey!=rule.id){ruleTriggerSelectionKey=rule.id;ruleTriggerCategory=currentCategory;ruleMoveFilter[0]=0;}
+            if(ruleTriggerSelectionKey!=rule.id){ruleTriggerSelectionKey=rule.id;ruleTriggerCategory=currentCategory;ruleMoveFilter[0]=0;ruleMoveCategory=0;}
             const std::string triggerLabel=move?move->label:rule.hypeLevel>=0?"Beowulf Hype level "+std::to_string(rule.hypeLevel):NativeTriggerLabel(rule.activationTag);
             ImGui::Combo("Trigger type",&ruleTriggerCategory,"General\0Character moves\0Resources\0");
             if(ruleTriggerCategory!=currentCategory)ImGui::TextWrapped("Current trigger: %s. Choose a replacement below.",triggerLabel.c_str());
-            if(ruleTriggerCategory==1)ImGui::InputText("Find move",ruleMoveFilter,sizeof(ruleMoveFilter));
+            if(ruleTriggerCategory==1){ImGui::Combo("Move category",&ruleMoveCategory,ruleMoveCategories,6);ImGui::InputText("Find move",ruleMoveFilter,sizeof(ruleMoveFilter));}
             if(ImGui::BeginCombo("Trigger",ruleTriggerCategory==currentCategory?triggerLabel.c_str():"Choose trigger")) {
                 if(ruleTriggerCategory==0) {
                     for(const auto& entry:nativeTriggers)if(ImGui::Selectable(entry.label,currentCategory==0 && rule.activationTag==entry.tag)){rule.activationTag=entry.tag;rule.hypeLevel=-1;rule.moveId.clear();rule.mode=TransformMode::Automatic;}
@@ -76,6 +78,7 @@ inline void DrawTransformationEditor(const Character& c,const std::set<int>& sou
                 } else if(ruleTriggerCategory==1) {
                     bool any=false;
                     for(const auto& entry:PaletteData::CharacterMoves())if(entry.character==c.Char_Name) {
+                        if(ruleMoveCategory && entry.category!=ruleMoveCategories[ruleMoveCategory])continue;
                         if(ruleMoveFilter[0] && std::search(entry.label.begin(),entry.label.end(),ruleMoveFilter,ruleMoveFilter+strlen(ruleMoveFilter),[](unsigned char a,unsigned char b){return std::tolower(a)==std::tolower(b);})==entry.label.end())continue;
                         any=true;
                         if(ImGui::Selectable(entry.label.c_str(),rule.moveId==entry.id)){rule.moveId=entry.id;rule.activationTag.clear();rule.hypeLevel=-1;rule.mode=TransformMode::Automatic;}
@@ -87,7 +90,11 @@ inline void DrawTransformationEditor(const Character& c,const std::set<int>& sou
                 }
                 ImGui::EndCombo();
             }
-            if(ruleTriggerCategory==1)ImGui::TextWrapped("Initial mappings: Beowulf Chair Toss and Gigantic Arm. Covers mapped move phases; awaiting gameplay tests.");
+            if(ruleTriggerCategory==1) {
+                const int count=(int)std::count_if(PaletteData::CharacterMoves().begin(),PaletteData::CharacterMoves().end(),[&](const auto& entry){return entry.character==c.Char_Name;});
+                ImGui::TextDisabled("%d mapped character moves",count);
+                if(ImGui::IsItemHovered()){ImGui::BeginTooltip();ImGui::TextWrapped("Roster additions await gameplay checks. Shared-phase cases remain unavailable until their move context is resolved.");ImGui::EndTooltip();}
+            }
             if(rule.hypeLevel>=0)ImGui::TextWrapped("Completed Hype amount only: level %d. Fractional progress stays in the lower level; this does not track a persistent boost after spending.",rule.hypeLevel);
             if(ruleTriggerCategory==0)ImGui::TextDisabled("Tags follow authored move phases; confirm them for the chosen fighter.");
             if(rule.mode!=TransformMode::Automatic) {

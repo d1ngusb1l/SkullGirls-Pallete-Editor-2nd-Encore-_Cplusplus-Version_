@@ -142,10 +142,12 @@ effects envelope, overlays, rule metadata and original Autoload settings are unc
 "predicate": {"provider": "character-move", "move": "beowulf/chair-toss"}
 ```
 
-The initial allowlist contains `beowulf/chair-toss` (all strengths, root states
-191–198) and `beowulf/organic-arm` (Gigantic Arm, states 234–236), restricted to
-Beowulf and researched game build 26588330. These authored-data mappings await
-user gameplay tests. Runtime IDs/ranges come from the compiled catalogue, not the
+The allowlist now contains 570 authored-data mappings across 18 characters, with
+each move restricted to its character and researched game build 26588330. The
+original `beowulf/chair-toss` (all strengths, states 191–198) and
+`beowulf/organic-arm` (Gigantic Arm, states 234–236) IDs are preserved and passed
+user gameplay checks. Roster additions await runtime validation; 15 shared-phase
+families remain excluded. Runtime IDs/ranges and per-character table counts come from the compiled catalogue, not the
 palette file. Unknown IDs, wrong characters, arbitrary state/offset fields, mixed
 predicates, forced modes and downgrade to V1–V4 reject. Legacy transformation
 presets cannot carry move predicates; use a .pal save or explicit colors-only export.

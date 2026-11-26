@@ -65,8 +65,7 @@ inline void ValidateCharacterMoveSupport(const Character& c,const AppearanceCont
     for(int slot=0;slot<6;++slot){const DWORD entity=Word(root+0x1d4+4*slot);if(entity && Word(entity+0x330)==data.actor)entities.insert(entity);}
     if(entities.size()!=1)throw std::runtime_error("Unavailable: move entity ownership missing or ambiguous.");
     const DWORD entity=*entities.begin();float animation=0;auto bytes=Read(entity+4*0x27,4);memcpy(&animation,bytes.data(),4);
-    // Initial catalogue contains only the 688-state researched Beowulf table.
-    if(!std::isfinite(animation) || animation<0 || animation>=688 || std::floor(animation)!=animation)throw std::runtime_error("Unavailable: current animation is outside the mapped table.");
+    if(move->animationCount<1 || !std::isfinite(animation) || animation<0 || animation>=move->animationCount || std::floor(animation)!=animation)throw std::runtime_error("Unavailable: current animation is outside the mapped table.");
     if(Word(base+0x85ea4c)!=root || Word(root+0x168)!=4 || Word(root+0x5e8+4*c.ID)!=data.actor || Word(entity+0x330)!=data.actor || Word(data.actor+0x328)!=data.palette)throw std::runtime_error("Unavailable: move actor changed.");
 }
 inline void ValidateTransformation(const Character& c,const AppearanceContext& data,const TransformSettings& settings) {
