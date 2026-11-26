@@ -251,3 +251,29 @@ The same runner process remained responsive afterward and no new crash dump
 appeared. This verifies the reproduced transition after the ownership correction,
 not every possible lifecycle or roster behavior. A motion trace attempted after
 the exit rejected the inactive match and captured no motion samples.
+
+## Eliza / Sekhmet validation (2026-11-26)
+
+The supplied Eliza test palette contains eight automatic move rules affecting
+nine Sekhmet bands. Its 99 generated redirect records cross the native 4096-byte
+large-vector threshold before adding any original records. The native palette
+decoder and round trip accepted the fixture. The user confirmed that Sekhmet's
+body colors followed the moves, restored at idle, and leaving Training for
+character select did not crash. No new DLL was needed for the alternate form.
+
+A bounded read-only motion trace captured 138 observations on one stable actor /
+registered entity identity, with no invalid current-animation samples. It includes
+Eliza Stand and Summon, Sekhmet Stab/Kopesh, ground and air Axe, ground and air
+Lunge, air Cartouche, and Sekhmet idle/movement/jump states. It stopped on match
+change. This establishes that those alternate-form motions use the same verified
+root animation provider; it does not prove unobserved supers or every spawned
+entity behavior. The later ownership probe correctly rejected the inactive match.
+
+The first fixture deliberately recolored blood/anchor-blood effect bands as
+destination color banks, which also tinted the idle anchor blue/yellow. The user
+reported that side effect while Sekhmet correctly remained default at idle. A
+separate clean-anchor fixture restores those original effect colors and uses
+Albus color banks instead. Its native decode/round trip passed and a byte-level
+check confines base-color edits to those servant bands. That revised fixture's
+appearance has not been separately confirmed. These test palettes and traces
+remain local and are not bundled into source or the PR.
