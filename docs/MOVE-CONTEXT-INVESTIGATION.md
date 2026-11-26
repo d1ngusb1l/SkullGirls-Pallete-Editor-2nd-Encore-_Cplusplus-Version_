@@ -277,3 +277,18 @@ Albus color banks instead. Its native decode/round trip passed and a byte-level
 check confines base-color edits to those servant bands. That revised fixture's
 appearance has not been separately confirmed. These test palettes and traces
 remain local and are not bundled into source or the PR.
+
+## Fukua shared throw validation (2026-11-26)
+
+The two-rule test palette preserves every captured base color and borrows existing
+ramps: normal command throw gives blue hair, armored command throw pink-red hair,
+and idle retains the original light hair. The user confirmed the requested whiff /
+successful-grab colors, shared finish, restoration, and return to character select
+all remained correct with no crash.
+
+The read-only trace contains 115 observations on one stable actor / registered
+entity identity. It includes distinct normal-throw state 152 and armored-throw
+state 155, followed by shared success 156 and recovery 157. It stopped on match
+change. This supplies a second character's gameplay evidence for preserving move
+origin through shared hit-confirm phases. No newer crash dump appeared. The
+fixture, trace and ownership identifiers remain excluded from source.
