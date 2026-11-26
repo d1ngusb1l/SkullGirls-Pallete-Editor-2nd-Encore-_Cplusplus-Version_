@@ -31,7 +31,8 @@ class MoveCatalogTests(unittest.TestCase):
         original = catalog.preview.read_move_table(catalog.preview.Cursor(source), len(source), 0)
         self.assertEqual(parsed, original)
         self.assertEqual(metadata[0], dict(id=0, tags=[catalog.tag_hash("SPECIAL")], successor=1,
-                                           conditionalTargets=[1], sourceFrames=0))
+                                           conditionalTargets=[1], sourceFrames=0, timedTicks=0,
+                                           conditionalEdges=[dict(target=1,declaredSteps=0,flags=0,hasInputBytes=False)]))
 
     def test_explicit_membership_covers_all_phases_and_reports_exits(self):
         moves = catalog.resolve_moves(self.character(), self.mapping())

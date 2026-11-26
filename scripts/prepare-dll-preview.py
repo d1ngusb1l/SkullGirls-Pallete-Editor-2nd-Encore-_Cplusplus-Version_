@@ -144,15 +144,18 @@ def advances_immediately(expressions):
             result=False
     return result
 
-def skip_condition(c):
+def skip_condition(c,capture=False):
     c.take(4)
     count=c.num(2);flags=c.num(1)
+    input_bytes=[] if capture else None
     for i in range(count+(1 if flags&2 else 0)):
-        c.take(3)
+        directions=c.take(3)
         c.take(2)
         step_flags=c.num(1)
         if step_flags&2:skip_expression(c)
-        c.take(15)
+        buttons=c.take(15)
+        if capture:input_bytes.extend(directions+buttons)
+    if capture:return {'declaredSteps':count,'flags':flags,'hasInputBytes':any(input_bytes)}
 
 def skip_hit(c):
     c.take(2);c.take(4);c.take(1);c.take(2);c.take(2);c.take(1);c.take(4);c.take(2);c.take(9)
@@ -208,16 +211,19 @@ def read_move_table(c,file_size,sprite_count,read_children=False,validate_sprite
         if c.num(1):
             skip_condition(c);read_animation_ticks(c)
         if c.num(1):skip_expression(c)
-        targets=[]
+        targets=[];edges=[]
         for _ in range(transitions):
             target=c.num(2)
             if target>=count:raise ValueError('Invalid FOIT animation link')
-            targets.append(target)
-            skip_condition(c)
+            condition=skip_condition(c,move_metadata is not None)
+            if move_metadata is not None:
+                targets.append(target);edges.append({'target':target,**condition})
         animations.append(animation)
         if move_metadata is not None:
             move_metadata.append({'id':i,'tags':tags,'successor':successor,
-                                  'conditionalTargets':targets,'sourceFrames':frames})
+                                  'conditionalTargets':targets,'sourceFrames':frames,
+                                  'conditionalEdges':edges,
+                                  'timedTicks':sum(f['duration'] for f in animation if not f.get('advance_immediately',False))})
     if not read_children:
         return animations,names
     c.take(4)
