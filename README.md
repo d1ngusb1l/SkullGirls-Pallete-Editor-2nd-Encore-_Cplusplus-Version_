@@ -1,29 +1,40 @@
-# Skullgirls Palette Editor — V1 release candidate
+# Skullgirls Palette Editor
 
-**1.0.1 security update:** online palette sending/receiving and the editor's Steam lobby/chat tools are excluded from the DLL build. There is no UI switch to restore them. Local editing and auto-load remain available; the game's own online play is unchanged. Replace the 1.0.0 DLL with the newly packaged version.
+Palette editing and Autoload run locally. The DLL builds with palette sharing and the editor's Steam lobby and chat tools disabled.
 
 V1 release assets are prepared with `scripts/prepare-release.ps1` from a clean committed tree. It rebuilds the DLL and standalone EXE, runs offline checks, and creates `dist/v1.0.1/` containing both complete packages, raw assets matching earlier release conventions, source ZIP/tar.gz archives, release notes, and SHA-256 checksums. It does not create a tag or publish a release. See [release notes and validation status](release-docs/RELEASE-NOTES.md) and [DLL installation](release-docs/INSTALL-DLL.md).
 
-This fork brings the current advanced palette features into one editor, with compatible `.pal` saving and full-palette auto-loading. The standalone build currently targets Skullgirls game build **26588330**.
+This fork brings the current advanced palette features into one editor, with compatible `.pal` saving and full-palette auto-loading. The standalone editor and DLL target Skullgirls game build **26588330**.
 
-## Use
+## Standalone editor
 
 Keep `PaletteEditor-V1.exe`, `groups.json`, and `overlay-textures.json` together in a writable folder outside the game directory. Start the game and editor, then open a match.
 
 - **Palette** contains the normal color editor. Its collapsed **Advanced** section contains overlay textures, rainbow, opacity, always-on color links, and conditional transformations. Existing named triggers and manual previews remain available.
-- Transformation rules separate **General**, **Character moves**, and **Resources**. Character moves have a category filter and search. The roster catalogue supplies 570 mapped families across all 18 fighters using native conditions and V5 palette saves; 15 shared-phase families remain unavailable pending move-context support. The two original Beowulf mappings passed user gameplay checks; roster additions still need runtime validation. See [coverage and remaining work](docs/ROSTER-MOVE-COVERAGE.md).
+- Add independent transformation rules using **General**, **Character moves**, and **Resources** triggers. Search or filter 588 mapped move families across all 18 fighters, or set Beowulf Hype rules for levels 0–3. Character-move rules use V5 palette saves.
 - Apply advanced changes before saving. **File → Save palette** stores live colors, opacity, line/shadow colors, and applied advanced assignments in one `.pal` file. Unapplied controls are not saved.
-- **File → Load palette** accepts both plain legacy `.pal` files and extended V1 files. Invalid or mismatched files are rejected before game data changes.
+- **File → Load palette** accepts plain legacy `.pal` files and supported extended formats (V1–V5). Invalid or mismatched files are rejected before game data changes.
 - **File → Save palette and auto-load** saves and assigns the file to the selected character/palette number. The **Auto-load** tab also lets you add, browse, enable/disable, and retry assignments.
 - Auto-load waits for the assigned character and palette number, applies once per match/palette, and reapplies after a new match or file update. It does not continuously overwrite subsequent manual edits. Disabling an assignment stops future loads; it does not undo the current palette.
 
 Keep the editor running for auto-loading. Advanced overrides are restored on normal editor exit; color edits retain the original editor's in-match behavior. Settings live in `PaletteEditorConfig.json` beside the executable. On first use, existing `Documents/Skullgirls/PalEditConfig.json` settings are copied when available; the legacy settings file is left untouched.
 
+## In-game DLL
+
+- The DLL tracks shared move phases per fighter so a transformation can continue through its associated loops, landings, and recovery. Load palettes manually for each player, even when both players use the same palette number.
+- Save palettes with two overlay textures. The standalone editor previews the primary texture and preserves both assignments. The DLL renders both supported overlays with the bundled shader.
+- Search color groups and switch targets from the shared Palette and Advanced controls. Paste matching swatches between different-sized groups, undo a paste in one step, or stage linked ramp edits in Color Studio.
+- Browse animation frames for all 18 fighters in the detachable sprite viewer using locally prepared assets. Export transparent PNG frames or GIF and APNG animations with frame ranges, loop controls, and background cancellation. Regenerate older preview bundles for corrected frame indexing and timing.
+- Autoload imports assignments from the original DLL mod and gives current DLL settings precedence. For benched fighters with two-overlay palettes, it applies base colors early and finishes overlay setup on tag-in.
+- The native predicate cleanup fix addresses a crash when leaving Training for character select. See the recorded Training checks and the gameplay paths still to verify. [Move release readiness](docs/MOVE-RELEASE-READINESS.md)
+
+See the [DLL guide](DllEditor/README.md) for setup and controls.
+
 ## Legacy `.pal` compatibility
 
-A new file extension is **not** required. V1 preserves the original binary color prefix and appends an optional versioned effects block. Older readers can read the colors; they cannot apply the new effect assignments. Saving through an older editor strips that block. **Export legacy colors only** creates an exact legacy-length file for stricter tools.
+The `.pal` format retains the original binary color prefix and uses a versioned effects block for advanced settings. Older editors can read base colors and may strip newer settings when saving. **Export legacy colors only** creates an exact legacy-length file for stricter tools.
 
-V1 stores editor-applied overrides. Unmodified built-in palette rules remain native to the destination palette slot; arbitrary native condition graphs and character animation assets are not exported. See [the format specification](docs/PAL-FORMAT.md) for the layout and validation rules.
+The effects block stores editor-applied overrides. Unmodified built-in palette rules remain native to the destination palette slot; arbitrary native condition graphs and character animation assets are not exported. See [the format specification](docs/PAL-FORMAT.md) for the layout and validation rules.
 
 ## Build and test
 
