@@ -219,8 +219,8 @@ live-owner recovery while avoiding writes into graphs already released by teardo
 Regression coverage destroys four complete graphs from two links and two ranges,
 rejects any repeated node, and checks that cleanup performs no native writes after
 release. Service tests cover stale headers, no-write suspension/abandonment, and
-fresh live-owner recovery. The rebuilt DLL and a repeated user-controlled exit
-remain required before calling the crash fixed in gameplay. Raw dump addresses,
+fresh live-owner recovery. The installed correction's repeated exit result is
+recorded below. Raw dump addresses,
 heap snapshots and the supplied test palette remain local ignored artifacts.
 
 The native redirect-vector destructor also requires its large-buffer allocation
@@ -243,4 +243,11 @@ The required standalone build and 2,520 compatibility checks, native ownership/
 teardown and large-vector regression, route/entry/service suites, 41 Python tests,
 PowerShell syntax and UIntPtr compatibility checks, and DLL/network-disabled
 inspection passed. The same Valentine test palette remains available locally.
-Repeated user-controlled move/color and Training-exit validation is pending.
+The user reloaded the same three-rule Valentine test palette and confirmed that
+returning from Training to character select no longer crashed. Before that exit,
+a read-only audit found 71 appearance records with predicates and no shared
+condition nodes; the previously shared Alpha Blade tail was no longer aliased.
+The same runner process remained responsive afterward and no new crash dump
+appeared. This verifies the reproduced transition after the ownership correction,
+not every possible lifecycle or roster behavior. A motion trace attempted after
+the exit rejected the inactive match and captured no motion samples.
