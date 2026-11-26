@@ -2,8 +2,9 @@
 
 The all-attacks goal remains active. Current-animation membership alone cannot
 distinguish different moves entering the same timed phase. The roster builder
-records these edges and excludes affected families rather than activating one
-move's transformation during another move. See [coverage](ROSTER-MOVE-COVERAGE.md).
+records these edges; affected families require the synchronized DLL context
+implemented below. Unknown origins leave their transformations inactive.
+See [coverage](ROSTER-MOVE-COVERAGE.md).
 
 ## Native observations for build 26588330
 
@@ -65,8 +66,8 @@ logs. No resource field was read and no gameplay value was changed.
 
 ## Tracking foundation
 
-`Data/MoveRouteTracker.h` is a pure per-fighter tracker, not yet connected to live
-palette writes. A prebuilt table supplies full memberships and allowed edges.
+`Data/MoveRouteTracker.h` is a pure per-fighter tracker connected through the
+DLL appearance observer described below. A prebuilt table supplies full memberships and allowed edges.
 Unique phases establish a route; a verified immediate incoming edge can seed a
 shared phase. Repeated shared loops and their shared landing retain the established
 route. Idle/hitstun clear it, and unknown origins or unproven skipped paths report
@@ -78,14 +79,14 @@ Updo/Fenrir sequences, repeated shared loops, landing, interruption, mirrors, re
 addresses, unknown origins, contradictory incoming routes, bounds and allocation
 checks. These tests establish the pure state machine, not render synchronization.
 
-Live integration still requires an update boundary before native palette predicate
+Live integration requires an update boundary before native palette predicate
 evaluation. The existing Direct3D BeginScene wrapper is a candidate; its ordering
 relative to palette updates must be verified. A possible adapter can update only
 editor-owned constant predicate gates when the route changes, retaining native
 animation bounds and the single redirect-table owner. It must never rewrite
 gameplay state, rebuild tables every frame or free renderer-referenced buffers.
-The 15 shared-phase families remain unavailable until that path is implemented
-and tested. Further stance-entry/assist boundary audits also remain in scope.
+The implementation below supplies this path for the 15 shared-phase families;
+its live gameplay checks are still pending. Further stance-entry/assist boundary audits also remain in scope.
 
 ## Synchronization evidence for the next integration
 
@@ -105,6 +106,43 @@ or configuration failure must restore the previous header, registries and code.
 
 The palette updater starts with `53 8b dc 83 ec 08`: push EBX, move ESP into EBX,
 and subtract eight from ESP. These are **six** complete bytes, not five; a five-byte
-trampoline copy would split the third instruction. No trampoline or live entry
-patch has been installed by this investigation. Signature, lifecycle, cache order,
-failure rollback and preserved-call tests are required before enabling one.
+trampoline copy would split the third instruction. The DLL now contains a guarded six-byte entry redirect and retained trampoline.
+It installs only when a shared-phase rule is applied and restores the original
+entry when the last such rule is removed. It has not yet been installed in the
+running test game.
+
+
+## Implemented synchronized host (gameplay validation pending)
+
+`NativePaletteObserver` preserves the palette object, all three stack arguments,
+and the original call, including null-entity initialization. The observer and
+original evaluation are serialized together. The six-byte signature, researched
+PE build, partial writes, verification, rollback and foreign-entry ownership are
+guarded. Retained delegate code and native conditions are never freed mid-match.
+A private synthetic x86 function test exercises the same prologue, calling
+convention and stack cleanup across 10,000 calls; it is not an in-game test.
+
+`MoveContextHost.inl` validates the active root/mode, unique actor slot and root
+entity, character name, palette identity/index, integral motion/history bounds,
+and installed redirect header. It updates only editor-owned float constants in
+native predicate chains before evaluation. It never writes actor state or motion
+fields. Invalid snapshots, unknown origins and failed gate writes clear the
+applicable gates. Child calls do not establish a root fighter route.
+
+The 15 additional definitions expand through explicitly reviewed shared helper
+loops and landing tails. Six generated route tables cover their owning fighters.
+The original 570 stateless mappings and native animation range bounds remain.
+A shared-phase predicate ANDs those bounds with its own route gate. Different
+contextual routes can safely share affected shades because a fighter has only
+one active route. Standalone hosts reject these rules before native allocation.
+Configuration allocates once; stable observations allocate nothing and perform
+no unchanged gate writes. Runtime pointers and gates are not serialized.
+
+Tests cover the recorded Filia paths, mirrors, inactive palette gates, palette
+changes, stale headers, epoch/owner changes, unknown origins, gate-write failures,
+installation rollback, independent rules, idempotent Apply and final removal.
+The required gameplay checks are Updo versus whiffed Fenrir with distinct colors
+on the same group, their shared loop and landing, interruption, save/reload,
+match changes, and mirror/tag/assist behavior. Other roster families are authored
+data coverage, not individually verified attacks. Stance and substitution
+boundaries still require audit before claiming complete all-attacks support.

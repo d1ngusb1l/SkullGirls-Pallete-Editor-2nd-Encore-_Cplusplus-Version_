@@ -103,6 +103,20 @@ class RosterMoveMappingTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             builder.build(dict(format="skullgirls-move-catalog", version=1, characters=[]), dict(version=1, families={}))
 
+    def test_shared_route_expands_through_loop_and_landing_but_not_cancel_entries(self):
+        c = self.states(["s.First", "First_End", "Second_Loop", "Second_Land", "s.Second", "s.Other"], {1:2,2:2,3:5})
+        c["states"][2]["conditionalTargets"]=[3,5]
+        c["states"][2]["conditionalEdges"]=[dict(target=t,declaredSteps=1,flags=0,hasInputBytes=True) for t in (3,5)]
+        reviewed=self.resolve(c,[["First"],["Second"],["Other"]])
+        report=builder.context_routes(dict(characters=[reviewed]),dict(characters=[c]))
+        moves={m["id"]:m for m in report["characters"][0]["moves"]}
+        self.assertEqual(moves["first"]["stateIds"],[0,1,2,3])
+        self.assertNotIn(4,moves["first"]["stateIds"])
+        self.assertNotIn(5,moves["first"]["stateIds"])
+        self.assertTrue(moves["first"]["contextual"] and moves["second"]["contextual"])
+        self.assertFalse(moves["other"]["contextual"])
+        self.assertIn((2,3),report["characters"][0]["routeEdges"])
+
 
 if __name__ == "__main__":
     unittest.main()

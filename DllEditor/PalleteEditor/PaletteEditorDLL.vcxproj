@@ -198,9 +198,11 @@
     <ClInclude Include="UI\LoggerWidget.hpp" />
     <ClInclude Include="UI\SetStyleImGui.h" />
     <ClInclude Include="UI\UI.h" />
+    <ClInclude Include="NativePaletteObserver.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AutoLoadPalette.cpp" />
+    <ClCompile Include="NativePaletteObserver.cpp" />
     <ClCompile Include="AdvancedPalette.cpp">
       <PreprocessorDefinitions Condition="'$(PaletteValidation)'=='True'">SGPE_DLL_VALIDATION;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>

@@ -19,10 +19,51 @@ struct ColorAssignment {
     int staticMask=255;
     std::vector<TransformSettings> transformations;
     Bytes installedHeader;
+    const PaletteData::MoveRouteTable* contextTable=nullptr;
+    std::vector<PaletteData::MoveContextGate> contextGates;
+    std::string contextCharacter;
+    int paletteIndex=-1;
 };
+struct MoveContextHooks {
+    bool (*supported)()=nullptr;
+    bool (*installed)()=nullptr;
+    void (*install)()=nullptr;
+    void (*remove)()=nullptr;
+    void (*sync)()=nullptr;
+    void (*reset)()=nullptr;
+    const PaletteData::MoveRouteTable* (*table)(const std::string&)=nullptr;
+    const char* (*status)(int)=nullptr;
+};
+inline MoveContextHooks moveContextHooks;
+inline std::string moveContextFault;
 inline std::map<DWORD,ColorAssignment> colorAssignments;
 inline unsigned long long ruleGeneration=0;
-inline void ClearColorAssignments() { colorAssignments.clear(); ++ruleGeneration; }
+inline void ClearColorAssignments() {
+    try{if(moveContextHooks.reset)moveContextHooks.reset();}catch(...){moveContextFault="Move context reset failed.";}
+    colorAssignments.clear();++ruleGeneration;
+    try{if(moveContextHooks.installed && moveContextHooks.installed() && moveContextHooks.remove)moveContextHooks.remove();}catch(...){moveContextFault="Move context observer cleanup failed.";}
+}
+inline bool ContextSupported(){return moveContextHooks.supported && moveContextHooks.supported();}
+inline std::vector<PaletteData::MoveContextBinding> ContextBindings() {
+    std::vector<PaletteData::MoveContextBinding> bindings;
+    for(const auto& [address,assignment]:colorAssignments)if(assignment.contextTable && !assignment.contextGates.empty()) {
+        try{if(!Valid(assignment.original))continue;}catch(...){continue;}
+        if(assignment.installedHeader.size()!=12)throw std::runtime_error("Invalid context table header.");
+        PaletteData::MoveContextBinding binding;
+        binding.actor=assignment.original.actor;binding.palette=assignment.original.palette;binding.slot=assignment.original.slot;binding.paletteIndex=assignment.paletteIndex;
+        binding.headerAddress=address;std::copy_n(assignment.installedHeader.begin(),12,binding.header.begin());
+        binding.character=assignment.contextCharacter;binding.table=assignment.contextTable;binding.gates=assignment.contextGates;bindings.push_back(std::move(binding));
+    }
+    return bindings;
+}
+inline void ReconcileContextHost() {
+    const bool needed=std::any_of(colorAssignments.begin(),colorAssignments.end(),[](const auto& item){return !item.second.contextGates.empty();});
+    if(moveContextHooks.sync)moveContextHooks.sync();
+    if(needed) {
+        if(!ContextSupported() || !moveContextHooks.install || !moveContextHooks.installed)throw std::runtime_error("Synchronized move context is unavailable.");
+        if(!moveContextHooks.installed())moveContextHooks.install();
+    } else if(moveContextHooks.installed && moveContextHooks.installed() && moveContextHooks.remove)moveContextHooks.remove();
+}
 inline std::string TransformTrigger(const Character& c) {
     if(c.Char_Name=="Annie") return "annie-supers";
     if(c.Char_Name=="Filia" && c.Current_Pallete_Num==29) return "filia-color30-flag20";
@@ -57,6 +98,7 @@ inline HypeSnapshot ReadHypeProvider(const Character& c,const AppearanceContext&
 inline void ValidateCharacterMoveSupport(const Character& c,const AppearanceContext& data,const std::string& id) {
     const auto move=PaletteData::FindCharacterMove(id);
     if(!move || move->character!=c.Char_Name)throw std::runtime_error("Unsupported: no mapped move for this character.");
+    if(move->contextual && !ContextSupported())throw std::runtime_error("Unsupported: shared move phases require the synchronized DLL host.");
     const DWORD pe=Word(base+0x3c);
     if(pe>0x10000 || Word(base+pe+8)!=0x6af3723f || Word(base+pe+24+56)!=0x8bd000)throw std::runtime_error("Unsupported: character moves require game build 26588330.");
     const DWORD root=Word(base+0x85ea4c);
@@ -86,11 +128,12 @@ inline void ValidateTransformation(const Character& c,const AppearanceContext& d
     if(settings.mode==TransformMode::Automatic && settings.activationTag.empty() && TransformTrigger(c)=="preview-only")
         throw std::runtime_error("Automatic activation is validated for Annie and Filia Color 30 only. Use a manual preview here.");
 }
-inline DWORD TransformCondition(const Character& c,const TransformSettings& settings,int rangeIndex=0) {
+inline DWORD TransformCondition(const Character& c,const TransformSettings& settings,int rangeIndex=0,DWORD contextGate=0) {
     if(!settings.moveId.empty()) {
         const auto move=PaletteData::FindCharacterMove(settings.moveId);
         if(!move || move->character!=c.Char_Name || rangeIndex<0 || rangeIndex>=(int)move->ranges.size())throw std::runtime_error("Unsupported character move predicate.");
-        const auto range=move->ranges[rangeIndex];DWORD next=0;
+        if(move->contextual && !contextGate)throw std::runtime_error("Missing synchronized move gate.");
+        const auto range=move->ranges[rangeIndex];DWORD next=contextGate;
         for(auto comparison:std::array<std::pair<int,int>,2>{{{0x14,range.second},{0x13,range.first}}}) {
             Bytes node(48);node[0]=1;Put(node,4,0x27);float rhs=(float)comparison.second;memcpy(node.data()+20,&rhs,4);
             node[24]=1;Put(node,28,next);node[32]=static_cast<unsigned char>(comparison.first);
@@ -158,11 +201,28 @@ inline void CommitColorAssignment(const Character& c,const AppearanceContext& da
     memcpy(&begin,assignment.original.header.data(),4); memcpy(&end,assignment.original.header.data()+4,4);
     if(end<begin || (end-begin)%44 || end-begin>44*1024) throw std::runtime_error("Unsupported native color-link vector.");
     const auto plan=PaletteData::BuildRedirectPlan(Read(begin,end-begin),assignment.staticLinks,assignment.staticMask,rules);
-    Bytes records;std::map<std::pair<int,int>,DWORD> conditions;
+    auto installing=assignment;installing.contextGates.clear();installing.contextTable=nullptr;installing.contextCharacter=c.Char_Name;installing.paletteIndex=c.Current_Pallete_Num;
+    Bytes records;std::map<std::pair<int,int>,DWORD> conditions;std::map<int,DWORD> gates;
     for(auto entry:plan) {
         if(entry.conditionRule>=0) {
             auto& condition=conditions[{entry.conditionRule,entry.conditionRange}];
-            if(!condition)condition=TransformCondition(c,assignment.transformations.at(entry.conditionRule),entry.conditionRange);
+            if(!condition) {
+                const auto& settings=assignment.transformations.at(entry.conditionRule);const auto move=PaletteData::FindCharacterMove(settings.moveId);
+                DWORD gate=0;
+                if(move && move->contextual) {
+                    if(!moveContextHooks.table)throw std::runtime_error("Move context table provider missing.");
+                    if(!installing.contextTable)installing.contextTable=moveContextHooks.table(c.Char_Name);
+                    gate=gates[entry.conditionRule];
+                    if(!gate) {
+                        const int route=installing.contextTable?installing.contextTable->Find(settings.moveId):-1;
+                        if(route<0)throw std::runtime_error("Move is absent from its context table.");
+                        Bytes node(48);float one=1;memcpy(node.data()+20,&one,4);node[24]=1;node[32]=0x13;
+                        gate=Allocate(node.size());Write(gate,node);gates[entry.conditionRule]=gate;
+                        installing.contextGates.push_back({gate+4,route});
+                    }
+                }
+                condition=TransformCondition(c,settings,entry.conditionRange,gate);
+            }
             PaletteData::RedirectPut(entry.bytes.data()+12,condition);entry.bytes[16]=1;
         }
         records.insert(records.end(),entry.bytes.begin(),entry.bytes.end());
@@ -184,15 +244,15 @@ inline void CommitColorAssignment(const Character& c,const AppearanceContext& da
             if(restoring){originals.erase(address);colorAssignments.erase(address);}
             else {
                 originals[address]=assignment.original;
-                auto installed=assignment; installed.installedHeader=header; colorAssignments[address]=installed;
+                installing.installedHeader=header;colorAssignments[address]=installing;
             }
         });
-        Refresh();
+        ReconcileContextHost();Refresh();
     } catch(const std::exception& error) {
         auto message=std::string(error.what());
         try {
             AppearanceTransaction(assignment.original,[&]() { Write(address,previousHeader); if(Read(address,12)!=previousHeader)throw std::runtime_error("Restore verification failed."); });
-            originals=previousOriginals; colorAssignments=previousAssignments; Refresh();
+            originals=previousOriginals; colorAssignments=previousAssignments;ReconcileContextHost();Refresh();
         } catch(...) { throw std::runtime_error(message+" Color-link restoration also failed; match may have ended."); }
         throw std::runtime_error(message+" Previous color links restored.");
     }

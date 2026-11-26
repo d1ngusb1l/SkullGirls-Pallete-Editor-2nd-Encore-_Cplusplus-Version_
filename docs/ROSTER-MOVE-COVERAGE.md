@@ -4,9 +4,11 @@ Generated from the researched local FOIT catalogue by `scripts/build-roster-move
 These are authored-data mappings, not blanket gameplay verification. The original
 Beowulf Chair Toss and Gigantic Arm passed the user's gameplay checks.
 
-The compiled catalogue contains **570 mapped families across all 18 characters**.
-**15 families remain unavailable** because distinct moves enter the same timed
-phase. Resolving their move context remains part of the active all-attacks goal.
+The catalogue contains **570 stateless families across all 18 characters**.
+A further **15 shared-phase families** require synchronized per-fighter route tracking
+in the DLL host, for 585 selectable families. They remain unavailable in the standalone
+host. Unknown origins keep transformations inactive. Gameplay validation and broader
+attack-path coverage remain part of the active goal.
 
 | Character | Mapped families | Shared-phase cases | Attack-tagged states mapped / pending |
 | --- | ---: | ---: | ---: |
