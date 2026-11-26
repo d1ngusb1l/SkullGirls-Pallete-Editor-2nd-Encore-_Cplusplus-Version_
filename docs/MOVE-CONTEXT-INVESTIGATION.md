@@ -86,3 +86,25 @@ animation bounds and the single redirect-table owner. It must never rewrite
 gameplay state, rebuild tables every frame or free renderer-referenced buffers.
 The 15 shared-phase families remain unavailable until that path is implemented
 and tested. Further stance-entry/assist boundary audits also remain in scope.
+
+## Synchronization evidence for the next integration
+
+Complete local disassembly located the native palette updater at **0x00487a60**.
+Its per-entity call at **0x0058fcb6** supplies the palette object in ECX and three
+stack arguments: palette index, a root-owned palette cache, and the entity context.
+The call follows an entity-update call at 0x0058fc5a. Other callers initialize
+palette caches and can supply a null context. This does not prove that a Direct3D
+BeginScene observer runs before the native predicate evaluation; do not assume it.
+
+A synchronized observer at this **appearance updater**, preserving its original
+call and arguments, is another candidate. It must not hook the motion-assignment
+or gameplay functions. Any such adapter must verify the exact build/signature,
+actor/entity/palette ownership, preserve unrelated native records, and update only
+editor-owned condition gates before the original palette evaluator. Partial patch
+or configuration failure must restore the previous header, registries and code.
+
+The palette updater starts with `53 8b dc 83 ec 08`: push EBX, move ESP into EBX,
+and subtract eight from ESP. These are **six** complete bytes, not five; a five-byte
+trampoline copy would split the third instruction. No trampoline or live entry
+patch has been installed by this investigation. Signature, lifecycle, cache order,
+failure rollback and preserved-call tests are required before enabling one.
