@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <fstream>
 #include <set>
 #include <algorithm>
@@ -59,6 +59,8 @@ inline unsigned canvasLeft=0,canvasTop=0,canvasWidth=0,canvasHeight=0;
 inline int slot=-1,palette=-1;
 inline float zoom=0.7f;
 inline bool showOriginal=false,highlight=true,attempted=false;
+inline ImU32 originalLineColor=0,liveLineColor=0,uploadedLineColor=0;
+inline ImU32 PreviewLineColor() {return showOriginal?originalLineColor:liveLineColor;}
 inline bool legacyFixedOnly=false;
 inline bool centerCanvas=true,fitCanvas=false;
 inline std::string error;
@@ -256,14 +258,14 @@ inline void Load(const char* character) {
     }catch(const std::exception& e){error=e.what();pixels.clear();frames.clear();animations.clear();}
 }
 
-inline ImU32 Sample(int band,int shade,const std::vector<ImU32>& colors,const std::vector<int>& layout) {
+inline ImU32 Sample(int band,int shade,const std::vector<ImU32>& colors,const std::vector<int>& layout,ImU32 lineColor=0) {
     if(band<0 || band>=layout.size() || !layout[band])return 0;
     int start=0;for(int b=0;b<band;++b)start+=layout[b];
     const float index=(layout[band]-1)*(1.0f-(shade&31)/31.0f);
     int low=static_cast<int>(index),high=(std::min)(low+1,layout[band]-1);
     if(start+high>=colors.size())return 0;
-    float t=index-low,black=(shade>>5)/7.0f;ImU32 result=0;
-    for(int ch=0;ch<4;++ch){float a=(colors[start+low]>>(8*ch))&255,b=(colors[start+high]>>(8*ch))&255;float v=a+(b-a)*t;v=ch==3?(std::max)(v,black*255):v*(1-black);result|=static_cast<ImU32>(v)<<(8*ch);}
+    float t=index-low,lineCoverage=(shade>>5)/7.0f;ImU32 result=0;
+    for(int ch=0;ch<4;++ch){float a=(colors[start+low]>>(8*ch))&255,b=(colors[start+high]>>(8*ch))&255;float v=a+(b-a)*t;v=ch==3?(std::max)(v,lineCoverage*255):v*(1-lineCoverage)+((lineColor>>(8*ch))&255)*lineCoverage;result|=static_cast<ImU32>(v)<<(8*ch);}
     return result;
 }
 inline ImU32 Sample(int band,int shade,const std::vector<ImU32>& colors){return Sample(band,shade,colors,sizes);}
@@ -339,10 +341,10 @@ inline const SpriteFrameAsset* ActiveFrame() {
     }
     return &decodedFrame;
 }
-inline std::vector<ImU32> RenderFrame(const SpriteFrameAsset& frame,const std::vector<ImU32>& colors,const std::set<int>& selected,bool focus,bool transparent,const std::vector<int>& layout=sizes,const std::map<int,int>& redirects={}) {
+inline std::vector<ImU32> RenderFrame(const SpriteFrameAsset& frame,const std::vector<ImU32>& colors,const std::set<int>& selected,bool focus,bool transparent,const std::vector<int>& layout=sizes,const std::map<int,int>& redirects={},ImU32 lineColor=0) {
     const unsigned outputWidth=BoundDimension(frame.width),outputHeight=BoundDimension(frame.height);
     std::vector<ImU32> lookup(256*256),output(size_t(outputWidth)*outputHeight);
-    for(int b=0;b<(int)layout.size();++b)for(int shade=0;shade<256;++shade)lookup[b*256+shade]=Sample(redirects.count(b)?redirects.at(b):b,shade,colors,layout);
+    for(int b=0;b<(int)layout.size();++b)for(int shade=0;shade<256;++shade)lookup[b*256+shade]=Sample(redirects.count(b)?redirects.at(b):b,shade,colors,layout,lineColor);
     for(unsigned y=0;y<outputHeight;++y)for(unsigned x=0;x<outputWidth;++x) {
         SpritePreviewPixel pixel(transparent);
         for(const auto& layer:frame.layers) {
@@ -351,7 +353,7 @@ inline std::vector<ImU32> RenderFrame(const SpriteFrameAsset& frame,const std::v
             const auto offset=(size_t(ly)*layer.width+lx)*3;
             if(offset+2>=layer.pixels.size())continue;
             const int band=layer.pixels[offset+2],shade=layer.pixels[offset+1];
-            pixel.Blend(lookup[band*256+(shade&255)],selected.count(band)>0);
+            pixel.Blend(lookup[band*256+shade],selected.count(band)>0);
         }
         output[size_t(y)*outputWidth+x]=transparent?pixel.PackTransparent():pixel.Pack(focus,!selected.empty());
     }
@@ -364,6 +366,7 @@ struct AnimationExport {
     std::vector<int> layout;
     SpritePreviewGeometry::Bounds bounds;
     std::map<int,int> redirects;
+    ImU32 lineColor=0;
     bool gif=false;unsigned plays=0;
     std::string name;
 };
@@ -413,7 +416,7 @@ inline AnimationExport CaptureAnimationExport(bool gif,unsigned plays,int first=
     if(first<1 || last<first || last>count)throw std::runtime_error("Choose a valid inclusive frame range.");
     capture.animation.frames=decltype(capture.animation.frames)(capture.animation.frames.begin()+first-1,capture.animation.frames.begin()+last);
     if(capture.animation.frames.empty() || capture.animation.frames.size()>2000)throw std::runtime_error("Animation export supports 1 to 2000 timeline frames.");
-    capture.colors=showOriginal?original:edited;capture.layout=sizes;capture.redirects=showOriginal?std::map<int,int>{}:SimulatedRedirects();size_t bytes=0;
+    capture.colors=showOriginal?original:edited;capture.lineColor=PreviewLineColor();capture.layout=sizes;capture.redirects=showOriginal?std::map<int,int>{}:SimulatedRedirects();size_t bytes=0;
     for(const auto& entry:capture.animation.frames) {
         if(capture.sprites.count(entry.sprite))continue;
         auto found=std::find_if(frames.begin(),frames.end(),[&](const auto& f){return f.id==entry.sprite;});
@@ -439,7 +442,7 @@ inline SpriteAnimation::Bytes EncodeAnimation(const AnimationExport& capture,con
                 if(!layer.channels[0].empty()){DecodePixelLayer(layer);for(auto& channel:layer.channels)channel.clear();layer.tiles.clear();}
             }
         }
-        const auto pixels=RenderFrame(*decoded,capture.colors,{},false,true,capture.layout,capture.redirects);
+        const auto pixels=RenderFrame(*decoded,capture.colors,{},false,true,capture.layout,capture.redirects,capture.lineColor);
         std::vector<uint32_t> canvas(size_t(w)*h,0);
         const unsigned x=capture.bounds.OffsetX(-decoded->originX),y=capture.bounds.OffsetY(-decoded->originY);
         for(unsigned row=0;row<decoded->height;++row)memcpy(canvas.data()+size_t(y+row)*w+x,pixels.data()+size_t(row)*decoded->width,decoded->width*4);
@@ -486,7 +489,7 @@ inline void CapturePngExport() {
     if(selectedAnimation>=0 && selectedAnimation<int(animations.size()))name+="-move-"+std::to_string(animations[selectedAnimation].id)+"-frame-"+std::to_string(frameIndex+1);
     else name+="-sprite-"+std::to_string(frame->id);
     name+=showOriginal?"-original.png":"-edited.png";
-    pendingPngExport=PngExport{frame->width,frame->height,RenderFrame(*frame,colors,{},false,true,sizes,showOriginal?std::map<int,int>{}:SimulatedRedirects()),name};
+    pendingPngExport=PngExport{frame->width,frame->height,RenderFrame(*frame,colors,{},false,true,sizes,showOriginal?std::map<int,int>{}:SimulatedRedirects(),PreviewLineColor()),name};
 }
 inline void SavePngExport(const std::filesystem::path& path) {
     try {
@@ -501,15 +504,15 @@ inline void Upload(const std::set<int>& selected) {
     auto frame=ActiveFrame();if(!frame)return;
     const auto& colors=showOriginal?original:edited;
     const auto redirects=showOriginal?std::map<int,int>{}:SimulatedRedirects();
-    if(texture && uploadedRedirects==redirects && uploaded==colors && uploadedBands==selected && uploadedHighlight==highlight && uploadedSprite==frame->id)return;
+    if(texture && uploadedRedirects==redirects && uploaded==colors && uploadedBands==selected && uploadedLineColor==PreviewLineColor() && uploadedHighlight==highlight && uploadedSprite==frame->id)return;
     // Finish CPU work before locking the device texture, so errors never leave it locked.
-    const auto image=RenderFrame(*frame,colors,selected,highlight,false,sizes,redirects);
+    const auto image=RenderFrame(*frame,colors,selected,highlight,false,sizes,redirects,PreviewLineColor());
     if(texture && (width!=frame->width || height!=frame->height)){texture->Release();texture=nullptr;}
     if(!texture && FAILED(device->CreateTexture(frame->width,frame->height,1,D3DUSAGE_DYNAMIC,D3DFMT_A8R8G8B8,D3DPOOL_DEFAULT,&texture,nullptr)))throw std::runtime_error("Could not create preview texture.");
     D3DLOCKED_RECT lock{};if(FAILED(texture->LockRect(0,&lock,nullptr,D3DLOCK_DISCARD)))throw std::runtime_error("Could not upload preview texture.");
     width=frame->width;height=frame->height;
     for(unsigned y=0;y<height;++y)memcpy(static_cast<unsigned char*>(lock.pBits)+y*lock.Pitch,image.data()+size_t(y)*width,width*4);
-    texture->UnlockRect(0);uploadedRedirects=redirects;uploaded=colors;uploadedBands=selected;uploadedHighlight=highlight;uploadedSprite=frame->id;
+    texture->UnlockRect(0);uploadedRedirects=redirects;uploaded=colors;uploadedBands=selected;uploadedLineColor=PreviewLineColor();uploadedHighlight=highlight;uploadedSprite=frame->id;
 }
 
 inline void DrawCanvas() {
@@ -536,7 +539,7 @@ inline void DrawCanvas() {
     ImGui::EndChild();
 }
 
-inline void Draw(int targetSlot,int targetPalette,const char* character,const std::vector<ImU32>& liveColors,const std::vector<int>& layout,const ColorGroup& group,const std::set<int>& bands,const std::vector<PaletteData::Transformation>& rules={}) {
+inline void Draw(int targetSlot,int targetPalette,const char* character,const std::vector<ImU32>& liveColors,ImU32 targetLineColor,const std::vector<int>& layout,const ColorGroup& group,const std::set<int>& bands,const std::vector<PaletteData::Transformation>& rules={}) {
     ImGui::TextWrapped("Isolated preview. Extra artwork layers and shader effects are not previewed.");
     if(!error.empty() || preparationProcess)ImGui::SetNextItemOpen(true);
     if(ImGui::CollapsingHeader("Prepare local sprite assets")) {
@@ -554,9 +557,10 @@ inline void Draw(int targetSlot,int targetPalette,const char* character,const st
         if(!preparationPython.empty())ImGui::TextWrapped("Python: %s",preparationPython.filename().string().c_str());
         if(!preparationStatus.empty())ImGui::TextWrapped("%s",preparationStatus.c_str());
     }
+    liveLineColor=targetLineColor;
     Load(character);if(!error.empty()){ImGui::TextWrapped("%s",error.c_str());return;}
     if(slot!=targetSlot || palette!=targetPalette || sizes!=layout || snapshotCharacter!=character) {
-        ForgetMatch();slot=targetSlot;palette=targetPalette;sizes=layout;snapshotCharacter=character;original=edited=liveColors;simulatedRules=rules;
+        ForgetMatch();slot=targetSlot;palette=targetPalette;sizes=layout;snapshotCharacter=character;original=edited=liveColors;originalLineColor=liveLineColor;simulatedRules=rules;
     }
     ImGui::Separator();
     ImGui::TextColored(ImVec4(0.4f,0.85f,1.0f,1.0f),"Animation / frame selection");
@@ -616,9 +620,9 @@ inline void Draw(int targetSlot,int targetPalette,const char* character,const st
         }
     } else ImGui::TextDisabled("Fixed pose fallback: sprite record %u",fallbackSprite);
     ImGui::Separator();
-    if(ImGui::Button("Snapshot match colors"))original=edited=liveColors;
+    if(ImGui::Button("Snapshot match colors")){original=edited=liveColors;originalLineColor=liveLineColor;}
     ImGui::SameLine();ImGui::Checkbox("Original / Edited",&showOriginal);
-    ImGui::TextDisabled(showOriginal?"Original snapshot":"Edited locally (match unchanged)");
+    ImGui::TextDisabled(showOriginal?"Original snapshot":"Local swatches with current match line color");
     if(ImGui::CollapsingHeader("Simulate transformation rules locally")) {
         ImGui::TextWrapped("Manual full-band color borrowing only. Pose selection does not activate tags or moves. Native conditions, shade masks, static/native redirects and shader effects are not emulated.");
         if(ImGui::Button("Refresh rule snapshot")){simulatedRules=rules;simulatedActive.clear();simulatedHypeLevel=-1;simulatedMoveId.clear();}

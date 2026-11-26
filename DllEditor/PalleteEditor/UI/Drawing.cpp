@@ -629,7 +629,7 @@ void Drawing::DrawSpritePreviewWindow() {
                 try {
                     auto layout=AdvancedPalette::PreviewLayout();std::set<int> bands;
                     int first=0;for(int band=0;band<layout.size();++band){if(first<group.startIndex+group.count && first+layout[band]>group.startIndex)bands.insert(band);first+=layout[band];}
-                    SpriteViewer::Draw(PlayableCharactersManager::GetCurrentCharacterIndex(),target.Current_Palette_Num,target.Char_Name,target.Character_Colors,layout,group,bands,AdvancedPalette::PreviewRules());
+                    SpriteViewer::Draw(PlayableCharactersManager::GetCurrentCharacterIndex(),target.Current_Palette_Num,target.Char_Name,target.Character_Colors,target.LineColor,layout,group,bands,AdvancedPalette::PreviewRules());
                 }catch(const std::exception& e){ImGui::TextWrapped("Preview unavailable: %s",e.what());}
             }else ImGui::TextWrapped("No color groups available for this fighter.");
         }
