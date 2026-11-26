@@ -33,6 +33,12 @@ class MoveContextService {
         gate.value=value;gate.known=true;return true;
     }
 public:
+    // Teardown may already have released the native graph. Do not touch its gates.
+    void Suspend(int slot=-1) noexcept {
+        if(slot>=0 && slot<6)slots[slot]=Slot{};else for(auto& state:slots)state=Slot{};
+        for(auto& binding:bindings)if(slot<0 || binding.slot==slot)for(auto& gate:binding.gates)gate.known=false;
+    }
+    void Abandon() noexcept {Suspend();bindings.clear();}
     void Replace(std::vector<MoveContextBinding> next) {
         for(auto& binding:next) {
             if(!binding.actor || !binding.palette || !binding.headerAddress || binding.slot<0 || binding.slot>=6 || binding.paletteIndex<0 || !binding.table || binding.character.empty())throw std::runtime_error("Invalid move context binding.");
@@ -54,21 +60,30 @@ public:
     }
     template<class HeaderLive,class Writer>void Observe(const MoveContextFrame& frame,HeaderLive live,Writer write) {
         const auto& key=frame.identity;
-        if(!key.Valid() || !frame.character || frame.paletteIndex<0){Invalidate(-1,write);return;}
+        if(!key.Valid() || !frame.character || frame.paletteIndex<0){Suspend();return;}
         const MoveRouteTable* table=nullptr;
         bool ownerLive=false;
         for(auto& binding:bindings)if(binding.slot==key.slot && binding.actor==key.actor && binding.palette==key.palette && binding.character==frame.character) {
             if(live(binding.headerAddress,binding.header)){table=binding.table;ownerLive=true;break;}
         }
-        if(!ownerLive){Invalidate(key.slot,write);return;}
+        if(!ownerLive){Suspend(key.slot);return;}
         auto& state=slots[key.slot];state.identity=key;state.table=table;
         state.result=state.tracker.Observe(*table,key,frame.animation,frame.previous);
         bool ok=true;
         for(auto& binding:bindings)if(binding.slot==key.slot && binding.actor==key.actor && binding.palette==key.palette) {
             const bool valid=binding.character==frame.character && binding.table==table && live(binding.headerAddress,binding.header);
-            for(auto& gate:binding.gates)ok=Gate(gate,valid && state.result.status==MoveRouteStatus::Active && gate.route==state.result.route,write) && ok;
+            for(auto& gate:binding.gates) {
+                if(!valid){gate.known=false;continue;}
+                ok=Gate(gate,state.result.status==MoveRouteStatus::Active && gate.route==state.result.route,write) && ok;
+            }
         }
-        if(!ok)Invalidate(key.slot,write);
+        if(!ok) {
+            slots[key.slot]=Slot{};
+            for(auto& binding:bindings)if(binding.slot==key.slot && binding.actor==key.actor && binding.palette==key.palette) {
+                if(live(binding.headerAddress,binding.header))for(auto& gate:binding.gates)Gate(gate,false,write);
+                else for(auto& gate:binding.gates)gate.known=false;
+            }
+        }
     }
 };
 }

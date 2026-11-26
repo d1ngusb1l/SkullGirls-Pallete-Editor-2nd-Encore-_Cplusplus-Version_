@@ -194,19 +194,53 @@ routes to them, while Dio Scalpels has no such route in the extracted graph.
 The generator now reports these unproven origin memberships instead of treating
 their names as proof. No membership change has been made from this audit alone.
 
-Windows recorded an APPCRASH with exception `0xc0000374` (heap corruption) during
-native palette cleanup after the Filia test. The local dump's frame chain includes
-the native overlay condition destructor and palette cleanup routine. The dump
-does not contain the allocation contents needed to identify the corrupting write.
-A read-only audit of the reopened match found no shared condition nodes among
-its 68 native appearance records with predicates. This does not prove that the
-earlier match's allocation ownership was valid.
+The transition back to character select reproduced a `0xc0000374` heap-corruption
+crash with both the Filia setup and the supplied three-rule Valentine test palette.
+The second dump identifies the freed pointer as the exact constant gate shared by
+Alpha Blade's two disjoint redirect records. A read-only pre-exit ownership
+snapshot contains both references. Native palette cleanup reaches the shared
+allocation twice. This connects the failure to the installed graph ownership;
+the earlier stack-only dump alone could not identify the corrupt allocation.
 
-An initial hypothesis that color-link records recursively free their predicate
-chains was contradicted by disassembly: their cleanup destroys the embedded
-string and record storage; overlay condition cleanup is a separate path. The
-speculative condition-sharing change was discarded. No crash fix is claimed,
-and no replacement DLL was installed into the reopened runner. Raw dump and
-read-only diagnostic output remain excluded in local build artifacts. Cleanup
-stability and reproducibility remain required before completing the all-attacks
-goal or treating the installed candidate as fully validated.
+The correction gives every generated redirect record its own entire predicate
+chain, including its own route constant. Conditions are no longer cached/shared
+across affected bands or disjoint animation ranges. Native animation bounds and
+single-table composition remain unchanged. Retired tables are still not freed
+by the editor while rendering can reference them; the game's own teardown owns
+the currently installed table's native graph lifetime.
+
+Context suspension now clears CPU route history and marks gate values unknown
+without writing through potentially retired pointers. Matching live headers force
+fresh values when tracking resumes. Match cleanup abandons bindings without native
+writes. Stale inactive-palette headers are skipped, and failed updates only retry
+zero on bindings whose installed headers still validate. This preserves valid
+live-owner recovery while avoiding writes into graphs already released by teardown.
+
+Regression coverage destroys four complete graphs from two links and two ranges,
+rejects any repeated node, and checks that cleanup performs no native writes after
+release. Service tests cover stale headers, no-write suspension/abandonment, and
+fresh live-owner recovery. The rebuilt DLL and a repeated user-controlled exit
+remain required before calling the crash fixed in gameplay. Raw dump addresses,
+heap snapshots and the supplied test palette remain local ignored artifacts.
+
+The native redirect-vector destructor also requires its large-buffer allocation
+layout: at 4096 bytes and above, data is 32-byte aligned with the original native
+allocation pointer at data-4 (the recovered offset must fit within 31 bytes).
+Redirect tables now use that layout; scalar condition nodes retain their ordinary
+native allocation. A larger multi-rule table regression checks recoverable
+ownership and restoration across this threshold.
+
+The read-only trace script now constructs UIntPtr from UInt64 explicitly, fixing
+Windows PowerShell 5.1's rejection of a direct Int32-to-UIntPtr cast. The failed
+Valentine trace collected no motion evidence and is not counted as validation.
+
+## Installed cleanup correction (2026-11-26)
+
+The corrected validation DLL was installed with no SkullGirls process running,
+after backing up the previous candidate and verifying both hashes. Installed
+SHA-256: `2B5F588E380CF9AB37D289496592AD0B0CF3DFCDA3EE22A93BFBB99643246F52`.
+The required standalone build and 2,520 compatibility checks, native ownership/
+teardown and large-vector regression, route/entry/service suites, 41 Python tests,
+PowerShell syntax and UIntPtr compatibility checks, and DLL/network-disabled
+inspection passed. The same Valentine test palette remains available locally.
+Repeated user-controlled move/color and Training-exit validation is pending.

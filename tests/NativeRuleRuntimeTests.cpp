@@ -22,9 +22,10 @@ std::string appearanceStatus;
 bool valid=true,failWrite=false,failRefresh=false;
 DWORD base=0x400000;
 DWORD nextAllocation=0x10000;
-int allocations=0;
+int allocations=0,writes=0;
 Bytes Read(DWORD address,size_t size) {Bytes result;for(size_t i=0;i<size;++i)result.push_back(memory.at(address+(DWORD)i));return result;}
 void Write(DWORD address,const Bytes& bytes) {
+    ++writes;
     if(address==0x3000 && failWrite){failWrite=false;memory[address]=0xff;throw std::runtime_error("Injected partial header write");}
     for(size_t i=0;i<bytes.size();++i)memory[address+(DWORD)i]=bytes[i];
 }
@@ -165,13 +166,26 @@ int main(){try {
     }
     Check(rosterChecked.size()==18 && checkedGapOwner,"Roster predicates did not exercise every character and disjoint ranges");
     c.Char_Name="Filia";writeAnimation(entity,20);
+    auto large=CurrentColorAssignment(c,context);large.transformations.clear();
+    for(const auto& move:PaletteData::CharacterMoves())if(move.character=="Filia" && !move.contextual && large.transformations.size()<16) {
+        auto rule=chair;rule.id="large-"+std::to_string(large.transformations.size());rule.moveId=move.id;rule.enabled=true;rule.links.clear();
+        for(int source=1;source<8;++source)rule.links[source]=8;
+        large.transformations.push_back(rule);
+    }
+    CommitColorAssignment(c,context,large);
+    const auto largeData=Word(address),largeSize=Word(address+8)-largeData;
+    Check(largeSize>=4096 && largeData%32==0,"Large native vector does not satisfy teardown alignment");
+    const auto largeOwner=Word(largeData-4);
+    Check(largeData>=largeOwner+4 && largeData-largeOwner-4<=31,"Native teardown cannot recover the original large allocation");
+    large.transformations.clear();CommitColorAssignment(c,context,large);Check(Read(address,12)==original,"Large redirect table failed to restore the native header");
+    c.Char_Name="Filia";writeAnimation(entity,20);
     auto updo=chair;updo.id="updo";updo.enabled=true;updo.moveId="filia/trap-jaw";
     const int beforeUnsupported=allocations;Reject([&]{ApplyTransformation(c,updo);});Check(allocations==beforeUnsupported,"Unsupported context allocated native nodes");
     static auto filiaRoutes=PaletteData::BuildCharacterMoveRoutes("Filia");
     static PaletteData::MoveContextService service;
     static bool observerInstalled=false,failInstall=false;
     moveContextHooks={[](){return true;},[](){return observerInstalled;},[](){if(failInstall){failInstall=false;throw std::runtime_error("Injected install failure");}observerInstalled=true;},[](){observerInstalled=false;},
-        [](){service.Replace(ContextBindings());},[](){service.Replace({});},[](const std::string&)->const PaletteData::MoveRouteTable*{return &filiaRoutes;},nullptr};
+        [](){service.Replace(ContextBindings());},[](){service.Abandon();},[](const std::string&)->const PaletteData::MoveRouteTable*{return &filiaRoutes;},nullptr};
     failInstall=true;Reject([&]{ApplyTransformation(c,updo);});Check(Read(address,12)==original && colorAssignments.empty() && !observerInstalled,"Observer install rollback lost original header");
     ApplyTransformation(c,updo);Check(observerInstalled,"Context observer was not installed");
     const auto& binding=colorAssignments.at(address);Check(binding.contextGates.size()==1,"Context did not allocate exactly one route gate");
@@ -183,16 +197,32 @@ int main(){try {
     PaletteData::MoveContextFrame frame{{root,context.actor,entity,context.palette,ruleGeneration,0},"Filia",0,182,20};
     for(auto [current,previous]:std::vector<std::pair<int,int>>{{182,20},{183,182},{184,183},{185,184},{167,185},{167,167},{168,167}}) {
         frame.animation=current;frame.previous=previous;service.Observe(frame,live,writeGate);
-        const auto& gates=colorAssignments.at(address).contextGates;Check(gates.size()==2,"Independent context gates missing");
-        float a=0,b=0;auto raw=Read((DWORD)gates[0].address,4);memcpy(&a,raw.data(),4);raw=Read((DWORD)gates[1].address,4);memcpy(&b,raw.data(),4);
-        Check(a==0 && b==1,"Shared Fenrir loop activated Updo or lost its route");
+        const auto& gates=colorAssignments.at(address).contextGates;Check(gates.size()==3,"Each redirect range must own its own gate");
+        for(size_t i=0;i<gates.size();++i){float value=0;auto raw=Read((DWORD)gates[i].address,4);memcpy(&value,raw.data(),4);Check(value==(i?1.f:0.f),"Shared Fenrir loop activated Updo or lost its route");}
     }
     const int stableContext=allocations;ApplyTransformation(c,fenrir);Check(allocations==stableContext,"Repeated context Apply allocated native nodes");
     frame.animation=20;frame.previous=168;service.Observe(frame,live,writeGate);
     for(const auto& g:colorAssignments.at(address).contextGates)Check(Word((DWORD)g.address)==0,"Idle retained active move gate");
     ResetTransformation(c,"updo");Check(observerInstalled,"Removing one route removed observer needed by another");
     ResetTransformation(c,"fenrir");Check(!observerInstalled && Read(address,12)==original,"Last context removal failed to restore palette/observer");
-    const auto generation=ruleGeneration;ClearColorAssignments();Check(ruleGeneration!=generation && colorAssignments.empty(),"Match cleanup retained rules");
+    // Reproduce the native teardown ownership requirement: two links and two
+    // ranges require four fully independent graphs, including constant tails.
+    fenrir.links={{1,4},{3,4}};ApplyTransformation(c,fenrir);
+    Check(colorAssignments.at(address).contextGates.size()==4,"Multi-link/range records share a route gate");
+    std::set<DWORD> released;
+    for(DWORD rec=Word(address);rec<Word(address+4);rec+=44) {
+        int chainLength=0;
+        for(DWORD node=Word(rec+12);node;) {
+            Check(++chainLength<=3 && released.insert(node).second,"Native cleanup would double-free a shared condition node");
+            const DWORD next=Word(node+28);for(int byte=0;byte<48;++byte)memory.erase(node+byte);node=next;
+        }
+        Check(chainLength==3,"Context record lost its bounds or constant gate");
+    }
+    Check(released.size()==12,"Teardown did not cover every independent native graph");
+    valid=false;const auto writesBeforeCleanup=writes;
+    const auto generation=ruleGeneration;ClearColorAssignments();
+    Check(ruleGeneration!=generation && colorAssignments.empty() && !observerInstalled,"Match cleanup retained rules/observer");
+    Check(writes==writesBeforeCleanup,"Match cleanup wrote into already released condition memory");
     std::cout<<"Native rule runtime checks passed: independent updates, idempotency, conflicts, partial writes, refresh rollback, reset rollback, restoration and stale identity.\n";
     return 0;
 }catch(const std::exception& error){std::cerr<<error.what()<<"\n";return 1;}}

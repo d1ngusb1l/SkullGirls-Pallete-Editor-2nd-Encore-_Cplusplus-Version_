@@ -183,6 +183,16 @@ inline ColorAssignment CurrentColorAssignment(const Character& c,const Appearanc
     auto saved=originals.find(address); if(saved!=originals.end()) assignment.original=saved->second;
     return assignment;
 }
+inline DWORD AllocateRedirectTable(const Bytes& records) {
+    // Native vector teardown at 0x48903f uses a 32-byte aligned allocation with
+    // its original pointer stored at data-4 for buffers of at least 4096 bytes.
+    const bool large=records.size()>=4096;
+    const DWORD owner=Allocate(records.size()+(large?35:0));
+    if(owner>UINT32_MAX-records.size()-(large?35:0))throw std::runtime_error("Native redirect allocation overflow.");
+    const DWORD data=large?(owner+35)&~DWORD(31):owner;
+    if(large){Bytes prefix(4);Put(prefix,0,owner);Write(data-4,prefix);}
+    Write(data,records);return data;
+}
 inline void CommitColorAssignment(const Character& c,const AppearanceContext& data,const ColorAssignment& assignment) {
     DWORD address=assignment.original.address;
     if(!Valid(assignment.original)) throw std::runtime_error("Match changed; retry in the new match.");
@@ -202,27 +212,23 @@ inline void CommitColorAssignment(const Character& c,const AppearanceContext& da
     if(end<begin || (end-begin)%44 || end-begin>44*1024) throw std::runtime_error("Unsupported native color-link vector.");
     const auto plan=PaletteData::BuildRedirectPlan(Read(begin,end-begin),assignment.staticLinks,assignment.staticMask,rules);
     auto installing=assignment;installing.contextGates.clear();installing.contextTable=nullptr;installing.contextCharacter=c.Char_Name;installing.paletteIndex=c.Current_Pallete_Num;
-    Bytes records;std::map<std::pair<int,int>,DWORD> conditions;std::map<int,DWORD> gates;
+    Bytes records;
     for(auto entry:plan) {
         if(entry.conditionRule>=0) {
-            auto& condition=conditions[{entry.conditionRule,entry.conditionRange}];
-            if(!condition) {
-                const auto& settings=assignment.transformations.at(entry.conditionRule);const auto move=PaletteData::FindCharacterMove(settings.moveId);
-                DWORD gate=0;
-                if(move && move->contextual) {
-                    if(!moveContextHooks.table)throw std::runtime_error("Move context table provider missing.");
-                    if(!installing.contextTable)installing.contextTable=moveContextHooks.table(c.Char_Name);
-                    gate=gates[entry.conditionRule];
-                    if(!gate) {
-                        const int route=installing.contextTable?installing.contextTable->Find(settings.moveId):-1;
-                        if(route<0)throw std::runtime_error("Move is absent from its context table.");
-                        Bytes node(48);float one=1;memcpy(node.data()+20,&one,4);node[24]=1;node[32]=0x13;
-                        gate=Allocate(node.size());Write(gate,node);gates[entry.conditionRule]=gate;
-                        installing.contextGates.push_back({gate+4,route});
-                    }
-                }
-                condition=TransformCondition(c,settings,entry.conditionRange,gate);
+            // The reproduced cleanup crash freed a gate referenced by two
+            // records. Each record must own its complete independent graph.
+            const auto& settings=assignment.transformations.at(entry.conditionRule);const auto move=PaletteData::FindCharacterMove(settings.moveId);
+            DWORD gate=0;
+            if(move && move->contextual) {
+                if(!moveContextHooks.table)throw std::runtime_error("Move context table provider missing.");
+                if(!installing.contextTable)installing.contextTable=moveContextHooks.table(c.Char_Name);
+                const int route=installing.contextTable?installing.contextTable->Find(settings.moveId):-1;
+                if(route<0)throw std::runtime_error("Move is absent from its context table.");
+                Bytes node(48);float one=1;memcpy(node.data()+20,&one,4);node[24]=1;node[32]=0x13;
+                gate=Allocate(node.size());Write(gate,node);
+                installing.contextGates.push_back({gate+4,route});
             }
+            const DWORD condition=TransformCondition(c,settings,entry.conditionRange,gate);
             PaletteData::RedirectPut(entry.bytes.data()+12,condition);entry.bytes[16]=1;
         }
         records.insert(records.end(),entry.bytes.begin(),entry.bytes.end());
@@ -231,7 +237,7 @@ inline void CommitColorAssignment(const Character& c,const AppearanceContext& da
     Bytes header(12);
     if(restoring)header=assignment.original.header;
     else if(!records.empty()) {
-        DWORD memory=Allocate(records.size()); Write(memory,records);
+        DWORD memory=AllocateRedirectTable(records);
         Put(header,0,memory); Put(header,4,memory+(DWORD)records.size()); Put(header,8,memory+(DWORD)records.size());
     }
     const auto previousHeader=Read(address,12);

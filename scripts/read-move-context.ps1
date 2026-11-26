@@ -22,7 +22,7 @@ if($processHandle -eq [IntPtr]::Zero){throw 'Could not open runner read-only.'}
 function Read-Bytes([long]$Address,[int]$Count) {
  if($Address -le 0 -or $Count -lt 1 -or $Count -gt 4096){throw 'Read exceeds diagnostic bounds.'}
  $bytes=[byte[]]::new($Count);$read=[UIntPtr]::Zero
- if(![MoveContextReader]::ReadProcessMemory($processHandle,[IntPtr]$Address,$bytes,[UIntPtr]$Count,[ref]$read) -or $read.ToUInt64() -ne $Count){throw 'Read-only move probe failed.'}
+ if(![MoveContextReader]::ReadProcessMemory($processHandle,[IntPtr]$Address,$bytes,[UIntPtr]::new([uint64]$Count),[ref]$read) -or $read.ToUInt64() -ne $Count){throw 'Read-only move probe failed.'}
  return ,$bytes
 }
 function U32([long]$Address){[BitConverter]::ToUInt32((Read-Bytes $Address 4),0)}
@@ -60,6 +60,6 @@ try {
  $reason=$_.Exception.Message;throw
 } finally {
  [MoveContextReader]::CloseHandle($processHandle) | Out-Null
- $result=@{gameBuild=26588330;pid=$game.Id;readOnly=$true;character=$Character;endReason=$reason;runtimeSupport='Not enabled; history lifetime remains unverified';observations=$observations.ToArray()}
+ $result=@{gameBuild=26588330;pid=$game.Id;readOnly=$true;character=$Character;endReason=$reason;runtimeSupport='Motion evidence only; appearance behavior requires separate validation';observations=$observations.ToArray()}
  $result | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $OutputPath -Encoding utf8
 }

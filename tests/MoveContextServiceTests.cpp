@@ -34,13 +34,18 @@ int main(){try {
     service.Replace({a,b,alternate});p1.animation=203;p1.previous=167;service.Observe(p1,live,write);
     Check(values[0]==0 && values[1]==0 && values[4]==0,"Configuration resync left an old active native gate");
     p1.animation=167;p1.previous=167;service.Observe(p1,live,write);Check(service.Status(0).status==MoveRouteStatus::Unavailable && values[1]==0,"Unknown shared origin did not fail closed");
-    p1.animation=185;p1.previous=184;service.Observe(p1,live,write);headers[0]=headers[2]=false;service.Observe(p1,live,write);
-    Check(service.Status(0).status==MoveRouteStatus::Unavailable && values[1]==0 && values[4]==0 && values[2]==1,"Stale header affected the wrong fighter or remained active");
+    p1.animation=185;p1.previous=184;service.Observe(p1,live,write);headers[0]=headers[2]=false;const auto beforeStale=writes;service.Observe(p1,live,write);
+    Check(service.Status(0).status==MoveRouteStatus::Unavailable && writes==beforeStale && values[2]==1,"Stale header wrote retired gates or affected another fighter");
     headers[0]=headers[2]=true;p1.animation=167;p1.previous=167;service.Observe(p1,live,write);Check(values[1]==0,"Restored header inherited stale route context");
     p1.animation=185;p1.previous=184;service.Observe(p1,live,write);p1.animation=203;p1.previous=185;fail=true;service.Observe(p1,live,write);
     Check(service.Status(0).status==MoveRouteStatus::Unavailable && values[1]==0 && values[4]==0,"Failed gate update was reported active or not retried closed");
     p1.animation=185;p1.previous=184;service.Observe(p1,live,write);++p1.identity.generation;p1.animation=167;p1.previous=167;service.Observe(p1,live,write);Check(values[1]==0,"New match inherited old route");
     service.Invalidate(-1,write);Check(values==std::array<float,5>{0,0,0,0,0},"Global cleanup left native gates active");
+    p1.animation=185;p1.previous=184;service.Observe(p1,live,write);const auto beforeSuspend=writes;service.Suspend();
+    Check(writes==beforeSuspend && service.Status(0).status==MoveRouteStatus::Unavailable,"Suspension wrote potentially retired native gates");
+    p1.animation=20;p1.previous=185;service.Observe(p1,live,write);Check(values[1]==0 && values[4]==0,"Live owner failed to resume and force fresh gate values");
+    const auto beforeAbandon=writes;service.Abandon();headers={false,false,false};service.Observe(p1,live,write);
+    Check(writes==beforeAbandon && !service.HasActor(2,4),"Teardown retained bindings or wrote already freed gates");
     std::cout<<"Move context service tests passed: mirrors, shared loops, palette changes, resync, stale headers, failure closure and allocation/write-free stable updates.\n";
     return 0;
 }catch(const std::exception& error){std::cerr<<error.what()<<"\n";return 1;}}
