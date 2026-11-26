@@ -22,6 +22,10 @@ try {
     if($LASTEXITCODE -ne 0) { throw 'Native rule runtime test build failed.' }
     & (Join-Path $testOutput 'NativeRuleRuntimeTests.exe')
     if($LASTEXITCODE -ne 0) { throw 'Native rule runtime tests failed.' }
+    & $msbuild 'tests/MoveRouteTrackerTests.vcxproj' /p:Configuration=Release /p:Platform=Win32 "/p:OutDir=$testOutput" "/p:IntDir=$repoRoot/build/move-route-test-obj/" /m /v:minimal
+    if($LASTEXITCODE -ne 0) { throw 'Move route tracker test build failed.' }
+    & (Join-Path $testOutput 'MoveRouteTrackerTests.exe')
+    if($LASTEXITCODE -ne 0) { throw 'Move route tracker tests failed.' }
     if($Package) {
         if($Version -notmatch '^\d+\.\d+\.\d+(-[A-Za-z0-9.-]+)?$'){throw 'Invalid package version.'}
         $stage=Join-Path $repoRoot "dist/PaletteEditor-$version"

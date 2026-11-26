@@ -46,3 +46,43 @@ route, a properly synchronized per-actor entry/exit mechanism will be necessary.
 Do not infer an original move from a plausible value or polling trace alone.
 Any implementation must preserve mirror ownership, tag/reset handling, one native
 table owner and allocation-free steady-state operation.
+
+## Controlled comparison and counterexample
+
+The user loaded Filia in Training and performed Updo, then two whiffed Fenrir
+Drive attempts. The read-only trace confirmed these paths with stable actor/entity
+ownership. Updo entered states 161 -> 164 -> 165 -> 166 -> 167 -> 168. Fenrir
+entered 182 -> 183 -> 184 -> 185 -> **167 -> 167 -> 168**. At first entry to 167,
+both history values were 185 (Fenrir_Fall). After the loop repeated, current,
+previous and conditional-history values were all **167**. Landing then had current
+168 and both histories 167, indistinguishable from Updo's landing in isolation.
+
+This is a direct counterexample to using either history operand as a persistent
+original-move ID. Neither candidate is enabled as a standalone route provider.
+The initial capture contained only idle; the repeated capture contains the actual
+Updo observations. Raw evidence remains in ignored `build/filia-context-*.json` and
+logs. No resource field was read and no gameplay value was changed.
+
+## Tracking foundation
+
+`Data/MoveRouteTracker.h` is a pure per-fighter tracker, not yet connected to live
+palette writes. A prebuilt table supplies full memberships and allowed edges.
+Unique phases establish a route; a verified immediate incoming edge can seed a
+shared phase. Repeated shared loops and their shared landing retain the established
+route. Idle/hitstun clear it, and unknown origins or unproven skipped paths report
+Unavailable. Root, actor, entity, palette, slot, table and match-generation changes
+invalidate prior context. Observe/Reset perform no heap allocation.
+
+The required build now runs `MoveRouteTrackerTests`, including the actual observed
+Updo/Fenrir sequences, repeated shared loops, landing, interruption, mirrors, reused
+addresses, unknown origins, contradictory incoming routes, bounds and allocation
+checks. These tests establish the pure state machine, not render synchronization.
+
+Live integration still requires an update boundary before native palette predicate
+evaluation. The existing Direct3D BeginScene wrapper is a candidate; its ordering
+relative to palette updates must be verified. A possible adapter can update only
+editor-owned constant predicate gates when the route changes, retaining native
+animation bounds and the single redirect-table owner. It must never rewrite
+gameplay state, rebuild tables every frame or free renderer-referenced buffers.
+The 15 shared-phase families remain unavailable until that path is implemented
+and tested. Further stance-entry/assist boundary audits also remain in scope.
