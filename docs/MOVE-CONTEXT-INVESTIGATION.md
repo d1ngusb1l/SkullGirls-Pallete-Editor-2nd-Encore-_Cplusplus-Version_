@@ -292,3 +292,31 @@ state 155, followed by shared success 156 and recovery 157. It stopped on match
 change. This supplies a second character's gameplay evidence for preserving move
 origin through shared hit-confirm phases. No newer crash dump appeared. The
 fixture, trace and ownership identifiers remain excluded from source.
+
+## Big Band mirror validation and manual loading (2026-11-26)
+
+The user confirmed Brass Knuckles, Horncrush and the level-five super changed
+colors during their moves, with neither Big Band changing the other fighter.
+The two manually loaded fixtures used different palette numbers and different
+rules. A read-only identity snapshot showed that the actors shared a physical
+palette object, so physical asset identity alone must not enroll another actor.
+
+Changing player two to player one's palette number did not activate player one's
+manually loaded transformation. Explicitly loading the same fixture on both
+players made both work as expected. The user accepted and explicitly requested
+this per-player opt-in behavior: these were manual loads after entering Training,
+not autoload palettes. Matching palette numbers must not implicitly copy or
+activate another player's setup. Existing autoload behavior is a separate path.
+
+A service regression now checks that an unregistered actor using the same
+physical palette and number produces no gate writes and remains unavailable;
+an explicit second binding then activates that actor's own move context. The
+Win32 Release service suite passes. This adds no product behavior or DLL change.
+Big Band tag/assist and Training-exit behavior have not been separately confirmed.
+
+## Black Dahlia and Beowulf gameplay confirmation
+
+The user confirmed that Black Dahlia Counter and Teleport and Beowulf Grab
+Mode Frog Splash and Three Wolf Moonsault work as expected. This confirmation
+does not cover Beowulf Tackle or separately establish interruption, assist,
+or Training-exit behavior for these cases.

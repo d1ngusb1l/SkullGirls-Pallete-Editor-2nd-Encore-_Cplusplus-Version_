@@ -46,6 +46,20 @@ int main(){try {
     p1.animation=20;p1.previous=185;service.Observe(p1,live,write);Check(values[1]==0 && values[4]==0,"Live owner failed to resume and force fresh gate values");
     const auto beforeAbandon=writes;service.Abandon();headers={false,false,false};service.Observe(p1,live,write);
     Check(writes==beforeAbandon && !service.HasActor(2,4),"Teardown retained bindings or wrote already freed gates");
-    std::cout<<"Move context service tests passed: mirrors, shared loops, palette changes, resync, stale headers, failure closure and allocation/write-free stable updates.\n";
+    // A manual load enrolls its actor only, even when another fighter uses the
+    // same physical palette and palette number.
+    headers={true,true,true};service.Replace({a});
+    auto unregistered=p2;unregistered.identity.palette=a.palette;
+    unregistered.paletteIndex=a.paletteIndex;unregistered.animation=185;unregistered.previous=184;
+    const auto beforeUnregistered=writes;service.Observe(unregistered,live,write);
+    Check(!service.HasActor(b.actor,a.palette) && writes==beforeUnregistered &&
+        service.Status(b.slot).status==MoveRouteStatus::Unavailable,
+        "Matching palette implicitly enrolled a fighter without a manual load");
+    auto explicitMirror=b;explicitMirror.palette=a.palette;explicitMirror.paletteIndex=a.paletteIndex;
+    service.Replace({a,explicitMirror});service.Observe(unregistered,live,write);
+    Check(service.HasActor(b.actor,a.palette) && values[2]==0 && values[3]==1,
+        "Explicit mirror load failed to enroll its independent move context");
+    service.Abandon();
+    std::cout<<"Move context service tests passed: explicit per-player loading, mirrors, shared loops, palette changes, resync, stale headers, failure closure and allocation/write-free stable updates.\n";
     return 0;
 }catch(const std::exception& error){std::cerr<<error.what()<<"\n";return 1;}}
